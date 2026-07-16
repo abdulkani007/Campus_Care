@@ -1,0 +1,48 @@
+/* src/components/ScrollVelocity.css */
+
+.scroll-velocity-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.85rem 0;
+  box-sizing: border-box;
+}
+
+.parallax {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  display: flex;
+}
+
+.scroller {
+  display: flex;
+  white-space: nowrap;
+  text-align: center;
+  font-family: 'Poppins', sans-serif;
+  letter-spacing: -0.01em;
+  will-change: transform;
+}
+
+.scroller span {
+  flex-shrink: 0;
+  display: inline-block; /* Force inline-block to read width accurately */
+}
+
+/* Custom class to override size inside small panels */
+.custom-scroll-text {
+  font-family: 'Poppins', sans-serif;
+  font-size: 1.25rem; /* Slightly larger, matching user screenshot */
+  font-weight: 600;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.25rem 0;
+}
+
+@media (max-width: 768px) {
+  .custom-scroll-text {
+    font-size: 0.95rem;
+  }
+}
