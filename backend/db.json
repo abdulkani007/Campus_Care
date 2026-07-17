@@ -1,0 +1,101 @@
+{
+  "students": [
+    {
+      "name": "Abbu",
+      "email": "abdulkani.b2024it@sece.ac.in",
+      "rollNo": "24IT002",
+      "phoneNo": "8072924468",
+      "roomNo": "402-B",
+      "block": "D2",
+      "password": "abbu007"
+    },
+    {
+      "name": "sri",
+      "email": "sri@gmail.com",
+      "rollNo": "456979",
+      "phoneNo": "1234567890",
+      "roomNo": "444",
+      "block": "s",
+      "password": "12345"
+    },
+    {
+      "name": "Arun Kumar",
+      "email": "student@gmail.com",
+      "rollNo": "2021CS101",
+      "phoneNo": "9876543210",
+      "roomNo": "305",
+      "block": "C",
+      "password": "student123"
+    }
+  ],
+  "complaints": [
+    {
+      "id": 1784260763895,
+      "title": "eeee",
+      "location": "adad",
+      "status": "Open",
+      "time": "Just now",
+      "priority": "Medium",
+      "category": "Electrical",
+      "description": "asd"
+    },
+    {
+      "id": 1784259991098,
+      "title": "aaa",
+      "location": "234",
+      "status": "Open",
+      "time": "Just now",
+      "priority": "Medium",
+      "category": "Electrical",
+      "description": "fsdfvd"
+    },
+    {
+      "id": 1784219602456,
+      "title": "fan is not working",
+      "location": "Room 402-B",
+      "status": "Open",
+      "time": "Just now",
+      "priority": "Medium",
+      "category": "Electrical",
+      "description": "form two days it is not working"
+    }
+  ],
+  "announcements": [],
+  "messages": [
+    {
+      "id": 1784219622282,
+      "sender": "student",
+      "text": "helo sir ",
+      "time": "10:03 PM"
+    },
+    {
+      "id": 1784219653474,
+      "sender": "warden",
+      "text": "yes ",
+      "time": "10:04 PM"
+    }
+  ],
+  "workers": [],
+  "wardens": [
+    {
+      "name": "Warden Console",
+      "email": "warden@gmail.com",
+      "rollNo": "EMP-001",
+      "phoneNo": "9999999999",
+      "roomNo": "Office-A",
+      "block": "Main",
+      "password": "warden123"
+    }
+  ],
+  "management": [
+    {
+      "name": "Dr. R. Krishnan",
+      "email": "managemant@gmail.com",
+      "rollNo": "MGT-101",
+      "phoneNo": "9876543222",
+      "roomNo": "Admin-101",
+      "block": "Main",
+      "password": "management123"
+    }
+  ]
+}

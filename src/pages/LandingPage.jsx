@@ -2,6 +2,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import RotatingText from '../components/RotatingText';
 import ScrollVelocity from '../components/ScrollVelocity';
+import SpecularButton from '../components/SpecularButton';
+import Shuffle from '../components/Shuffle';
+import BlurText from '../components/BlurText';
 import '../styles/LandingPage.css';
 
 // Import assets
@@ -132,9 +135,18 @@ const LandingPage = ({ onLoginClick }) => {
               </li>
             </ul>
 
-            <button className="login-nav-btn" onClick={onLoginClick}>
+            <SpecularButton
+              size="md"
+              radius={8}
+              tint="#f8b400"
+              tintOpacity={1}
+              textColor="#1e293b"
+              lineColor="#ffffff"
+              baseColor="#e0a300"
+              onClick={onLoginClick}
+            >
               Portal Login
-            </button>
+            </SpecularButton>
           </div>
         </div>
       </header>
@@ -155,24 +167,56 @@ const LandingPage = ({ onLoginClick }) => {
 
         <div className="hero-content">
           <span className="hero-badge">AI-Powered Hostel Operations</span>
-          <h2 className="hero-title">
-            Streamlining Hostel Operations with <span>Intelligence</span>
-          </h2>
-          <p className="hero-desc">
-            Campus Care digitizes the hostel complaint management lifecycle. Empowering students,
-            wardens, and maintenance teams with real-time status tracking, auto-duplicate groupings,
-            and seamless communication.
-          </p>
+          <Shuffle
+            text="Streamlining Hostel Operations with Intelligence"
+            tag="h2"
+            className="hero-title"
+            shuffleDirection="down"
+            duration={0.6}
+            animationMode="random"
+            maxDelay={0.25}
+            shuffleTimes={3}
+            ease="power2.out"
+            threshold={0.1}
+            triggerOnce={true}
+            triggerOnHover={true}
+          />
+          <BlurText
+            text="Campus Care digitizes the hostel complaint management lifecycle. Empowering students, wardens, and maintenance teams with real-time status tracking, auto-duplicate groupings, and seamless communication."
+            className="hero-desc"
+            delay={35}
+            animateBy="words"
+            direction="bottom"
+            threshold={0.15}
+            stepDuration={0.45}
+          />
           <div className="hero-actions">
-            <button className="primary-hero-btn" onClick={onLoginClick}>
+            <SpecularButton
+              size="lg"
+              radius={8}
+              tint="#f8b400"
+              tintOpacity={1}
+              textColor="#1e293b"
+              lineColor="#ffffff"
+              baseColor="#e0a300"
+              onClick={onLoginClick}
+              className="primary-hero-btn"
+            >
               Access Student Portal ➔
-            </button>
-            <button
-              className="secondary-hero-btn"
+            </SpecularButton>
+            <SpecularButton
+              size="lg"
+              radius={8}
+              tint="rgba(255,255,255,0.08)"
+              tintOpacity={1}
+              textColor="#ffffff"
+              lineColor="#ffffff"
+              baseColor="rgba(255,255,255,0.2)"
               onClick={() => scrollToSection(featuresRef, 'features')}
+              className="secondary-hero-btn"
             >
               Explore Features
-            </button>
+            </SpecularButton>
           </div>
         </div>
       </section>

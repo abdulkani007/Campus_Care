@@ -6,7 +6,7 @@ html, body {
   height: 100%;
   overflow-x: hidden;
   background-color: #0f172a; /* Fallback slate color */
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Arvo', 'Roboto Slab', serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

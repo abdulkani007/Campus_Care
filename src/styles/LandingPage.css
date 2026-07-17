@@ -5,7 +5,7 @@
   width: 100vw;
   background-color: #f4f7fa;
   color: #1e293b;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Arvo', 'Roboto Slab', serif;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
@@ -127,7 +127,7 @@
   padding: 1rem 1.5rem;
   font-size: 0.85rem;
   font-weight: 600;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Arvo', 'Roboto Slab', serif;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   cursor: pointer;
@@ -152,7 +152,7 @@
   padding: 1rem 2rem;
   font-size: 0.85rem;
   font-weight: 700;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Arvo', 'Roboto Slab', serif;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   cursor: pointer;

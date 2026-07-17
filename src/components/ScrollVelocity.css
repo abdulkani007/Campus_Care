@@ -20,7 +20,7 @@
   display: flex;
   white-space: nowrap;
   text-align: center;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Arvo', 'Roboto Slab', serif;
   letter-spacing: -0.01em;
   will-change: transform;
 }
@@ -32,7 +32,7 @@
 
 /* Custom class to override size inside small panels */
 .custom-scroll-text {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Arvo', 'Roboto Slab', serif;
   font-size: 1.25rem; /* Slightly larger, matching user screenshot */
   font-weight: 600;
   color: #ffffff;

@@ -1,0 +1,16 @@
+{
+  "name": "campuscare-backend",
+  "version": "1.0.0",
+  "description": "Backend API for CampusCare Student Dashboard",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.21.2",
+    "mongoose": "^9.7.4"
+  }
+}
