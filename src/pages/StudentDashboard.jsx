@@ -1,6 +1,7 @@
 // src/pages/StudentDashboard.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import SpecularButton from '../components/SpecularButton';
+import EventBannerCard from '../components/EventBannerCard';
 import '../styles/StudentDashboard.css';
 import logo from '../assets/CC.png';
 
@@ -131,7 +132,7 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const complaintsRes = await fetch('/api/complaints');
+        const complaintsRes = await fetch(`/api/complaints?userEmail=${encodeURIComponent(profile.email)}&userRole=student`);
         const announcementsRes = await fetch('/api/announcements');
         const messagesRes = await fetch(`/api/messages?studentEmail=${encodeURIComponent(profile.email)}`);
         const bannerRes = await fetch('/api/event-banner');
@@ -683,41 +684,7 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
             <div className="dashboard-grid-layout">
               
               {/* Event Banner for Students */}
-              {eventBanner && eventBanner.title && eventBanner.active && (
-                <div style={{ 
-                  background: 'linear-gradient(135deg, #1e1b4b 0%, #311042 100%)', 
-                  borderRadius: '12px', 
-                  padding: '1.5rem', 
-                  marginBottom: '1.5rem', 
-                  color: '#fff', 
-                  position: 'relative',
-                  overflow: 'hidden',
-                  gridColumn: '1 / -1',
-                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
-                }}>
-                  {eventBanner.bannerImage && (
-                    <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '45%', opacity: 0.2 }}>
-                      <img src={eventBanner.bannerImage} alt="Event Banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    </div>
-                  )}
-                  <div style={{ position: 'relative', zIndex: 2 }}>
-                    <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', backgroundColor: '#e11d48', padding: '0.25rem 0.5rem', borderRadius: '4px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                      <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
-                      </svg>
-                      Hostel Event Announcement
-                    </span>
-                    <h3 style={{ fontSize: '1.75rem', margin: '0.5rem 0 0.25rem', color: '#fff', fontWeight: 800 }}>{eventBanner.title}</h3>
-                    <p style={{ margin: '0.25rem 0 1rem', fontSize: '0.95rem', color: '#cbd5e1', maxWidth: '60%' }}>{eventBanner.description}</p>
-                    <div style={{ fontSize: '0.9rem', color: '#fda4af', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                      </svg>
-                      Scheduled: {eventBanner.date || 'To be announced'}
-                    </div>
-                  </div>
-                </div>
-              )}
+              <EventBannerCard banner={eventBanner} />
 
               {/* STAT CARDS BANNER ROW */}
               <div className="stat-cards-bar-card">
@@ -1075,9 +1042,16 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
                         borderLeft: ann.important ? '4px solid #ef4444' : '4px solid #3b82f6'
                       }}>
                         <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.35rem' }}>
                             <span className="ann-date" style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{ann.date}</span>
-                            {ann.important && <span className="important-tag" style={{ margin: 0, padding: '0.15rem 0.4rem', fontSize: '0.75rem' }}>Urgent</span>}
+                            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                              {ann.postedBy === 'Management' && (
+                                <span style={{ fontSize: '0.75rem', padding: '0.15rem 0.55rem', backgroundColor: '#2563eb', color: '#fff', borderRadius: '9999px', fontWeight: 700 }}>
+                                  📢 Announcement from Management
+                                </span>
+                              )}
+                              {ann.important && <span className="important-tag" style={{ margin: 0, padding: '0.15rem 0.4rem', fontSize: '0.75rem' }}>Urgent</span>}
+                            </div>
                           </div>
                           
                           <h4 style={{ margin: '0.25rem 0 0.5rem', fontSize: '1.1rem', color: '#0f172a', fontWeight: 700 }}>

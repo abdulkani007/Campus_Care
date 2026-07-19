@@ -1,6 +1,8 @@
 // src/pages/WardenDashboard.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import SpecularButton from '../components/SpecularButton';
+import EventBannerCard from '../components/EventBannerCard';
+import { DynamicTrendsChart, DynamicCategoryBars } from '../components/DynamicComplaintCharts';
 import '../styles/WardenDashboard.css';
 import logo from '../assets/CC.png';
 
@@ -10,12 +12,12 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
   
   // Profile state prefilled with Warden details
   const [profile, setProfile] = useState({
-    name: user?.name || 'Warden Console',
-    email: user?.email || 'warden@gmail.com',
-    rollNo: user?.rollNo || 'EMP-001',
-    phoneNo: user?.phoneNo || '9999999999',
-    roomNo: user?.roomNo || 'Office-A',
-    block: user?.block || 'Main',
+    name: user?.name || 'Head Warden',
+    email: user?.email || 'headwarden@campuscare.com',
+    rollNo: user?.rollNo || 'EMP-HEAD',
+    phoneNo: user?.phoneNo || '9876543215',
+    roomNo: user?.roomNo || 'Head-Office',
+    block: user?.block || 'A, B, C, D, E, F',
     profilePhoto: user?.profilePhoto || null
   });
 
@@ -94,20 +96,37 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [selectedFeedbackResponses, setSelectedFeedbackResponses] = useState([]);
   const [showResponsesModal, setShowResponsesModal] = useState(false);
 
+  // Management Messages states
+  const [managementMessages, setManagementMessages] = useState([]);
+  const [mgtMsgText, setMgtMsgText] = useState('');
+
+  // Wardens Management states (for Head Warden)
+  const [wardensList, setWardensList] = useState([]);
+  const [selectedWardenChat, setSelectedWardenChat] = useState(null);
+  const [wardenMessages, setWardenMessages] = useState([]);
+  const [wardenMsgText, setWardenMsgText] = useState('');
+  const [searchWardenQuery, setSearchWardenQuery] = useState('');
+
   // Fetch all data from API on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const complaintsRes = await fetch('/api/complaints');
+        const complaintsRes = await fetch(`/api/complaints?userEmail=${encodeURIComponent(user?.email || profile.email)}&userRole=${encodeURIComponent(user?.role || 'warden')}`);
         const announcementsRes = await fetch('/api/announcements');
         const workersRes = await fetch('/api/workers');
-        const messagesRes = await fetch('/api/messages');
-        const residentsRes = await fetch('/api/students');
+        const messagesRes = await fetch(`/api/messages?userEmail=${encodeURIComponent(user?.email || profile.email)}&userRole=${encodeURIComponent(user?.role || 'warden')}`);
+        const residentsRes = await fetch(`/api/students?userEmail=${encodeURIComponent(user?.email || profile.email)}&userRole=${encodeURIComponent(user?.role || 'warden')}`);
         const bannerRes = await fetch('/api/event-banner');
+        const mgtMessagesRes = await fetch(`/api/messages?studentEmail=${encodeURIComponent(user?.email || profile.email)}`);
+        const wardensRes = await fetch('/api/wardens');
         
         if (complaintsRes.ok) {
           const complaintsData = await complaintsRes.json();
           setComplaints(complaintsData);
+        }
+        if (wardensRes.ok) {
+          const wardensData = await wardensRes.json();
+          setWardensList(wardensData);
         }
         if (announcementsRes.ok) {
           const announcementsData = await announcementsRes.json();
@@ -131,6 +150,10 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
             setEventBanner(bannerData);
           }
         }
+        if (mgtMessagesRes.ok) {
+          const mgtData = await mgtMessagesRes.json();
+          setManagementMessages(mgtData);
+        }
 
         const feedbackReqRes = await fetch('/api/feedback-requests');
         if (feedbackReqRes.ok) {
@@ -143,7 +166,84 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
     };
     
     fetchData();
-  }, []);
+  }, [user?.email, user?.role, profile.email]);
+
+  const handleSendManagementReply = async (e) => {
+    e.preventDefault();
+    if (!mgtMsgText.trim()) return;
+
+    try {
+      const email = user?.email || profile.email || 'dwarden@campuscare.com';
+      const name = user?.name || profile.name || 'Block Warden';
+      const block = user?.block || profile.block || 'Main';
+
+      const res = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: mgtMsgText,
+          sender: 'warden',
+          studentEmail: email,
+          studentName: name,
+          studentBlock: block
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setManagementMessages(prev => [...prev, data.message || data]);
+        setMgtMsgText('');
+      }
+    } catch (err) {
+      console.error('Error replying to management:', err);
+    }
+  };
+
+  // Fetch direct messages when Head Warden selects a warden chat
+  useEffect(() => {
+    if (selectedWardenChat) {
+      const fetchWardenChat = async () => {
+        try {
+          const res = await fetch(`/api/messages?studentEmail=${encodeURIComponent(selectedWardenChat.email)}`);
+          if (res.ok) {
+            const msgs = await res.json();
+            setWardenMessages(msgs);
+          }
+        } catch (err) {
+          console.error('Error fetching warden messages:', err);
+        }
+      };
+      fetchWardenChat();
+    }
+  }, [selectedWardenChat]);
+
+  // Head Warden sends message to Block Warden
+  const handleSendWardenDirectMessage = async (e) => {
+    e.preventDefault();
+    if (!wardenMsgText.trim() || !selectedWardenChat) return;
+
+    try {
+      const res = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: wardenMsgText,
+          sender: 'headwarden',
+          studentEmail: selectedWardenChat.email,
+          studentName: selectedWardenChat.name,
+          studentBlock: Array.isArray(selectedWardenChat.blocks) ? selectedWardenChat.blocks.join(', ') : (selectedWardenChat.block || 'Main')
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setWardenMessages(prev => [...prev, data.message || data]);
+        setWardenMsgText('');
+      }
+    } catch (err) {
+      console.error('Error sending message to warden:', err);
+    }
+  };
 
   useEffect(() => {
     if (residents.length > 0 && !selectedResidentEmail) {
@@ -976,11 +1076,24 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
                 </svg>
               )},
-              { name: 'Messages', icon: (
+              ...( (user?.role === 'headwarden' || profile?.role === 'headwarden') ? [
+                { name: 'Wardens', icon: (
+                  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                )}
+              ] : [
+                { name: 'Messages', icon: (
+                  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                ), badge: chatMessages.filter(m => m.sender === 'student' && !m.read).length > 0 ? chatMessages.filter(m => m.sender === 'student' && !m.read).length : null }
+              ]),
+              { name: 'Management Messages', icon: (
                 <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1" />
                 </svg>
-              ), badge: chatMessages.filter(m => m.sender === 'student' && !m.read).length > 0 ? chatMessages.filter(m => m.sender === 'student' && !m.read).length : null },
+              ), badge: managementMessages.filter(m => m.sender === 'management').length > 0 ? managementMessages.filter(m => m.sender === 'management').length : null },
               { name: 'Feedback', icon: (
                 <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -1127,134 +1240,28 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
               <div className="dashboard-grid-row-2">
                 
                 {/* 1. Complaints Overview Graph */}
-                <div className="grid-card col-45 relative">
-                  <div className="card-header">
+                <div className="grid-card col-45 relative" style={{ padding: '1.25rem' }}>
+                  <div className="card-header" style={{ padding: '0 0 1rem 0', marginBottom: '0.5rem' }}>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span className="card-title">Complaints Overview</span>
-                      <span className="card-subtitle">Active and resolved ticket trends</span>
+                      <span className="card-title" style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Complaints Overview</span>
+                      <span className="card-subtitle" style={{ fontSize: '0.8rem', color: '#64748b' }}>Real-time active and resolved ticket trends</span>
                     </div>
-                    <span className="card-badge-header">This Month</span>
+                    <span className="card-badge-header" style={{ backgroundColor: '#eff6ff', color: '#2563eb', padding: '0.25rem 0.65rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>Live Data</span>
                   </div>
                   
-                  <div className="chart-wrapper">
-                    {/* SVG Curve Chart */}
-                    <svg viewBox="0 0 400 180" className="chart-svg">
-                      <defs>
-                        <linearGradient id="areaGradActive" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#2563eb" stopOpacity="0.25"/>
-                          <stop offset="100%" stopColor="#2563eb" stopOpacity="0.00"/>
-                        </linearGradient>
-                        <linearGradient id="areaGradResolved" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#10b981" stopOpacity="0.18"/>
-                          <stop offset="100%" stopColor="#10b981" stopOpacity="0.00"/>
-                        </linearGradient>
-                      </defs>
-
-                      {/* Grid Lines */}
-                      <line x1="40" y1="30" x2="380" y2="30" stroke="#f1f5f9" strokeWidth="1" />
-                      <line x1="40" y1="70" x2="380" y2="70" stroke="#f1f5f9" strokeWidth="1" />
-                      <line x1="40" y1="110" x2="380" y2="110" stroke="#f1f5f9" strokeWidth="1" />
-                      <line x1="40" y1="150" x2="380" y2="150" stroke="#e2e8f0" strokeWidth="1.5" />
-
-                      {/* X Axis Labels */}
-                      <text x="40" y="168" className="axis-text">1 May</text>
-                      <text x="125" y="168" className="axis-text">8 May</text>
-                      <text x="210" y="168" className="axis-text">15 May</text>
-                      <text x="295" y="168" className="axis-text">22 May</text>
-                      <text x="380" y="168" className="axis-text" textAnchor="end">29 May</text>
-
-                      {/* Y Axis Labels */}
-                      <text x="25" y="34" className="axis-text" textAnchor="end">80</text>
-                      <text x="25" y="74" className="axis-text" textAnchor="end">40</text>
-                      <text x="25" y="114" className="axis-text" textAnchor="end">20</text>
-                      <text x="25" y="154" className="axis-text" textAnchor="end">0</text>
-
-                      {/* Line 1: Active Complaints */}
-                      <path
-                        d="M 40 120 C 60 100, 70 60, 90 85 C 110 110, 130 90, 150 55 C 170 20, 190 70, 210 80 C 230 90, 250 110, 270 70 C 290 30, 310 40, 330 30 C 350 20, 360 80, 380 60 L 380 150 L 40 150 Z"
-                        fill="url(#areaGradActive)"
-                      />
-                      <path
-                        d="M 40 120 C 60 100, 70 60, 90 85 C 110 110, 130 90, 150 55 C 170 20, 190 70, 210 80 C 230 90, 250 110, 270 70 C 290 30, 310 40, 330 30 C 350 20, 360 80, 380 60"
-                        fill="none"
-                        stroke="#2563eb"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                      />
-
-                      {/* Line 2: Resolved Complaints */}
-                      <path
-                        d="M 40 140 C 60 130, 80 120, 100 110 C 120 100, 140 130, 160 120 C 180 110, 200 90, 220 95 C 240 100, 260 115, 280 105 C 300 95, 320 80, 340 90 C 360 100, 370 125, 380 115 L 380 150 L 40 150 Z"
-                        fill="url(#areaGradResolved)"
-                      />
-                      <path
-                        d="M 40 140 C 60 130, 80 120, 100 110 C 120 100, 140 130, 160 120 C 180 110, 200 90, 220 95 C 240 100, 260 115, 280 105 C 300 95, 320 80, 340 90 C 360 100, 370 125, 380 115"
-                        fill="none"
-                        stroke="#10b981"
-                        strokeWidth="2"
-                        strokeDasharray="4 3"
-                        strokeLinecap="round"
-                      />
-
-                      {/* Interactive Hover Dots */}
-                      <circle cx="150" cy="55" r="5" fill="#2563eb" stroke="#ffffff" strokeWidth="2" className="chart-dot"
-                        onMouseEnter={(e) => setChartTooltip({ x: e.clientX - 100, y: e.clientY - 220, label: '15 May - Active: 62' })}
-                        onMouseLeave={() => setChartTooltip(null)}
-                      />
-                      <circle cx="330" cy="30" r="5" fill="#2563eb" stroke="#ffffff" strokeWidth="2" className="chart-dot"
-                        onMouseEnter={(e) => setChartTooltip({ x: e.clientX - 100, y: e.clientY - 220, label: '26 May - Active: 74' })}
-                        onMouseLeave={() => setChartTooltip(null)}
-                      />
-                    </svg>
-                    
-                    {chartTooltip && (
-                      <div className="chart-tooltip" style={{ left: chartTooltip.x, top: chartTooltip.y }}>
-                        {chartTooltip.label}
-                      </div>
-                    )}
+                  <div className="chart-wrapper" style={{ padding: '0.5rem 0' }}>
+                    <DynamicTrendsChart complaints={complaints} />
                   </div>
                 </div>
 
                 {/* 2. Complaints by Category */}
-                <div className="grid-card col-28">
-                  <div className="card-header">
-                    <span className="card-title">Complaints by Category</span>
+                <div className="grid-card col-28" style={{ padding: '1.25rem' }}>
+                  <div className="card-header" style={{ padding: '0 0 1rem 0', marginBottom: '0.5rem' }}>
+                    <span className="card-title" style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Complaints by Category</span>
                   </div>
 
-                  <div className="category-list-wrapper">
-                    {(() => {
-                      const totalCount = complaints.length;
-                      const categoriesConfig = [
-                        { name: 'Electrical', color: '#2563eb' },
-                        { name: 'Plumbing', color: '#3b82f6' },
-                        { name: 'Water Supply', color: '#f59e0b' },
-                        { name: 'Internet', color: '#ec4899' },
-                        { name: 'Cleaning', color: '#06b6d4' },
-                        { name: 'Food', color: '#10b981' },
-                        { name: 'Others', color: '#64748b' }
-                      ];
-
-                      return categoriesConfig.map((config) => {
-                        const count = complaints.filter(c => c.category === config.name).length;
-                        const pctVal = totalCount > 0 ? (count / totalCount * 100).toFixed(1) : 0;
-                        const pctStr = `${pctVal}%`;
-
-                        return (
-                          <div key={config.name} className="cat-row">
-                            <div className="cat-info">
-                              <span className="cat-name">{config.name}</span>
-                              <span className="cat-values">{count} ({pctStr})</span>
-                            </div>
-                            <div className="progress-bar-bg">
-                              <div 
-                                className="progress-bar-fill" 
-                                style={{ width: pctStr, backgroundColor: config.color }}
-                              ></div>
-                            </div>
-                          </div>
-                        );
-                      });
-                    })()}
+                  <div className="category-list-wrapper" style={{ padding: '0.25rem 0' }}>
+                    <DynamicCategoryBars complaints={complaints} />
                   </div>
                 </div>
 
@@ -1784,127 +1791,132 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 </div>
               </div>
 
-              {/* Event Banner Preview/Control for Warden */}
+              {/* Event Banner Control Bar & Preview for Warden */}
               {eventBanner && eventBanner.title && (
-                <div style={{ 
-                  background: eventBanner.active 
-                    ? 'linear-gradient(135deg, #1e1b4b 0%, #311042 100%)' 
-                    : 'linear-gradient(135deg, #334155 0%, #1e293b 100%)', 
-                  borderRadius: '12px', 
-                  padding: '1.5rem', 
-                  marginBottom: '1.5rem', 
-                  color: '#fff', 
-                  position: 'relative',
-                  overflow: 'hidden',
-                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
-                  border: eventBanner.active ? 'none' : '1px dashed #64748b'
-                }}>
-                  {eventBanner.bannerImage && (
-                    <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '40%', opacity: 0.15 }}>
-                      <img src={eventBanner.bannerImage} alt="Event" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    </div>
-                  )}
-                  <div style={{ position: 'relative', zIndex: 2 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <div style={{ marginBottom: '1.75rem', filter: eventBanner.active ? 'none' : 'grayscale(0.4) opacity(0.85)', transition: 'all 0.3s' }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    justify: 'space-between', 
+                    alignItems: 'center', 
+                    padding: '0.85rem 1.25rem', 
+                    backgroundColor: '#0f172a', 
+                    borderRadius: '16px 16px 0 0', 
+                    border: '1px solid rgba(168, 85, 247, 0.3)',
+                    borderBottom: 'none',
+                    boxShadow: '0 4px 12px rgba(15, 23, 42, 0.3)'
+                  }}>
+                    {/* Left: Active Live Status Badge */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                       <span style={{ 
                         fontSize: '0.75rem', 
                         textTransform: 'uppercase', 
-                        letterSpacing: '0.1em', 
-                        backgroundColor: eventBanner.active ? '#e11d48' : '#64748b', 
-                        padding: '0.25rem 0.5rem', 
-                        borderRadius: '4px', 
-                        fontWeight: 'bold' 
+                        letterSpacing: '0.08em', 
+                        backgroundColor: eventBanner.active ? 'rgba(225, 29, 72, 0.2)' : 'rgba(100, 116, 139, 0.2)', 
+                        border: eventBanner.active ? '1px solid rgba(244, 63, 94, 0.5)' : '1px solid rgba(100, 116, 139, 0.4)',
+                        padding: '0.35rem 0.75rem', 
+                        borderRadius: '9999px', 
+                        color: eventBanner.active ? '#f43f5e' : '#94a3b8',
+                        fontWeight: '700',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.4rem'
                       }}>
-                        {eventBanner.active ? 'Active Live Event Banner' : 'Inactive (Hidden from Students)'}
+                        <span style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor: eventBanner.active ? '#f43f5e' : '#64748b',
+                          boxShadow: eventBanner.active ? '0 0 8px #f43f5e' : 'none'
+                        }}></span>
+                        {eventBanner.active ? 'Active Live Event Banner' : 'Banner Inactive (Hidden from Students)'}
                       </span>
+                    </div>
+
+                    {/* Right: Real Toggle Switch + Delete Button */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
                       
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        {/* Active Status Quick Toggle */}
-                        <button 
-                          onClick={async () => {
-                            try {
-                              const updatedActive = !eventBanner.active;
-                              const res = await fetch('/api/event-banner', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ ...eventBanner, active: updatedActive })
-                              });
-                              if (res.ok) {
-                                const data = await res.json();
-                                setEventBanner(data.banner);
-                              }
-                            } catch (err) {
-                              console.error(err);
+                      {/* Real Toggle Switch */}
+                      <div 
+                        onClick={async () => {
+                          try {
+                            const updatedActive = !eventBanner.active;
+                            const res = await fetch('/api/event-banner', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ ...eventBanner, active: updatedActive })
+                            });
+                            if (res.ok) {
+                              const data = await res.json();
+                              setEventBanner(data.banner);
                             }
-                          }}
-                          style={{
-                            backgroundColor: eventBanner.active ? '#ef4444' : '#10b981',
-                            color: '#fff',
-                            border: 'none',
-                            padding: '0.35rem 0.75rem',
-                            borderRadius: '6px',
-                            fontSize: '0.8rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.35rem',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                          }}
-                        >
-                          {eventBanner.active ? (
-                            <>
-                              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-                              </svg>
-                              Turn Banner Off
-                            </>
-                          ) : (
-                            <>
-                              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.43 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              </svg>
-                              Turn Banner On
-                            </>
-                          )}
-                        </button>
-
-                        {/* Delete Banner Button */}
-                        <button 
-                          onClick={handleDeleteEventBanner}
-                          style={{
-                            backgroundColor: '#fee2e2',
-                            color: '#ef4444',
-                            border: 'none',
-                            padding: '0.35rem 0.75rem',
-                            borderRadius: '6px',
-                            fontSize: '0.8rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.35rem',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                          }}
-                          title="Delete banner permanently"
-                        >
-                          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                          Delete Banner
-                        </button>
+                          } catch (err) {
+                            console.error(err);
+                          }
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.65rem',
+                          cursor: 'pointer',
+                          userSelect: 'none'
+                        }}
+                        title={eventBanner.active ? "Click to turn banner OFF" : "Click to turn banner ON"}
+                      >
+                        <span style={{ fontSize: '0.82rem', fontWeight: 650, color: eventBanner.active ? '#34d399' : '#94a3b8' }}>
+                          {eventBanner.active ? 'LIVE ON' : 'OFF'}
+                        </span>
+                        <div style={{
+                          width: '48px',
+                          height: '26px',
+                          borderRadius: '9999px',
+                          backgroundColor: eventBanner.active ? '#10b981' : '#475569',
+                          padding: '2px',
+                          transition: 'background-color 0.25s ease',
+                          display: 'flex',
+                          alignItems: 'center',
+                          boxShadow: eventBanner.active ? '0 0 12px rgba(16, 185, 129, 0.4)' : 'inset 0 2px 4px rgba(0,0,0,0.3)'
+                        }}>
+                          <div style={{
+                            width: '22px',
+                            height: '22px',
+                            borderRadius: '50%',
+                            backgroundColor: '#ffffff',
+                            boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
+                            transform: eventBanner.active ? 'translateX(22px)' : 'translateX(0px)',
+                            transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
+                          }}></div>
+                        </div>
                       </div>
-                    </div>
 
-                    <h3 style={{ fontSize: '1.75rem', margin: '0.5rem 0 0.25rem', color: '#fff', fontWeight: 800 }}>{eventBanner.title}</h3>
-                    <p style={{ margin: '0.25rem 0 1rem', fontSize: '0.9rem', color: '#cbd5e1', maxWidth: '60%' }}>{eventBanner.description}</p>
-                    <div style={{ fontSize: '0.85rem', color: '#fda4af', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                      </svg>
-                      Event Date: {eventBanner.date || 'To be announced'}
+                      {/* Delete Banner Button */}
+                      <button 
+                        onClick={handleDeleteEventBanner}
+                        style={{
+                          backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                          color: '#f87171',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          padding: '0.35rem 0.85rem',
+                          borderRadius: '8px',
+                          fontSize: '0.8rem',
+                          fontWeight: 650,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.4rem',
+                          transition: 'all 0.2s'
+                        }}
+                        title="Delete banner permanently"
+                      >
+                        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Delete
+                      </button>
                     </div>
+                  </div>
+
+                  <div style={{ marginTop: '-1px' }}>
+                    <EventBannerCard banner={eventBanner} />
                   </div>
                 </div>
               )}
@@ -1982,12 +1994,12 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
 
           {/* TAB 8: MESSAGES */}
           {activeTab === 'Messages' && (
-            <div className="tab-focused-view" style={{ height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
+            <div className="tab-focused-view" style={{ height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column', width: '100%' }}>
               <div className="section-header" style={{ marginBottom: '1rem' }}>
                 <h2>Message Center</h2>
               </div>
 
-              <div style={{ display: 'flex', flex: 1, backgroundColor: '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', flex: 1, width: '100%', backgroundColor: '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0' }}>
                 
                 {/* 1. LEFT SIDEBAR: CHAT SESSIONS */}
                 <div style={{ width: '320px', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
@@ -2202,6 +2214,275 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                     );
                   })()}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: MANAGEMENT MESSAGES */}
+          {activeTab === 'Management Messages' && (
+            <div className="tab-focused-view" style={{ height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column', width: '100%' }}>
+              <div className="section-header" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                <div>
+                  <h2>Management Direct Chat</h2>
+                  <p style={{ color: '#64748b' }}>Official 2-way communication channel with Campus Management</p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#eff6ff', padding: '0.4rem 0.85rem', borderRadius: '9999px', border: '1px solid #bfdbfe' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#2563eb' }}></span>
+                  <span style={{ fontSize: '0.8rem', color: '#1e40af', fontWeight: 600 }}>Official Channel</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, width: '100%', backgroundColor: '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0' }}>
+                
+                {/* Executive Header Strip */}
+                <div style={{ padding: '1rem 1.25rem', backgroundColor: '#0f172a', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                  <div style={{ width: '42px', height: '42px', borderRadius: '50%', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#fff', fontWeight: 700 }}>Hostel Management Executive</h3>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8' }}>management@campuscare.com • Direct Office Line</p>
+                  </div>
+                </div>
+
+                {/* Message Body */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {managementMessages.length === 0 ? (
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#64748b', textAlign: 'center', padding: '2rem' }}>
+                      <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" style={{ marginBottom: '1rem', color: '#cbd5e1' }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                      <h4 style={{ margin: '0 0 0.5rem', color: '#0f172a' }}>No Management Messages Yet</h4>
+                      <p style={{ fontSize: '0.85rem', maxWidth: '400px' }}>
+                        Management can send direct notices or inquiries to your hostel block. You can also send a direct query to Management below.
+                      </p>
+                    </div>
+                  ) : (
+                    managementMessages.map((msg, idx) => {
+                      const isFromManagement = msg.sender === 'management';
+                      return (
+                        <div 
+                          key={msg._id || msg.id || idx}
+                          style={{
+                            alignSelf: isFromManagement ? 'flex-start' : 'flex-end',
+                            maxWidth: '70%',
+                            backgroundColor: isFromManagement ? '#ffffff' : '#0f172a',
+                            color: isFromManagement ? '#0f172a' : '#ffffff',
+                            border: isFromManagement ? '1px solid #e2e8f0' : 'none',
+                            padding: '0.85rem 1.1rem',
+                            borderRadius: isFromManagement ? '12px 12px 12px 2px' : '12px 12px 2px 12px',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem', gap: '1rem' }}>
+                            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: isFromManagement ? '#2563eb' : '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              {isFromManagement ? (
+                                <>
+                                  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1" />
+                                  </svg>
+                                  Management Executive
+                                </>
+                              ) : (
+                                <>
+                                  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                  </svg>
+                                  You (Block Warden)
+                                </>
+                              )}
+                            </span>
+                            <span style={{ fontSize: '0.65rem', color: isFromManagement ? '#94a3b8' : '#cbd5e1' }}>
+                              {msg.time || 'Today'}
+                            </span>
+                          </div>
+                          <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: '1.45', whiteSpace: 'pre-wrap' }}>
+                            {msg.text}
+                          </p>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Send Input Form */}
+                <form onSubmit={handleSendManagementReply} style={{ padding: '1rem', backgroundColor: '#fff', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '0.75rem' }}>
+                  <input 
+                    type="text" 
+                    placeholder="Type a message or reply to Management..." 
+                    value={mgtMsgText}
+                    onChange={(e) => setMgtMsgText(e.target.value)}
+                    style={{ flex: 1, padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem' }}
+                  />
+                  <button 
+                    type="submit" 
+                    style={{ 
+                      backgroundColor: '#0f172a', 
+                      color: '#ffffff', 
+                      padding: '0.75rem 1.6rem', 
+                      border: 'none', 
+                      borderRadius: '8px', 
+                      fontWeight: 650, 
+                      cursor: 'pointer', 
+                      fontSize: '0.88rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      boxShadow: '0 4px 12px rgba(15, 23, 42, 0.15)'
+                    }}
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3 21l18-9L3 3l3 9zm0 0h7" />
+                    </svg>
+                    Send Reply
+                  </button>
+                </form>
+
+              </div>
+            </div>
+          )}
+
+          {/* TAB: WARDENS MANAGEMENT (HEAD WARDEN ONLY) */}
+          {activeTab === 'Wardens' && (
+            <div className="tab-focused-view" style={{ width: '100%' }}>
+              <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', width: '100%' }}>
+                <div>
+                  <h2>Wardens Management & Communication</h2>
+                  <p style={{ color: '#64748b' }}>Oversee all block wardens across hostel blocks, view contact details & message directly</p>
+                </div>
+                <div style={{ maxWidth: '320px', width: '100%' }}>
+                  <input 
+                    type="text" 
+                    className="standard-input-field" 
+                    placeholder="Search wardens by name, block, phone..." 
+                    value={searchWardenQuery} 
+                    onChange={(e) => setSearchWardenQuery(e.target.value)} 
+                    style={{ width: '100%', padding: '0.65rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem', width: '100%' }}>
+                {wardensList.filter(w => {
+                  const q = searchWardenQuery.toLowerCase();
+                  const blocksStr = Array.isArray(w.blocks) ? w.blocks.join(' ') : (w.block || '');
+                  return (
+                    (w.name || '').toLowerCase().includes(q) ||
+                    (w.email || '').toLowerCase().includes(q) ||
+                    (w.phoneNo || '').toLowerCase().includes(q) ||
+                    blocksStr.toLowerCase().includes(q)
+                  );
+                }).length === 0 ? (
+                  <div style={{ color: '#64748b', textAlign: 'center', padding: '3rem 0', gridColumn: '1 / -1', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    No block wardens found.
+                  </div>
+                ) : (
+                  wardensList.filter(w => {
+                    const q = searchWardenQuery.toLowerCase();
+                    const blocksStr = Array.isArray(w.blocks) ? w.blocks.join(' ') : (w.block || '');
+                    return (
+                      (w.name || '').toLowerCase().includes(q) ||
+                      (w.email || '').toLowerCase().includes(q) ||
+                      (w.phoneNo || '').toLowerCase().includes(q) ||
+                      blocksStr.toLowerCase().includes(q)
+                    );
+                  }).map(w => (
+                    <div 
+                      key={w._id || w.email} 
+                      style={{ 
+                        padding: '1.5rem', 
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                        backdropFilter: 'blur(12px)',
+                        borderRadius: '16px', 
+                        border: '1px solid rgba(226, 232, 240, 0.9)', 
+                        borderTop: w.role === 'headwarden' ? '3px solid #f59e0b' : '3px solid #2563eb',
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        justify: 'space-between', 
+                        boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.06), 0 4px 6px -2px rgba(15, 23, 42, 0.02)',
+                        transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                          {w.profilePhoto ? (
+                            <img src={w.profilePhoto} alt="warden" style={{ width: '54px', height: '54px', borderRadius: '50%', objectFit: 'cover', border: w.role === 'headwarden' ? '2.5px solid #f59e0b' : '2.5px solid #2563eb' }} />
+                          ) : (
+                            <div style={{ width: '54px', height: '54px', borderRadius: '50%', backgroundColor: '#0f172a', color: w.role === 'headwarden' ? '#fbbf24' : '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem', border: w.role === 'headwarden' ? '2px solid #f59e0b' : '2px solid #2563eb', boxShadow: '0 4px 10px rgba(15, 23, 42, 0.2)' }}>
+                              {w.name?.split(' ').map(n=>n[0]).join('') || 'W'}
+                            </div>
+                          )}
+                          <div>
+                            <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#0f172a', fontWeight: 800 }}>{w.name}</h3>
+                            <span style={{ 
+                              fontSize: '0.75rem', 
+                              padding: '0.25rem 0.65rem', 
+                              backgroundColor: w.role === 'headwarden' ? '#fffbeb' : '#eff6ff', 
+                              border: w.role === 'headwarden' ? '1px solid #fde68a' : '1px solid #bfdbfe', 
+                              borderRadius: '6px', 
+                              color: w.role === 'headwarden' ? '#b45309' : '#1d4ed8', 
+                              fontWeight: 700, 
+                              display: 'inline-block', 
+                              marginTop: '4px' 
+                            }}>
+                              {w.role === 'headwarden' ? '⭐ Head Warden (Overall)' : '🛡️ Block Warden'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.88rem', color: '#0f172a', backgroundColor: 'rgba(248, 250, 252, 0.95)', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                          <div>
+                            <strong style={{ color: '#475569' }}>Assigned Blocks:</strong>{' '}
+                            <span style={{ color: '#2563eb', fontWeight: 700 }}>
+                              {Array.isArray(w.blocks) ? w.blocks.join(', ') : (w.block || 'A, B, C, D, E, F')}
+                            </span>
+                          </div>
+                          <div>
+                            <strong style={{ color: '#475569' }}>Phone Number:</strong>{' '}
+                            <span style={{ color: '#0f172a', fontWeight: 700 }}>{w.phoneNo || 'N/A'}</span>
+                          </div>
+                          <div>
+                            <strong style={{ color: '#475569' }}>Email:</strong>{' '}
+                            <span style={{ color: '#0f172a', fontWeight: 600 }}>{w.email}</span>
+                          </div>
+                          <div>
+                            <strong style={{ color: '#475569' }}>Office / Room:</strong>{' '}
+                            <span style={{ color: '#0f172a', fontWeight: 600 }}>{w.roomNo || 'N/A'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => setSelectedWardenChat(w)}
+                        style={{
+                          marginTop: '1.25rem',
+                          width: '100%',
+                          padding: '0.75rem',
+                          backgroundColor: '#0f172a',
+                          color: '#ffffff',
+                          border: '1px solid rgba(245, 158, 11, 0.3)',
+                          borderRadius: '10px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.5rem',
+                          fontSize: '0.9rem',
+                          boxShadow: '0 4px 14px rgba(15, 23, 42, 0.18)',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        <svg width="17" height="17" fill="none" stroke="#fbbf24" strokeWidth="2.2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        Message Warden
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -3106,6 +3387,100 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 <button type="button" className="cancel-btn" onClick={() => setShowEventBannerModal(false)} style={{ padding: '0.5rem 1rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}>Cancel</button>
                 <button type="submit" className="submit-btn" style={{ padding: '0.5rem 1rem', borderRadius: '6px', border: 'none', background: '#10b981', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>Update Banner</button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DIRECT CHAT MODAL OVERLAY WITH BLOCK WARDEN */}
+      {selectedWardenChat && (
+        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+          <div className="modal-content" style={{ maxWidth: '560px', width: '90%', borderRadius: '12px', padding: '1.5rem', backgroundColor: '#fff', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.85rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ width: '42px', height: '42px', borderRadius: '50%', backgroundColor: '#0f172a', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#0f172a', fontWeight: 700 }}>{selectedWardenChat.name}</h3>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>{selectedWardenChat.email} • Ph: {selectedWardenChat.phoneNo || 'N/A'}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedWardenChat(null)}
+                style={{ background: 'none', border: 'none', fontSize: '1.8rem', color: '#94a3b8', cursor: 'pointer', lineHeight: '0.5' }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Chat Messages Log */}
+            <div style={{ height: '340px', overflowY: 'auto', padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
+              {wardenMessages.length === 0 ? (
+                <p style={{ color: '#94a3b8', textAlign: 'center', margin: 'auto', fontSize: '0.88rem' }}>No direct messages yet. Send a message to start the conversation!</p>
+              ) : (
+                wardenMessages.map((m, idx) => {
+                  const isSelf = m.sender === 'headwarden' || m.sender === user?.role;
+                  return (
+                    <div key={m._id || idx} style={{ alignSelf: isSelf ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
+                      <div style={{
+                        padding: '0.75rem 1rem',
+                        borderRadius: isSelf ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                        backgroundColor: isSelf ? '#0f172a' : '#ffffff',
+                        color: isSelf ? '#ffffff' : '#0f172a',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                        border: isSelf ? 'none' : '1px solid #e2e8f0',
+                        fontSize: '0.9rem'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem', gap: '0.75rem' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: isSelf ? '#38bdf8' : '#2563eb' }}>
+                            {isSelf ? 'Head Warden' : selectedWardenChat.name}
+                          </span>
+                          <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>
+                            {m.time || 'Just now'}
+                          </span>
+                        </div>
+                        <p style={{ margin: 0, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{m.text}</p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Message Input Form */}
+            <form onSubmit={handleSendWardenDirectMessage} style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                type="text"
+                className="standard-input-field"
+                placeholder={`Type message to ${selectedWardenChat.name}...`}
+                value={wardenMsgText}
+                onChange={(e) => setWardenMsgText(e.target.value)}
+                style={{ flex: 1, padding: '0.75rem 1rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none' }}
+              />
+              <button 
+                type="submit"
+                style={{ 
+                  backgroundColor: '#0f172a', 
+                  color: '#fff', 
+                  border: 'none', 
+                  padding: '0.75rem 1.4rem', 
+                  borderRadius: '8px', 
+                  fontWeight: 650, 
+                  cursor: 'pointer',
+                  fontSize: '0.88rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem'
+                }}
+              >
+                <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3 21l18-9L3 3l3 9zm0 0h7" />
+                </svg>
+                Send
+              </button>
             </form>
           </div>
         </div>

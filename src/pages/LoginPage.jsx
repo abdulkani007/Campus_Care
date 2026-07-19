@@ -326,15 +326,21 @@ const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                     </svg>
                   </span>
-                  <input
-                    type="text"
+                  <select
                     value={block}
                     onChange={(e) => setBlock(e.target.value)}
-                    placeholder={role === 'warden' || role === 'management' ? "Block (e.g. Main)" : "Block (e.g. C)"}
                     required
                     className="login-input"
-                    style={{ paddingLeft: '2.1rem', paddingRight: '0.5rem' }}
-                  />
+                    style={{ paddingLeft: '2.1rem', paddingRight: '0.5rem', color: block ? '#1e293b' : '#94a3b8' }}
+                  >
+                    <option value="" disabled hidden>Hostel Block</option>
+                    <option value="A">A Block</option>
+                    <option value="B">B Block</option>
+                    <option value="C">C Block</option>
+                    <option value="D">D Block</option>
+                    <option value="E">E Block</option>
+                    <option value="F">F Block</option>
+                  </select>
                 </div>
 
                 {/* Password */}

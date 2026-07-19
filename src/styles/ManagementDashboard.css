@@ -166,6 +166,7 @@ body {
 .management-main-panel {
   flex: 1;
   margin-left: 260px;
+  max-width: calc(100vw - 260px);
   min-height: 100vh;
   padding: 2rem 2.5rem;
   display: flex;
@@ -900,4 +901,167 @@ body {
   font-size: 1.3rem;
   font-weight: 700;
   color: #0f172a;
+}
+
+/* Ticker strip styling */
+.announcements-ticker-strip {
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.ticker-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #2563eb;
+  letter-spacing: 0.05em;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+.ticker-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #1e3a8a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ticker-title {
+  font-weight: 700;
+}
+
+.ticker-body {
+  font-weight: 500;
+}
+
+/* Dashboard Row 4 Grid */
+.dashboard-grid-row-4 {
+  display: flex;
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.col-60 { flex: 6; }
+.col-40 { flex: 4; }
+.col-30 { flex: 3; }
+
+.mgt-widget-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.widget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.widget-header .title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.view-all-link {
+  background: none;
+  border: none;
+  color: #2563eb;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.view-all-link:hover {
+  text-decoration: underline;
+}
+
+/* Table styling */
+.complaints-table-container {
+  overflow-x: auto;
+}
+
+.mgt-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.mgt-data-table th {
+  padding: 0.75rem 1rem;
+  background-color: #f8fafc;
+  color: #64748b;
+  font-weight: 600;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.mgt-data-table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+}
+
+.status-pill {
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.status-pill.resolved { background-color: #dcfce7; color: #166534; }
+.status-pill.in-progress { background-color: #fef3c7; color: #92400e; }
+.status-pill.high-priority { background-color: #fee2e2; color: #991b1b; }
+.status-pill.open { background-color: #e0e7ff; color: #3730a3; }
+
+.table-action-btn {
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #0f172a;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.table-action-btn:hover {
+  background-color: #0f172a;
+  color: #ffffff;
+}
+
+/* Responsive grid for stat cards */
+@media (max-width: 1200px) {
+  .six-stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .six-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .dashboard-grid-row-4 {
+    flex-direction: column;
+  }
 }

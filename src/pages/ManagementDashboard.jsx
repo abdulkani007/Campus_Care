@@ -1,5 +1,7 @@
 // src/pages/ManagementDashboard.jsx
 import React, { useState, useEffect } from 'react';
+import EventBannerCard from '../components/EventBannerCard';
+import { DynamicTrendsChart, DynamicDonutChart } from '../components/DynamicComplaintCharts';
 import '../styles/ManagementDashboard.css';
 import logo from '../assets/CC.png';
 
@@ -9,11 +11,11 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
   
   // Profile state prefilled with Manager details
   const [profile, setProfile] = useState({
-    name: user?.name || 'Dr. R. Krishnan',
-    email: user?.email || 'management@gmail.com',
-    rollNo: user?.rollNo || 'MGT-101',
-    phoneNo: user?.phoneNo || '9876543222',
-    roomNo: user?.roomNo || 'Admin-101',
+    name: user?.name || 'Management Executive',
+    email: user?.email || 'management@campuscare.com',
+    rollNo: user?.rollNo || 'MGT-001',
+    phoneNo: user?.phoneNo || '9876543220',
+    roomNo: user?.roomNo || 'Admin-01',
     block: user?.block || 'Main',
     profilePhoto: user?.profilePhoto || null
   });
@@ -41,6 +43,25 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [announcements, setAnnouncements] = useState([]);
   const [workers, setWorkers] = useState([]);
   const [residentsList, setResidentsList] = useState([]);
+  const [eventBanner, setEventBanner] = useState(null);
+
+  // States for Wardens, Block Management, Feedback & Announcements
+  const [wardensList, setWardensList] = useState([]);
+  const [feedbackRequests, setFeedbackRequests] = useState([]);
+  const [feedbackResponses, setFeedbackResponses] = useState([]);
+
+  // Modal / Conversation States
+  const [selectedWardenChat, setSelectedWardenChat] = useState(null);
+  const [wardenMessages, setWardenMessages] = useState([]);
+  const [wardenMsgText, setWardenMsgText] = useState('');
+
+  const [selectedBlockDetail, setSelectedBlockDetail] = useState(null);
+
+  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
+  const [newAnn, setNewAnn] = useState({ title: '', content: '', category: 'General', priority: 'Normal' });
+
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [newFb, setNewFb] = useState({ title: '', description: '' });
 
   // Stats State
   const [stats, setStats] = useState({
@@ -61,10 +82,14 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const complaintsRes = await fetch('/api/complaints');
+        const complaintsRes = await fetch(`/api/complaints?userEmail=${encodeURIComponent(user?.email || 'management@campuscare.com')}&userRole=management`);
         const announcementsRes = await fetch('/api/announcements');
         const workersRes = await fetch('/api/workers');
         const residentsRes = await fetch('/api/students');
+        const bannerRes = await fetch('/api/event-banner');
+        const wardensRes = await fetch('/api/wardens');
+        const feedbackReqRes = await fetch('/api/feedback-requests');
+        const feedbackRespRes = await fetch('/api/feedback-responses');
         
         if (complaintsRes.ok) {
           const complaintsData = await complaintsRes.json();
@@ -82,13 +107,135 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
           const residentsData = await residentsRes.json();
           setResidentsList(residentsData);
         }
+        if (bannerRes.ok) {
+          const bannerData = await bannerRes.json();
+          if (bannerData) {
+            setEventBanner(bannerData);
+          }
+        }
+        if (wardensRes.ok) {
+          const wardensData = await wardensRes.json();
+          setWardensList(wardensData);
+        }
+        if (feedbackReqRes.ok) {
+          const feedbackReqData = await feedbackReqRes.json();
+          setFeedbackRequests(feedbackReqData);
+        }
+        if (feedbackRespRes.ok) {
+          const feedbackRespData = await feedbackRespRes.json();
+          setFeedbackResponses(feedbackRespData);
+        }
       } catch (err) {
         console.error('Error fetching management dashboard data:', err);
       }
     };
     
     fetchData();
-  }, [activeTab]);
+  }, [activeTab, user?.email]);
+
+  // Fetch direct messages when a warden chat modal opens
+  useEffect(() => {
+    if (selectedWardenChat) {
+      const fetchWardenChat = async () => {
+        try {
+          const res = await fetch(`/api/messages?studentEmail=${encodeURIComponent(selectedWardenChat.email)}`);
+          if (res.ok) {
+            const msgs = await res.json();
+            setWardenMessages(msgs);
+          }
+        } catch (err) {
+          console.error('Error fetching warden messages:', err);
+        }
+      };
+      fetchWardenChat();
+    }
+  }, [selectedWardenChat]);
+
+  // Send Direct Message to Warden
+  const handleSendWardenMessage = async (e) => {
+    e.preventDefault();
+    if (!wardenMsgText.trim() || !selectedWardenChat) return;
+
+    try {
+      const res = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: wardenMsgText,
+          sender: 'management',
+          studentEmail: selectedWardenChat.email,
+          studentName: selectedWardenChat.name,
+          studentBlock: Array.isArray(selectedWardenChat.blocks) ? selectedWardenChat.blocks.join(', ') : (selectedWardenChat.block || 'Main')
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setWardenMessages(prev => [...prev, data.message || data]);
+        setWardenMsgText('');
+      }
+    } catch (err) {
+      console.error('Error sending message to warden:', err);
+    }
+  };
+
+  // Create Management Announcement
+  const handlePostManagementAnnouncement = async (e) => {
+    e.preventDefault();
+    if (!newAnn.title.trim() || !newAnn.content.trim()) return;
+
+    try {
+      const res = await fetch('/api/announcements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newAnn.title,
+          text: newAnn.content,
+          category: newAnn.category || 'General',
+          important: newAnn.priority === 'Urgent',
+          postedBy: 'Management',
+          authorName: profile.name || 'Management Executive'
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setAnnouncements(prev => [data.announcement || data, ...prev]);
+        setShowAnnouncementModal(false);
+        setNewAnn({ title: '', content: '', category: 'General', priority: 'Normal' });
+      }
+    } catch (err) {
+      console.error('Error posting management announcement:', err);
+    }
+  };
+
+  // Create Management Feedback Survey
+  const handleCreateManagementFeedback = async (e) => {
+    e.preventDefault();
+    if (!newFb.title.trim() || !newFb.description.trim()) return;
+
+    try {
+      const res = await fetch('/api/feedback-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newFb.title,
+          description: newFb.description,
+          postedBy: 'Management',
+          authorName: profile.name || 'Management Executive'
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setFeedbackRequests(prev => [data, ...prev.map(f => ({ ...f, active: false }))]);
+        setShowFeedbackModal(false);
+        setNewFb({ title: '', description: '' });
+      }
+    } catch (err) {
+      console.error('Error creating feedback survey:', err);
+    }
+  };
 
   // Compute stats dynamically when complaints change
   useEffect(() => {
@@ -121,11 +268,17 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
     );
   });
 
-  const displayComplaintsList = filteredComplaints;
-
-  const displayAnnouncements = announcements.length > 0 ? announcements.map(a => `${a.title || 'Announcement'}: ${a.text}`) : [
-    'No active hostel announcements posted yet.'
-  ];
+  // Filter wardens based on Search query
+  const filteredWardens = wardensList.filter(w => {
+    const query = searchQuery.toLowerCase();
+    const blocksStr = Array.isArray(w.blocks) ? w.blocks.join(' ') : (w.block || '');
+    return (
+      (w.name || '').toLowerCase().includes(query) ||
+      (w.email || '').toLowerCase().includes(query) ||
+      (w.phoneNo || '').toLowerCase().includes(query) ||
+      blocksStr.toLowerCase().includes(query)
+    );
+  });
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
@@ -357,52 +510,51 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
           </div>
         </header>
 
-        {/* TAB CORE */}
+        {/* DASHBOARD TAB */}
         {activeTab === 'Dashboard' && (
-          <div className="dashboard-grid-widgets">
-            
-            {/* ROW 1: ANNOUNCEMENTS TICKER BAR */}
-            <div className="announcements-ticker-bar">
-              <span className="announcements-tag">ANNOUNCEMENTS</span>
-              <div className="ticker-viewport">
-                <p className="ticker-text">{displayAnnouncements[tickerIndex]}</p>
-              </div>
-              <div className="ticker-nav-arrows">
-                <button 
-                  className="arrow-btn" 
-                  onClick={() => setTickerIndex((prev) => (prev - 1 + displayAnnouncements.length) % displayAnnouncements.length)}
-                >
-                  &lt;
-                </button>
-                <button 
-                  className="arrow-btn" 
-                  onClick={() => setTickerIndex((prev) => (prev + 1) % displayAnnouncements.length)}
-                >
-                  &gt;
-                </button>
-              </div>
-            </div>
+          <div className="mgt-dashboard-view">
 
-            {/* ROW 2: SIX STAT CARDS ROW */}
+            {/* UNIVERSAL EVENT BANNER CARD */}
+            {eventBanner && (
+              <div style={{ marginBottom: '1.5rem' }}>
+                <EventBannerCard banner={eventBanner} />
+              </div>
+            )}
+            
+            {/* ROW 1: LIVE MARQUEE TICKER STRIP */}
+            {announcements.length > 0 && (
+              <div className="announcements-ticker-strip">
+                <div className="ticker-badge">
+                  <span className="dot pulse"></span>
+                  LATEST ANNOUNCEMENT
+                </div>
+                <div className="ticker-content">
+                  <span className="ticker-title">{announcements[tickerIndex]?.title}:</span>
+                  <span className="ticker-body">{announcements[tickerIndex]?.text || announcements[tickerIndex]?.content}</span>
+                </div>
+              </div>
+            )}
+
+            {/* ROW 2: 6 TOP SUMMARY METRICS CARDS */}
             <div className="six-stats-grid">
               
               {/* 1. Total Complaints */}
               <div className="mgt-stat-card">
                 <div className="icon-side bg-blue-tint text-blue">
                   <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                   </svg>
                 </div>
                 <div className="label-side">
                   <span className="num">{stats.total}</span>
                   <span className="label">Total Complaints</span>
-                  <span className="trend positive">↑ 12% vs last week</span>
+                  <span className="trend positive">↑ 12% vs last month</span>
                 </div>
               </div>
 
               {/* 2. In Progress */}
               <div className="mgt-stat-card">
-                <div className="icon-side bg-orange-tint text-orange">
+                <div className="icon-side bg-amber-tint text-amber">
                   <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -410,49 +562,49 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 <div className="label-side">
                   <span className="num">{stats.inProgress}</span>
                   <span className="label">In Progress</span>
-                  <span className="trend positive">↑ 5% vs last week</span>
+                  <span className="trend neutral">— Active processing</span>
                 </div>
               </div>
 
               {/* 3. Resolved */}
               <div className="mgt-stat-card">
-                <div className="icon-side bg-green-tint text-green">
+                <div className="icon-side bg-emerald-tint text-emerald">
                   <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div className="label-side">
                   <span className="num">{stats.resolved}</span>
-                  <span className="label">Resolved</span>
-                  <span className="trend positive">↑ 20% vs last week</span>
+                  <span className="label">Resolved Tickets</span>
+                  <span className="trend positive">↑ 95% resolution rate</span>
                 </div>
               </div>
 
               {/* 4. High Priority */}
               <div className="mgt-stat-card">
-                <div className="icon-side bg-red-tint text-red">
+                <div className="icon-side bg-rose-tint text-rose">
                   <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L12 9z" />
                   </svg>
                 </div>
                 <div className="label-side">
                   <span className="num">{stats.highPriority}</span>
                   <span className="label">High Priority</span>
-                  <span className="trend negative">↓ 8% vs last week</span>
+                  <span className="trend negative">↓ Urgent attention</span>
                 </div>
               </div>
 
               {/* 5. Residents */}
               <div className="mgt-stat-card">
-                <div className="icon-side bg-purple-tint text-purple">
+                <div className="icon-side bg-violet-tint text-violet">
                   <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0" />
                   </svg>
                 </div>
                 <div className="label-side">
                   <span className="num">{stats.residents}</span>
                   <span className="label">Total Residents</span>
-                  <span className="trend positive">↑ 2% vs last week</span>
+                  <span className="trend positive">↑ Steady count</span>
                 </div>
               </div>
 
@@ -460,90 +612,44 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
               <div className="mgt-stat-card">
                 <div className="icon-side bg-cyan-tint text-cyan">
                   <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
                   </svg>
                 </div>
                 <div className="label-side">
                   <span className="num">{stats.activeWorkers}</span>
-                  <span className="label">Active Workers</span>
-                  <span className="trend neutral">— No change</span>
+                  <span className="label">Active Staff</span>
+                  <span className="trend neutral">— Full capacity</span>
                 </div>
               </div>
 
             </div>
 
-            {/* ROW 3: GRAPHS & BLOCK STATUS PROGRESS BARS */}
+            {/* ROW 3: GRAPHS & BLOCK STATUS */}
             <div className="charts-overview-row">
               
               {/* Curve Graph */}
-              <div className="overview-chart-card col-40">
-                <div className="chart-card-header">
+              <div className="overview-chart-card col-40" style={{ padding: '1.25rem' }}>
+                <div className="chart-card-header" style={{ marginBottom: '0.75rem' }}>
                   <div>
-                    <span className="title">Complaint Trends</span>
-                    <span className="subtitle">Active and resolved ticket logs</span>
+                    <span className="title" style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Complaint Trends</span>
+                    <span className="subtitle" style={{ fontSize: '0.8rem', color: '#64748b' }}>Real-time active and resolved ticket logs</span>
                   </div>
-                  <span className="chart-filter">This Month</span>
+                  <span className="chart-filter" style={{ backgroundColor: '#eff6ff', color: '#2563eb', padding: '0.25rem 0.65rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>Live Data</span>
                 </div>
 
-                <div className="mgt-chart-area">
-                  <svg viewBox="0 0 320 180" style={{ width: '100%' }}>
-                    {/* Grid lines */}
-                    <line x1="30" y1="20" x2="300" y2="20" stroke="#f1f5f9" strokeWidth="1" />
-                    <line x1="30" y1="60" x2="300" y2="60" stroke="#f1f5f9" strokeWidth="1" />
-                    <line x1="30" y1="100" x2="300" y2="100" stroke="#f1f5f9" strokeWidth="1" />
-                    <line x1="30" y1="140" x2="300" y2="140" stroke="#e2e8f0" strokeWidth="1.5" />
-
-                    {/* Blue line: Total */}
-                    <path d="M 30 110 C 60 90, 80 50, 110 70 C 140 90, 170 40, 200 65 C 230 90, 270 40, 300 50" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" />
-                    {/* Green line: Resolved */}
-                    <path d="M 30 130 C 60 120, 80 80, 110 95 C 140 110, 170 70, 200 85 C 230 100, 270 70, 300 80" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" />
-                    {/* Red line: High Priority */}
-                    <path d="M 30 138 C 60 135, 80 125, 110 130 C 140 133, 170 115, 200 120 C 230 125, 270 110, 300 115" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" />
-
-                    {/* Labels */}
-                    <text x="30" y="155" fontSize="8" fill="#94a3b8">1 May</text>
-                    <text x="110" y="155" fontSize="8" fill="#94a3b8">10 May</text>
-                    <text x="200" y="155" fontSize="8" fill="#94a3b8">20 May</text>
-                    <text x="300" y="155" fontSize="8" fill="#94a3b8" textAnchor="end">31 May</text>
-                  </svg>
-                  <div className="chart-legend">
-                    <span className="leg-item"><span className="dot blue-dot"></span>Total</span>
-                    <span className="leg-item"><span className="dot green-dot"></span>Resolved</span>
-                    <span className="leg-item"><span className="dot red-dot"></span>High</span>
-                  </div>
+                <div className="mgt-chart-area" style={{ padding: '0.5rem 0' }}>
+                  <DynamicTrendsChart complaints={complaints} />
                 </div>
               </div>
 
               {/* Donut Chart */}
-              <div className="overview-chart-card col-30">
-                <div className="chart-card-header">
-                  <span className="title">Complaints by Category</span>
+              <div className="overview-chart-card col-30" style={{ padding: '1.25rem' }}>
+                <div className="chart-card-header" style={{ marginBottom: '0.75rem' }}>
+                  <span className="title" style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Complaints by Category</span>
                 </div>
 
-                <div className="donut-chart-wrapper">
-                  {/* CSS Donut Chart */}
-                  <div className="css-donut-chart">
-                    <div className="donut-center-hole">
-                      <span className="cnt-val">{stats.total}</span>
-                      <span className="cnt-lbl">Total</span>
-                    </div>
-                  </div>
-
-                  <div className="category-legend-list">
-                    {[
-                      { name: 'Electrical', pct: '22.5%', color: '#2563eb' },
-                      { name: 'Plumbing', pct: '19.7%', color: '#3b82f6' },
-                      { name: 'Water Supply', pct: '16.9%', color: '#f59e0b' },
-                      { name: 'Internet', pct: '12.7%', color: '#a855f7' },
-                      { name: 'Cleaning', pct: '11.3%', color: '#06b6d4' }
-                    ].map(cat => (
-                      <div key={cat.name} className="cat-leg-row">
-                        <span className="dot" style={{ backgroundColor: cat.color }}></span>
-                        <span className="name">{cat.name}</span>
-                        <span className="val">{cat.pct}</span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="donut-chart-wrapper" style={{ padding: '0.5rem 0' }}>
+                  <DynamicDonutChart complaints={complaints} />
                 </div>
               </div>
 
@@ -555,29 +661,27 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 </div>
 
                 <div className="block-cards-grid">
-                  {[
-                    { name: 'Block A', occupied: '92/100', progress: '92%' },
-                    { name: 'Block B', occupied: '88/100', progress: '88%' },
-                    { name: 'Block C', occupied: '90/100', progress: '90%' },
-                    { name: 'Block D', occupied: '86/100', progress: '86%' }
-                  ].map(block => (
-                    <div key={block.name} className="block-progress-card">
-                      <div className="block-card-head">
-                        <span className="name">{block.name}</span>
-                        <span className="cap">{block.occupied}</span>
+                  {['A', 'B', 'C', 'D', 'E', 'F'].map(b => {
+                    const cnt = residentsList.filter(r => (r.block || '').toUpperCase().includes(b)).length;
+                    return (
+                      <div key={b} className="block-progress-card">
+                        <div className="block-card-head">
+                          <span className="name">Block {b}</span>
+                          <span className="cap">{cnt} Students</span>
+                        </div>
+                        <div className="progress-bg">
+                          <div className="progress-fill" style={{ width: `${Math.min(100, (cnt / 10) * 100)}%` }}></div>
+                        </div>
+                        <span className="pct">{cnt} Registered</span>
                       </div>
-                      <div className="progress-bg">
-                        <div className="progress-fill" style={{ width: block.progress }}></div>
-                      </div>
-                      <span className="pct">{block.progress} Occupied</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
             </div>
 
-            {/* ROW 4: RECENT COMPLAINTS TABLE, QUICK ACTIONS GRID, KEY INSIGHTS LIST */}
+            {/* ROW 4: RECENT COMPLAINTS TABLE & QUICK ACTIONS */}
             <div className="dashboard-grid-row-4">
               
               {/* Complaints Table */}
@@ -587,132 +691,517 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                   <button className="view-all-link" onClick={() => setActiveTab('Complaints Overview')}>View All</button>
                 </div>
 
-                <div className="complaints-log-table-wrapper">
-                  <table className="complaints-log-table">
+                <div className="complaints-table-container">
+                  <table className="mgt-data-table">
                     <thead>
                       <tr>
-                        <th>#</th>
-                        <th>Complaint</th>
-                        <th>Block/Room</th>
+                        <th>Title</th>
                         <th>Category</th>
-                        <th>Priority</th>
+                        <th>Location</th>
+                        <th>Student</th>
                         <th>Status</th>
-                        <th>Time</th>
+                        <th>Action</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {displayComplaintsList.length === 0 ? (
-                        <tr>
-                          <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
-                            No complaints registered yet.
+                      {complaints.slice(0, 5).map(c => (
+                        <tr key={c.id || c._id}>
+                          <td className="font-semibold">{c.title}</td>
+                          <td>{c.category}</td>
+                          <td>{c.location}</td>
+                          <td>{c.studentName || 'Student'}</td>
+                          <td>
+                            <span className={`status-pill ${
+                              c.status === 'Resolved' ? 'resolved' :
+                              c.status === 'In Progress' ? 'in-progress' :
+                              c.status === 'High Priority' ? 'high-priority' : 'open'
+                            }`}>
+                              {c.status}
+                            </span>
+                          </td>
+                          <td>
+                            <button className="table-action-btn" onClick={() => setSelectedComplaint(c)}>Details</button>
                           </td>
                         </tr>
-                      ) : (
-                        displayComplaintsList.slice(0, 5).map((row, idx) => (
-                          <tr key={idx}>
-                            <td style={{ color: '#94a3b8' }}>{row.id || `#C-240${5-idx}`}</td>
-                            <td style={{ fontWeight: 600, color: '#0f172a' }}>{row.title}</td>
-                            <td style={{ color: '#475569' }}>{row.location}</td>
-                            <td style={{ color: '#64748b' }}>{row.category}</td>
-                            <td>
-                              <span className={`priority-tag ${row.priority?.toLowerCase()}`}>
-                                {row.priority}
-                              </span>
-                            </td>
-                            <td>
-                              <span className={`status-pill ${
-                                row.status === 'Resolved' ? 'resolved' :
-                                row.status === 'In Progress' ? 'in-progress' :
-                                row.status === 'High Priority' ? 'high-priority' : 'open'
-                              }`}>
-                                {row.status}
-                              </span>
-                            </td>
-                            <td style={{ color: '#94a3b8' }}>{row.time || 'Just now'}</td>
-                          </tr>
-                        ))
-                      )}
+                      ))}
                     </tbody>
                   </table>
                 </div>
               </div>
 
               {/* Quick Actions Grid */}
-              <div className="mgt-widget-card col-20">
+              <div className="mgt-widget-card col-40">
                 <div className="widget-header">
-                  <span className="title">Quick Actions</span>
+                  <span className="title">Management Quick Actions</span>
                 </div>
 
                 <div className="quick-actions-tile-grid">
                   {[
-                    { label: 'View All Complaints', action: () => setActiveTab('Complaints Overview'), icon: (
-                      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2" />
-                      </svg>
-                    )},
-                    { label: 'Manage Wardens', action: () => setActiveTab('Wardens'), icon: (
-                      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                      </svg>
-                    )},
-                    { label: 'Manage Workers', action: () => setActiveTab('Maintenance Workers'), icon: (
-                      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62" />
-                      </svg>
-                    )},
-                    { label: 'Create Announcement', action: () => setActiveTab('Announcements'), icon: (
-                      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15" />
-                      </svg>
-                    )},
-                    { label: 'View Reports', action: () => setActiveTab('Reports & Analytics'), icon: (
-                      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5" />
-                      </svg>
-                    )},
-                    { label: 'Inspect Blocks', action: () => setActiveTab('Block Management'), icon: (
-                      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7" />
-                      </svg>
-                    )}
+                    { label: 'View All Complaints', action: () => setActiveTab('Complaints Overview') },
+                    { label: 'Manage Wardens', action: () => setActiveTab('Wardens') },
+                    { label: 'Hostel Blocks', action: () => setActiveTab('Block Management') },
+                    { label: 'Create Announcement', action: () => setActiveTab('Announcements') },
+                    { label: 'Publish Feedback', action: () => setActiveTab('Feedback') },
+                    { label: 'Account Settings', action: () => setActiveTab('Settings') }
                   ].map((act, idx) => (
                     <button key={idx} className="action-tile-btn" onClick={act.action}>
-                      <span className="tile-icon">{act.icon}</span>
                       <span className="tile-label">{act.label}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Key Insights List */}
-              <div className="mgt-widget-card col-20">
-                <div className="widget-header">
-                  <span className="title">Key Insights</span>
-                  <span className="insights-filter">This Month</span>
-                </div>
+            </div>
 
-                <div className="insights-stack-card-list">
-                  {[
-                    { title: 'Water Supply', desc: 'Most reported issue (16.9%)', color: '#f59e0b', icon: '💧' },
-                    { title: '20% faster', desc: 'Complaint resolution time', color: '#10b981', icon: '⚡' },
-                    { title: '89%', desc: 'Student satisfaction rate', color: '#3b82f6', icon: '⭐' },
-                    { title: '3 Blocks', desc: 'Completed inspection this month', color: '#8b5cf6', icon: '🏢' }
-                  ].map((ins, idx) => (
-                    <div key={idx} className="insight-row-card">
-                      <div className="ins-icon" style={{ backgroundColor: `${ins.color}15` }}>
-                        {ins.icon}
+          </div>
+        )}
+
+        {/* WARDENS MANAGEMENT TAB */}
+        {activeTab === 'Wardens' && (
+          <div className="fallback-tab-panel">
+            <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <div>
+                <h2>Wardens Management</h2>
+                <p style={{ color: '#64748b' }}>Complete list of block wardens, phone numbers & direct messaging</p>
+              </div>
+              <div style={{ maxWidth: '300px' }}>
+                <input 
+                  type="text" 
+                  className="standard-input-field" 
+                  placeholder="Search wardens..." 
+                  value={searchQuery} 
+                  onChange={(e) => setSearchQuery(e.target.value)} 
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
+              {filteredWardens.length === 0 ? (
+                <p style={{ color: '#64748b', textAlign: 'center', padding: '2rem 0', gridColumn: '1 / -1' }}>No wardens registered.</p>
+              ) : (
+                filteredWardens.map(w => (
+                  <div 
+                    key={w._id || w.email} 
+                    className="mgt-widget-card" 
+                    style={{ 
+                      padding: '1.5rem', 
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                      backdropFilter: 'blur(12px)',
+                      borderRadius: '16px', 
+                      border: '1px solid rgba(226, 232, 240, 0.9)', 
+                      borderTop: w.role === 'headwarden' ? '3px solid #f59e0b' : '3px solid #2563eb',
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      justifyContent: 'space-between', 
+                      boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.06), 0 4px 6px -2px rgba(15, 23, 42, 0.02)'
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                        {w.profilePhoto ? (
+                          <img src={w.profilePhoto} alt="warden" style={{ width: '54px', height: '54px', borderRadius: '50%', objectFit: 'cover', border: w.role === 'headwarden' ? '2.5px solid #f59e0b' : '2.5px solid #2563eb' }} />
+                        ) : (
+                          <div style={{ width: '54px', height: '54px', borderRadius: '50%', backgroundColor: '#0f172a', color: w.role === 'headwarden' ? '#fbbf24' : '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem', border: w.role === 'headwarden' ? '2px solid #f59e0b' : '2px solid #2563eb', boxShadow: '0 4px 10px rgba(15, 23, 42, 0.2)' }}>
+                            {w.name?.split(' ').map(n=>n[0]).join('') || 'W'}
+                          </div>
+                        )}
+                        <div>
+                          <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#0f172a', fontWeight: 800 }}>{w.name}</h3>
+                          <span style={{ 
+                            fontSize: '0.75rem', 
+                            padding: '0.25rem 0.65rem', 
+                            backgroundColor: w.role === 'headwarden' ? '#fffbeb' : '#eff6ff', 
+                            border: w.role === 'headwarden' ? '1px solid #fde68a' : '1px solid #bfdbfe', 
+                            borderRadius: '6px', 
+                            color: w.role === 'headwarden' ? '#b45309' : '#1d4ed8', 
+                            fontWeight: 700, 
+                            display: 'inline-block', 
+                            marginTop: '4px' 
+                          }}>
+                            {w.role === 'headwarden' ? '⭐ Head Warden (Overall)' : '🛡️ Block Warden'}
+                          </span>
+                        </div>
                       </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.88rem', color: '#0f172a', backgroundColor: 'rgba(248, 250, 252, 0.95)', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                        <div>
+                          <strong style={{ color: '#475569' }}>Assigned Blocks:</strong>{' '}
+                          <span style={{ color: '#2563eb', fontWeight: 700 }}>
+                            {Array.isArray(w.blocks) ? w.blocks.join(', ') : (w.block || 'A, B, C, D, E, F')}
+                          </span>
+                        </div>
+                        <div>
+                          <strong style={{ color: '#475569' }}>Phone Number:</strong>{' '}
+                          <span style={{ color: '#0f172a', fontWeight: 700 }}>{w.phoneNo || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <strong style={{ color: '#475569' }}>Email:</strong>{' '}
+                          <span style={{ color: '#0f172a', fontWeight: 600 }}>{w.email}</span>
+                        </div>
+                        <div>
+                          <strong style={{ color: '#475569' }}>Office / Room:</strong>{' '}
+                          <span style={{ color: '#0f172a', fontWeight: 600 }}>{w.roomNo || 'N/A'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setSelectedWardenChat(w)}
+                      style={{
+                        marginTop: '1.25rem',
+                        width: '100%',
+                        padding: '0.75rem',
+                        backgroundColor: '#0f172a',
+                        color: '#ffffff',
+                        border: '1px solid rgba(245, 158, 11, 0.3)',
+                        borderRadius: '10px',
+                        fontWeight: 700,
+                        fontSize: '0.9rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                        boxShadow: '0 4px 14px rgba(15, 23, 42, 0.18)'
+                      }}
+                    >
+                      <svg width="17" height="17" fill="none" stroke="#fbbf24" strokeWidth="2.2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                      Message Warden
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* BLOCK MANAGEMENT TAB */}
+        {activeTab === 'Block Management' && (
+          <div className="fallback-tab-panel">
+            <div className="section-header" style={{ marginBottom: '1.5rem' }}>
+              <h2>Hostel Block Management</h2>
+              <p style={{ color: '#64748b' }}>Live resident occupancy, assigned in-charge wardens & student rosters</p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
+              {['A', 'B', 'C', 'D', 'E', 'F'].map(blockName => {
+                const matchingStudents = residentsList.filter(s => {
+                  const b = (s.block || '').trim().toUpperCase();
+                  return b === blockName || b === `${blockName} BLOCK` || b.startsWith(blockName);
+                });
+
+                const matchingComplaints = complaints.filter(c => {
+                  const b = (c.studentBlock || c.location || '').trim().toUpperCase();
+                  return b === blockName || b === `${blockName} BLOCK` || b.includes(blockName);
+                });
+
+                const inChargeWarden = wardensList.find(w => {
+                  if (Array.isArray(w.blocks)) {
+                    return w.blocks.includes(blockName);
+                  }
+                  return (w.block || '').includes(blockName);
+                });
+
+                return (
+                  <div key={blockName} className="mgt-widget-card" style={{ padding: '1.5rem', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div style={{ width: '44px', height: '44px', borderRadius: '10px', backgroundColor: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem' }}>
+                            {blockName}
+                          </div>
+                          <div>
+                            <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#0f172a', fontWeight: 700 }}>{blockName} Block</h3>
+                            <span style={{ fontSize: '0.78rem', color: '#64748b' }}>Main Hostel Campus</span>
+                          </div>
+                        </div>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700, padding: '0.35rem 0.75rem', backgroundColor: '#f0fdf4', color: '#166534', borderRadius: '9999px', border: '1px solid #bbf7d0' }}>
+                          {matchingStudents.length} Students Registered
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.88rem', backgroundColor: '#f8fafc', padding: '0.85rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                        <div>
+                          <strong style={{ color: '#64748b' }}>In-Charge Warden:</strong>{' '}
+                          <span style={{ color: '#0f172a', fontWeight: 700 }}>
+                            {inChargeWarden ? inChargeWarden.name : 'Head Warden'}
+                          </span>
+                        </div>
+                        <div>
+                          <strong style={{ color: '#64748b' }}>Contact Phone:</strong>{' '}
+                          <span style={{ color: '#0f172a' }}>
+                            {inChargeWarden ? (inChargeWarden.phoneNo || 'N/A') : '9876543215'}
+                          </span>
+                        </div>
+                        <div>
+                          <strong style={{ color: '#64748b' }}>Total Students in Block:</strong>{' '}
+                          <span style={{ color: '#2563eb', fontWeight: 700 }}>{matchingStudents.length} Students</span>
+                        </div>
+                        <div>
+                          <strong style={{ color: '#64748b' }}>Active Complaints:</strong>{' '}
+                          <span style={{ color: matchingComplaints.length > 0 ? '#ef4444' : '#10b981', fontWeight: 700 }}>{matchingComplaints.length} Tickets</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setSelectedBlockDetail({ blockName, students: matchingStudents, warden: inChargeWarden })}
+                      style={{
+                        marginTop: '1.25rem',
+                        width: '100%',
+                        padding: '0.65rem',
+                        backgroundColor: '#0f172a',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontWeight: 650,
+                        fontSize: '0.88rem',
+                        cursor: 'pointer',
+                        textAlign: 'center'
+                      }}
+                    >
+                      View Student Roster ({matchingStudents.length})
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ANNOUNCEMENTS TAB */}
+        {activeTab === 'Announcements' && (
+          <div className="fallback-tab-panel">
+            <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <div>
+                <h2>Announcements Management</h2>
+                <p style={{ color: '#64748b' }}>Broadcast announcements across all hostel blocks, wardens, and staff</p>
+              </div>
+              <button 
+                onClick={() => setShowAnnouncementModal(true)}
+                style={{
+                  backgroundColor: '#2563eb',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '0.65rem 1.25rem',
+                  borderRadius: '8px',
+                  fontWeight: 650,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem'
+                }}
+              >
+                + Post Announcement
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
+              {announcements.length === 0 ? (
+                <p style={{ color: '#64748b', textAlign: 'center', padding: '2rem 0', gridColumn: '1 / -1' }}>No announcements posted yet.</p>
+              ) : (
+                announcements.map(ann => (
+                  <div key={ann.id || ann._id} className="mgt-widget-card" style={{ padding: '1.5rem', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                        <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#0f172a', fontWeight: 700 }}>{ann.title}</h3>
+                        {ann.postedBy === 'Management' ? (
+                          <span style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', backgroundColor: '#2563eb', color: '#fff', borderRadius: '4px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                            Management Announcement
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', backgroundColor: '#f1f5f9', color: '#475569', borderRadius: '4px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                            Warden Notice
+                          </span>
+                        )}
+                      </div>
+
+                      <p style={{ margin: '0 0 1rem', fontSize: '0.9rem', color: '#334155', lineHeight: 1.5, backgroundColor: '#f8fafc', padding: '0.85rem', borderRadius: '8px', border: '1px solid #f1f5f9', whiteSpace: 'pre-wrap' }}>
+                        {ann.content || ann.text}
+                      </p>
+                    </div>
+
+                    <div style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '0.75rem' }}>
+                      <span>Author: <strong>{ann.authorName || ann.postedBy || 'Hostel Admin'}</strong></span>
+                      <span>{ann.date}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* FEEDBACK MANAGEMENT TAB */}
+        {activeTab === 'Feedback' && (
+          <div className="fallback-tab-panel">
+            <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <div>
+                <h2>Campus Feedback Management</h2>
+                <p style={{ color: '#64748b' }}>Publish student surveys & analyze rating feedback across hostel blocks</p>
+              </div>
+              <button 
+                onClick={() => setShowFeedbackModal(true)}
+                style={{
+                  backgroundColor: '#0f172a',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '0.65rem 1.25rem',
+                  borderRadius: '8px',
+                  fontWeight: 650,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem'
+                }}
+              >
+                + Publish Survey Campaign
+              </button>
+            </div>
+
+            {/* Metric Summary */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+              <div className="mgt-stat-card" style={{ padding: '1.25rem', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Total Responses</span>
+                <h3 style={{ fontSize: '1.75rem', margin: '0.35rem 0 0', color: '#0f172a', fontWeight: 800 }}>{feedbackResponses.length}</h3>
+              </div>
+
+              <div className="mgt-stat-card" style={{ padding: '1.25rem', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Campus Avg Rating</span>
+                <h3 style={{ fontSize: '1.75rem', margin: '0.35rem 0 0', color: '#eab308', fontWeight: 800 }}>
+                  {feedbackResponses.length > 0
+                    ? (feedbackResponses.reduce((acc, r) => acc + (r.rating || 0), 0) / feedbackResponses.length).toFixed(1) + ' / 5.0 ⭐'
+                    : 'N/A'}
+                </h3>
+              </div>
+
+              <div className="mgt-stat-card" style={{ padding: '1.25rem', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Active Campaign</span>
+                <h3 style={{ fontSize: '1rem', margin: '0.35rem 0 0', color: '#2563eb', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {feedbackRequests.find(f => f.active)?.title || 'No active survey'}
+                </h3>
+              </div>
+            </div>
+
+            {/* Submissions List */}
+            <div className="mgt-widget-card" style={{ padding: '1.5rem', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+              <h3 style={{ margin: '0 0 1rem', fontSize: '1.1rem', color: '#0f172a' }}>Student Submissions</h3>
+
+              {feedbackResponses.length === 0 ? (
+                <p style={{ color: '#64748b', textAlign: 'center', padding: '2rem 0' }}>No feedback submissions recorded yet.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {feedbackResponses.map((fb, idx) => (
+                    <div key={fb._id || idx} style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
-                        <span className="title">{ins.title}</span>
-                        <span className="desc">{ins.desc}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                          <strong style={{ color: '#0f172a', fontSize: '0.95rem' }}>{fb.studentName}</strong>
+                          <span style={{ fontSize: '0.8rem', color: '#64748b' }}>({fb.studentEmail})</span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: '0.9rem', color: '#334155' }}>{fb.comments || 'No comments provided.'}</p>
+                      </div>
+
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ color: '#eab308', fontWeight: 800, fontSize: '1.1rem' }}>
+                          {'★'.repeat(fb.rating || 5)}{'☆'.repeat(5 - (fb.rating || 5))}
+                        </span>
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
+                          {fb.createdAt ? new Date(fb.createdAt).toLocaleDateString() : ''}
+                        </span>
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
+              )}
+            </div>
+          </div>
+        )}
 
+        {/* RESIDENTS TAB */}
+        {activeTab === 'Residents' && (
+          <div className="fallback-tab-panel">
+            <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <div>
+                <h2>Registered Residents Directory</h2>
+                <p style={{ color: '#64748b' }}>Complete directory of all registered hostel students</p>
+              </div>
+              <div style={{ maxWidth: '300px' }}>
+                <input 
+                  type="text" 
+                  className="standard-input-field" 
+                  placeholder="Filter residents..." 
+                  value={searchQuery} 
+                  onChange={(e) => setSearchQuery(e.target.value)} 
+                />
+              </div>
             </div>
 
+            <div className="mgt-widget-card" style={{ padding: '1.5rem', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+              <div className="complaints-table-container">
+                <table className="mgt-data-table">
+                  <thead>
+                    <tr>
+                      <th>Resident Student</th>
+                      <th>Roll No</th>
+                      <th>Block</th>
+                      <th>Room</th>
+                      <th>Phone</th>
+                      <th>Email</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {residentsList
+                      .filter(r => r.name?.toLowerCase().includes(searchQuery.toLowerCase()) || r.email?.toLowerCase().includes(searchQuery.toLowerCase()) || r.block?.toLowerCase().includes(searchQuery.toLowerCase()))
+                      .map(r => (
+                        <tr key={r._id || r.email}>
+                          <td className="font-semibold" style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+                            {r.profilePhoto ? (
+                              <img src={r.profilePhoto} alt="student" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }} />
+                            ) : (
+                              <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#cbd5e1', color: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.75rem' }}>
+                                {r.name?.split(' ').map(n=>n[0]).join('') || 'S'}
+                              </div>
+                            )}
+                            {r.name}
+                          </td>
+                          <td>{r.rollNo || '2021CS101'}</td>
+                          <td><span style={{ fontWeight: 700, color: '#2563eb' }}>{r.block || 'D'} Block</span></td>
+                          <td>{r.roomNo || '101'}</td>
+                          <td>{r.phoneNo || '9876543210'}</td>
+                          <td>{r.email}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* WORKERS TAB */}
+        {activeTab === 'Maintenance Workers' && (
+          <div className="fallback-tab-panel">
+            <div className="section-header" style={{ marginBottom: '1.5rem' }}>
+              <h2>Maintenance Staff Roster</h2>
+              <p style={{ color: '#64748b' }}>Active maintenance workers and task loads</p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+              {workers.map(w => (
+                <div key={w._id || w.name} className="mgt-widget-card" style={{ padding: '1.25rem', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: w.color || '#3b82f6', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1rem' }}>
+                    {w.avatar || w.name?.split(' ').map(n=>n[0]).join('')}
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '1rem', color: '#0f172a', fontWeight: 700 }}>{w.name}</h4>
+                    <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: '#64748b' }}>Role: <strong>{w.role}</strong></p>
+                    <span style={{ fontSize: '0.78rem', color: '#10b981', fontWeight: 600 }}>Active Tasks: {w.tasks || 0}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -739,7 +1228,7 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 <p style={{ color: '#64748b', textAlign: 'center', padding: '2rem 0', gridColumn: '1 / -1' }}>No complaints match your query.</p>
               ) : (
                 filteredComplaints.map(c => (
-                  <div key={c.id} className="mgt-widget-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '1.25rem', border: '1px solid #e2e8f0', borderRadius: '10px', backgroundColor: '#fff', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)', transition: 'transform 0.2s, box-shadow 0.2s', cursor: 'default' }}>
+                  <div key={c.id || c._id} className="mgt-widget-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '1.25rem', border: '1px solid #e2e8f0', borderRadius: '10px', backgroundColor: '#fff', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)', transition: 'transform 0.2s, box-shadow 0.2s', cursor: 'default' }}>
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.75rem' }}>
                         <h4 style={{ margin: 0, fontSize: '1rem', color: '#0f172a', fontWeight: 600, lineHeight: '1.4' }}>{c.title}</h4>
@@ -878,17 +1367,288 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
           </div>
         )}
 
-        {/* TAB FALLBACKS */}
-        {activeTab !== 'Dashboard' && activeTab !== 'Complaints Overview' && activeTab !== 'Settings' && (
-          <div className="fallback-tab-panel">
-            <h2>{activeTab} Management</h2>
-            <div className="mgt-widget-card" style={{ padding: '2rem', marginTop: '1rem', color: '#64748b' }}>
-              Management interface for {activeTab} is ready and listening to persistent API database triggers.
+      </main>
+
+      {/* DIRECT CHAT MODAL OVERLAY WITH WARDEN */}
+      {selectedWardenChat && (
+        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+          <div className="modal-content" style={{ maxWidth: '560px', width: '90%', borderRadius: '12px', padding: '1.5rem', backgroundColor: '#fff', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.85rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ width: '42px', height: '42px', borderRadius: '50%', backgroundColor: '#0f172a', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#0f172a', fontWeight: 700 }}>{selectedWardenChat.name}</h3>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>{selectedWardenChat.email} • Ph: {selectedWardenChat.phoneNo || 'N/A'}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedWardenChat(null)}
+                style={{ background: 'none', border: 'none', fontSize: '1.8rem', color: '#94a3b8', cursor: 'pointer', lineHeight: '0.5' }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Chat Messages Log */}
+            <div style={{ height: '340px', overflowY: 'auto', padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
+              {wardenMessages.length === 0 ? (
+                <p style={{ color: '#94a3b8', textAlign: 'center', margin: 'auto', fontSize: '0.88rem' }}>No direct messages yet. Send a message to start the conversation!</p>
+              ) : (
+                wardenMessages.map((m, idx) => {
+                  const isMgt = m.sender === 'management';
+                  return (
+                    <div key={m._id || idx} style={{ alignSelf: isMgt ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
+                      <div style={{
+                        padding: '0.75rem 1rem',
+                        borderRadius: isMgt ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                        backgroundColor: isMgt ? '#0f172a' : '#ffffff',
+                        color: isMgt ? '#ffffff' : '#0f172a',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                        border: isMgt ? 'none' : '1px solid #e2e8f0',
+                        fontSize: '0.9rem'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem', gap: '0.75rem' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: isMgt ? '#38bdf8' : '#2563eb' }}>
+                            {isMgt ? 'Management Executive' : selectedWardenChat.name}
+                          </span>
+                          <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>
+                            {m.time || 'Just now'}
+                          </span>
+                        </div>
+                        <p style={{ margin: 0, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{m.text}</p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Message Input Form */}
+            <form onSubmit={handleSendWardenMessage} style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                type="text"
+                className="standard-input-field"
+                placeholder={`Type message to ${selectedWardenChat.name}...`}
+                value={wardenMsgText}
+                onChange={(e) => setWardenMsgText(e.target.value)}
+                style={{ flex: 1, padding: '0.75rem 1rem', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', outline: 'none' }}
+              />
+              <button 
+                type="submit"
+                style={{ 
+                  backgroundColor: '#0f172a', 
+                  color: '#fff', 
+                  border: 'none', 
+                  padding: '0.75rem 1.4rem', 
+                  borderRadius: '8px', 
+                  fontWeight: 650, 
+                  cursor: 'pointer',
+                  fontSize: '0.88rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem'
+                }}
+              >
+                <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3 21l18-9L3 3l3 9zm0 0h7" />
+                </svg>
+                Send
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* STUDENT ROSTER MODAL FOR A HOSTEL BLOCK */}
+      {selectedBlockDetail && (
+        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+          <div className="modal-content" style={{ maxWidth: '650px', width: '90%', borderRadius: '12px', padding: '1.5rem', backgroundColor: '#fff', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.85rem', marginBottom: '1rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#0f172a' }}>{selectedBlockDetail.blockName} Block Student Roster</h3>
+                <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b' }}>
+                  Total Registered: <strong>{selectedBlockDetail.students.length} Students</strong> • In-Charge: <strong>{selectedBlockDetail.warden?.name || 'Head Warden'}</strong>
+                </p>
+              </div>
+              <button 
+                onClick={() => setSelectedBlockDetail(null)}
+                style={{ background: 'none', border: 'none', fontSize: '1.8rem', color: '#94a3b8', cursor: 'pointer', lineHeight: '0.5' }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+              {selectedBlockDetail.students.length === 0 ? (
+                <p style={{ color: '#64748b', textAlign: 'center', padding: '2rem 0' }}>No students registered in {selectedBlockDetail.blockName} Block yet.</p>
+              ) : (
+                <table className="mgt-data-table">
+                  <thead>
+                    <tr>
+                      <th>Student</th>
+                      <th>Roll No</th>
+                      <th>Room</th>
+                      <th>Phone</th>
+                      <th>Email</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedBlockDetail.students.map(s => (
+                      <tr key={s._id || s.email}>
+                        <td className="font-semibold" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          {s.profilePhoto ? (
+                            <img src={s.profilePhoto} alt="s" style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#e2e8f0', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                              {s.name?.split(' ').map(n=>n[0]).join('') || 'S'}
+                            </div>
+                          )}
+                          {s.name}
+                        </td>
+                        <td>{s.rollNo || '2021CS101'}</td>
+                        <td>{s.roomNo || '101'}</td>
+                        <td>{s.phoneNo || '9876543210'}</td>
+                        <td>{s.email}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-      </main>
+      {/* POST MANAGEMENT ANNOUNCEMENT MODAL */}
+      {showAnnouncementModal && (
+        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+          <div className="modal-content" style={{ maxWidth: '520px', width: '90%', borderRadius: '12px', padding: '1.5rem', backgroundColor: '#fff', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.85rem', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#0f172a' }}>Post Campus Announcement</h3>
+              <button 
+                onClick={() => setShowAnnouncementModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: '1.8rem', color: '#94a3b8', cursor: 'pointer', lineHeight: '0.5' }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handlePostManagementAnnouncement}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>Title</label>
+                <input 
+                  type="text" 
+                  className="standard-input-field" 
+                  placeholder="e.g. Water Maintenance Notice" 
+                  value={newAnn.title} 
+                  onChange={(e) => setNewAnn({ ...newAnn, title: e.target.value })} 
+                  required 
+                  style={{ width: '100%', padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px' }} 
+                />
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>Announcement Content</label>
+                <textarea 
+                  rows="4" 
+                  className="standard-input-field" 
+                  placeholder="Type the announcement description..." 
+                  value={newAnn.content} 
+                  onChange={(e) => setNewAnn({ ...newAnn, content: e.target.value })} 
+                  required 
+                  style={{ width: '100%', padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                ></textarea>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>Priority</label>
+                  <select 
+                    value={newAnn.priority} 
+                    onChange={(e) => setNewAnn({ ...newAnn, priority: e.target.value })}
+                    style={{ width: '100%', padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#fff' }}
+                  >
+                    <option value="Normal">Normal</option>
+                    <option value="Urgent">Urgent</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>Category</label>
+                  <select 
+                    value={newAnn.category} 
+                    onChange={(e) => setNewAnn({ ...newAnn, category: e.target.value })}
+                    style={{ width: '100%', padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#fff' }}
+                  >
+                    <option value="General">General</option>
+                    <option value="Maintenance">Maintenance</option>
+                    <option value="Event">Event</option>
+                    <option value="Hostel Rule">Hostel Rule</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                <button type="button" onClick={() => setShowAnnouncementModal(false)} style={{ padding: '0.65rem 1.25rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#fff', cursor: 'pointer' }}>Cancel</button>
+                <button type="submit" style={{ padding: '0.65rem 1.5rem', border: 'none', borderRadius: '6px', backgroundColor: '#2563eb', color: '#fff', fontWeight: 650, cursor: 'pointer' }}>Publish Announcement</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CREATE MANAGEMENT FEEDBACK SURVEY MODAL */}
+      {showFeedbackModal && (
+        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+          <div className="modal-content" style={{ maxWidth: '520px', width: '90%', borderRadius: '12px', padding: '1.5rem', backgroundColor: '#fff', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.85rem', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#0f172a' }}>Publish Feedback Survey</h3>
+              <button 
+                onClick={() => setShowFeedbackModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: '1.8rem', color: '#94a3b8', cursor: 'pointer', lineHeight: '0.5' }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateManagementFeedback}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>Survey Title</label>
+                <input 
+                  type="text" 
+                  className="standard-input-field" 
+                  placeholder="e.g. Monthly Hostel Mess & Cleaning Feedback" 
+                  value={newFb.title} 
+                  onChange={(e) => setNewFb({ ...newFb, title: e.target.value })} 
+                  required 
+                  style={{ width: '100%', padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px' }} 
+                />
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>Survey Description / Instructions</label>
+                <textarea 
+                  rows="4" 
+                  className="standard-input-field" 
+                  placeholder="Please rate your experience with food quality and cleanliness..." 
+                  value={newFb.description} 
+                  onChange={(e) => setNewFb({ ...newFb, description: e.target.value })} 
+                  required 
+                  style={{ width: '100%', padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                ></textarea>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                <button type="button" onClick={() => setShowFeedbackModal(false)} style={{ padding: '0.65rem 1.25rem', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#fff', cursor: 'pointer' }}>Cancel</button>
+                <button type="submit" style={{ padding: '0.65rem 1.5rem', border: 'none', borderRadius: '6px', backgroundColor: '#0f172a', color: '#fff', fontWeight: 650, cursor: 'pointer' }}>Publish Survey</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* COMPLAINT DETAILS VIEW MODAL (VIEW-ONLY FOR MANAGEMENT) */}
       {selectedComplaint && (
@@ -906,7 +1666,6 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
 
             <div style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: '0.5rem', textAlign: 'left' }}>
               
-              {/* Category & Status */}
               <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
                 <span className={`status-pill ${
                   selectedComplaint.status === 'Resolved' ? 'resolved' :
@@ -923,7 +1682,6 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 </span>
               </div>
 
-              {/* Description */}
               <div style={{ marginBottom: '1.5rem' }}>
                 <h5 style={{ margin: '0 0 0.5rem', fontSize: '0.85rem', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Detailed Description</h5>
                 <p style={{ margin: 0, fontSize: '0.95rem', color: '#0f172a', lineHeight: 1.5, backgroundColor: '#f8fafc', padding: '0.85rem', borderRadius: '8px', border: '1px solid #e2e8f0', whiteSpace: 'pre-wrap' }}>
@@ -931,7 +1689,6 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 </p>
               </div>
 
-              {/* Location & Time */}
               <div style={{ marginBottom: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div>
                   <h5 style={{ margin: '0 0 0.25rem', fontSize: '0.8rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Location</h5>
@@ -943,7 +1700,6 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 </div>
               </div>
 
-              {/* Student Details Card */}
               <div style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                 <h5 style={{ margin: '0 0 0.75rem', fontSize: '0.8rem', color: '#475569', textTransform: 'uppercase', fontWeight: 600 }}>Filer Student Details</h5>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -972,7 +1728,6 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 </div>
               </div>
 
-              {/* Attached Proof */}
               {selectedComplaint.proof && (
                 <div style={{ marginBottom: '1.5rem' }}>
                   <h5 style={{ margin: '0 0 0.5rem', fontSize: '0.8rem', color: '#475569', textTransform: 'uppercase', fontWeight: 600 }}>Attached Proof</h5>

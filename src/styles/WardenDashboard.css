@@ -419,6 +419,9 @@
   flex: 1;
   padding: 2rem;
   overflow-y: auto;
+  overflow-x: hidden;
+  width: calc(100vw - 260px);
+  max-width: calc(100vw - 260px);
   background-color: #f8fafc;
   box-sizing: border-box;
 }
@@ -433,13 +436,16 @@
 
 .stat-card {
   background-color: #ffffff;
-  border-radius: 16px;
-  padding: 1.25rem 1rem;
+  border-radius: 14px;
+  padding: 1.15rem 1.25rem;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);
   display: flex;
   align-items: center;
   gap: 1rem;
-  border: 1px solid #f1f5f9;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .stat-icon-wrapper {

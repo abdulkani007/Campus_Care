@@ -66,6 +66,7 @@ const WardenSchema = new mongoose.Schema({
   roomNo: { type: String, required: true },
   block: { type: String, required: true },
   password: { type: String, required: true },
+  role: { type: String, default: 'warden' },
   profilePhoto: { type: String, default: null }
 });
 const Warden = mongoose.model('Warden', WardenSchema);
@@ -82,6 +83,16 @@ const ManagementSchema = new mongoose.Schema({
 });
 const Management = mongoose.model('Management', ManagementSchema);
 
+// Block Assignment model mapping Wardens to Hostel Blocks
+const BlockAssignmentSchema = new mongoose.Schema({
+  wardenEmail: { type: String, required: true, unique: true },
+  wardenName: { type: String, required: true },
+  blocks: [{ type: String, required: true }],
+  role: { type: String, default: 'warden' },
+  createdAt: { type: Date, default: Date.now }
+});
+const BlockAssignment = mongoose.model('BlockAssignment', BlockAssignmentSchema);
+
 const ComplaintSchema = new mongoose.Schema({
   title: { type: String, required: true },
   location: { type: String, required: true },
@@ -96,6 +107,8 @@ const ComplaintSchema = new mongoose.Schema({
   studentRoom: { type: String, default: 'N/A' },
   studentBlock: { type: String, default: 'N/A' },
   studentEmail: { type: String, default: null },
+  assignedWardenEmail: { type: String, default: null },
+  assignedWardenName: { type: String, default: null },
   proof: { type: String, default: null },
   proofName: { type: String, default: null },
   createdAt: { type: Date, default: Date.now }
@@ -109,6 +122,8 @@ const AnnouncementSchema = new mongoose.Schema({
   attachmentName: { type: String, default: null },
   important: { type: Boolean, default: false },
   date: { type: String, required: true },
+  postedBy: { type: String, default: 'Warden' },
+  authorName: { type: String, default: 'Hostel Administration' },
   createdAt: { type: Date, default: Date.now }
 });
 const Announcement = mongoose.model('Announcement', AnnouncementSchema);
@@ -129,6 +144,7 @@ const MessageSchema = new mongoose.Schema({
   time: { type: String, required: true },
   studentEmail: { type: String, default: 'student@gmail.com' },
   studentName: { type: String, default: 'Student' },
+  studentBlock: { type: String, default: 'N/A' },
   read: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 });
@@ -147,6 +163,8 @@ const FeedbackRequestSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, required: true },
   active: { type: Boolean, default: true },
+  postedBy: { type: String, default: 'Warden' },
+  authorName: { type: String, default: 'Hostel Administration' },
   createdAt: { type: Date, default: Date.now }
 });
 const FeedbackRequest = mongoose.model('FeedbackRequest', FeedbackRequestSchema);
@@ -161,18 +179,182 @@ const FeedbackResponseSchema = new mongoose.Schema({
 });
 const FeedbackResponse = mongoose.model('FeedbackResponse', FeedbackResponseSchema);
 
-// Seeding Default Credentials
+// Dynamic Block Warden Assignment helper
+const getAssignedWardenForBlock = async (studentBlock) => {
+  if (!studentBlock) {
+    const headW = await BlockAssignment.findOne({ role: 'headwarden' });
+    return {
+      wardenEmail: headW ? headW.wardenEmail : 'headwarden@campuscare.com',
+      wardenName: headW ? headW.wardenName : 'Head Warden'
+    };
+  }
+
+  let cleanBlock = studentBlock.trim().toUpperCase();
+  const match = cleanBlock.match(/\b([A-F])\b/);
+  if (match) {
+    cleanBlock = match[1];
+  } else if (cleanBlock.length > 0) {
+    cleanBlock = cleanBlock.charAt(0);
+  }
+
+  // Find block assignment in DB dynamically
+  let assignment = await BlockAssignment.findOne({
+    blocks: cleanBlock,
+    role: 'warden'
+  });
+
+  if (!assignment) {
+    assignment = await BlockAssignment.findOne({ blocks: cleanBlock });
+  }
+
+  if (assignment) {
+    return {
+      wardenEmail: assignment.wardenEmail,
+      wardenName: assignment.wardenName,
+      assignedBlock: cleanBlock
+    };
+  }
+
+  const headW = await BlockAssignment.findOne({ role: 'headwarden' });
+  return {
+    wardenEmail: headW ? headW.wardenEmail : 'headwarden@campuscare.com',
+    wardenName: headW ? headW.wardenName : 'Head Warden',
+    assignedBlock: cleanBlock
+  };
+};
+
+// Seeding Predefined Warden Credentials & Block Assignments
 const seedDefaults = async () => {
   try {
-    const defaultWarden = {
-      name: 'Warden Console',
-      email: 'warden@gmail.com',
-      rollNo: 'EMP-001',
-      phoneNo: '9999999999',
-      roomNo: 'Office-A',
-      block: 'Main',
-      password: 'warden123'
-    };
+    // Purge legacy test accounts so ONLY official @campuscare.com accounts can authenticate
+    await Warden.deleteMany({ email: { $in: ['warden@gmail.com', 'managemant@gmail.com'] } });
+    await BlockAssignment.deleteMany({ wardenEmail: { $in: ['warden@gmail.com', 'managemant@gmail.com'] } });
+    await Management.deleteMany({ email: { $in: ['managemant@gmail.com', 'management@gmail.com'] } });
+
+    const defaultWardens = [
+      {
+        name: 'ABC Block Warden',
+        email: 'abcwarden@campuscare.com',
+        rollNo: 'EMP-ABC',
+        phoneNo: '9876543211',
+        roomNo: 'Office-ABC',
+        block: 'A, B, C',
+        password: 'sece123',
+        role: 'warden',
+        blocks: ['A', 'B', 'C']
+      },
+      {
+        name: 'D Block Warden',
+        email: 'dwarden@campuscare.com',
+        rollNo: 'EMP-D01',
+        phoneNo: '9876543212',
+        roomNo: 'Office-D',
+        block: 'D',
+        password: 'sece123',
+        role: 'warden',
+        blocks: ['D']
+      },
+      {
+        name: 'E Block Warden',
+        email: 'ewarden@campuscare.com',
+        rollNo: 'EMP-E01',
+        phoneNo: '9876543213',
+        roomNo: 'Office-E',
+        block: 'E',
+        password: 'sece123',
+        role: 'warden',
+        blocks: ['E']
+      },
+      {
+        name: 'F Block Warden',
+        email: 'fwarden@campuscare.com',
+        rollNo: 'EMP-F01',
+        phoneNo: '9876543214',
+        roomNo: 'Office-F',
+        block: 'F',
+        password: 'sece123',
+        role: 'warden',
+        blocks: ['F']
+      },
+      {
+        name: 'Head Warden',
+        email: 'headwarden@campuscare.com',
+        rollNo: 'EMP-HEAD',
+        phoneNo: '9876543215',
+        roomNo: 'Head-Office',
+        block: 'A, B, C, D, E, F',
+        password: 'sece123',
+        role: 'headwarden',
+        blocks: ['A', 'B', 'C', 'D', 'E', 'F']
+      }
+    ];
+
+    for (const w of defaultWardens) {
+      const existingWarden = await Warden.findOne({ email: w.email.toLowerCase() });
+      if (!existingWarden) {
+        await Warden.create({
+          name: w.name,
+          email: w.email.toLowerCase(),
+          rollNo: w.rollNo,
+          phoneNo: w.phoneNo,
+          roomNo: w.roomNo,
+          block: w.block,
+          password: w.password,
+          role: w.role
+        });
+        console.log(`Seeded Warden: ${w.email}`);
+      } else {
+        existingWarden.password = w.password;
+        existingWarden.role = w.role;
+        await existingWarden.save();
+      }
+
+      const existingAssignment = await BlockAssignment.findOne({ wardenEmail: w.email.toLowerCase() });
+      if (!existingAssignment) {
+        await BlockAssignment.create({
+          wardenEmail: w.email.toLowerCase(),
+          wardenName: w.name,
+          blocks: w.blocks,
+          role: w.role
+        });
+        console.log(`Seeded BlockAssignment for ${w.email}`);
+      } else {
+        existingAssignment.blocks = w.blocks;
+        existingAssignment.role = w.role;
+        await existingAssignment.save();
+      }
+    }
+
+    const defaultManagements = [
+      {
+        name: 'Management Executive',
+        email: 'management@campuscare.com',
+        rollNo: 'MGT-001',
+        phoneNo: '9876543220',
+        roomNo: 'Admin-01',
+        block: 'All Blocks',
+        password: 'sece123'
+      }
+    ];
+
+    for (const m of defaultManagements) {
+      const existingMgt = await Management.findOne({ email: m.email.toLowerCase() });
+      if (!existingMgt) {
+        await Management.create({
+          name: m.name,
+          email: m.email.toLowerCase(),
+          rollNo: m.rollNo,
+          phoneNo: m.phoneNo,
+          roomNo: m.roomNo,
+          block: m.block,
+          password: m.password
+        });
+        console.log(`Seeded Management: ${m.email}`);
+      } else {
+        existingMgt.password = m.password;
+        await existingMgt.save();
+      }
+    }
 
     const defaultStudent = {
       name: 'Arun Kumar',
@@ -184,32 +366,10 @@ const seedDefaults = async () => {
       password: 'student123'
     };
 
-    const defaultManagement = {
-      name: 'Dr. R. Krishnan',
-      email: 'managemant@gmail.com',
-      rollNo: 'MGT-101',
-      phoneNo: '9876543222',
-      roomNo: 'Admin-101',
-      block: 'Main',
-      password: 'management123'
-    };
-
-    const wardenCount = await Warden.countDocuments({ email: defaultWarden.email });
-    if (wardenCount === 0) {
-      await Warden.create(defaultWarden);
-      console.log('Seeded default Warden.');
-    }
-
-    const studentCount = await Student.countDocuments({ email: defaultStudent.email });
-    if (studentCount === 0) {
+    const existingStudent = await Student.findOne({ email: defaultStudent.email.toLowerCase() });
+    if (!existingStudent) {
       await Student.create(defaultStudent);
       console.log('Seeded default Student.');
-    }
-
-    const mgtCount = await Management.countDocuments({ email: defaultManagement.email });
-    if (mgtCount === 0) {
-      await Management.create(defaultManagement);
-      console.log('Seeded default Management.');
     }
   } catch (err) {
     console.error('Error seeding default data:', err);
@@ -265,53 +425,78 @@ app.post('/api/login', async (req, res) => {
     return res.status(400).json({ error: 'Email and password are required' });
   }
 
+  const cleanEmail = email.toLowerCase().trim();
+
   try {
-    if (role === 'warden') {
-      if (email.toLowerCase() !== 'warden@gmail.com' || password !== 'warden123') {
-        return res.status(401).json({ error: 'Invalid email or password' });
-      }
-      const matched = await Warden.findOne({ email: 'warden@gmail.com' });
+    // 1. Warden or Head Warden login
+    if (role === 'warden' || role === 'headwarden') {
+      const matched = await Warden.findOne({ email: cleanEmail, password });
       if (matched) {
         const { password: _password, ...userWithoutPassword } = matched.toJSON();
-        return res.json({ success: true, user: { ...userWithoutPassword, role: 'warden' } });
+        const assignment = await BlockAssignment.findOne({ wardenEmail: cleanEmail });
+        return res.json({
+          success: true,
+          user: {
+            ...userWithoutPassword,
+            role: matched.role || (assignment ? assignment.role : 'warden'),
+            assignedBlocks: assignment ? assignment.blocks : (matched.block ? matched.block.split(',').map(b => b.trim()) : [])
+          }
+        });
       } else {
         return res.status(401).json({ error: 'Invalid email or password' });
       }
-    } else if (role === 'student') {
-      const matched = await Student.findOne({ email: email.toLowerCase(), password });
+    }
+
+    // 2. Student login
+    if (role === 'student') {
+      const matched = await Student.findOne({ email: cleanEmail, password });
       if (matched) {
         const { password: _password, ...userWithoutPassword } = matched.toJSON();
         return res.json({ success: true, user: { ...userWithoutPassword, role: 'student' } });
       } else {
         return res.status(401).json({ error: 'Invalid email or password' });
       }
-    } else if (role === 'management') {
-      const isMgtEmail = email.toLowerCase() === 'managemant@gmail.com' || email.toLowerCase() === 'management@gmail.com';
-      if (!isMgtEmail || password !== 'management123') {
-        return res.status(401).json({ error: 'Invalid email or password' });
-      }
-      const matched = await Management.findOne({
-        $or: [{ email: 'managemant@gmail.com' }, { email: 'management@gmail.com' }]
-      });
+    }
+
+    // 3. Management login
+    if (role === 'management') {
+      const matched = await Management.findOne({ email: cleanEmail, password });
       if (matched) {
         const { password: _password, ...userWithoutPassword } = matched.toJSON();
         return res.json({ success: true, user: { ...userWithoutPassword, role: 'management' } });
       } else {
         return res.status(401).json({ error: 'Invalid email or password' });
       }
-    } else {
-      // Mock profiles for other roles (Worker)
+    }
+
+    // 4. Dynamic role lookup fallback across Warden, Management, Student
+    let matchedWarden = await Warden.findOne({ email: cleanEmail, password });
+    if (matchedWarden) {
+      const { password: _password, ...userWithoutPassword } = matchedWarden.toJSON();
+      const assignment = await BlockAssignment.findOne({ wardenEmail: cleanEmail });
       return res.json({
         success: true,
         user: {
-          name: 'Staff Profile',
-          email,
-          role,
-          block: 'A',
-          roomNo: '101'
+          ...userWithoutPassword,
+          role: matchedWarden.role || (assignment ? assignment.role : 'warden'),
+          assignedBlocks: assignment ? assignment.blocks : (matchedWarden.block ? matchedWarden.block.split(',').map(b => b.trim()) : [])
         }
       });
     }
+
+    let matchedMgt = await Management.findOne({ email: cleanEmail, password });
+    if (matchedMgt) {
+      const { password: _password, ...userWithoutPassword } = matchedMgt.toJSON();
+      return res.json({ success: true, user: { ...userWithoutPassword, role: 'management' } });
+    }
+
+    let matchedStudent = await Student.findOne({ email: cleanEmail, password });
+    if (matchedStudent) {
+      const { password: _password, ...userWithoutPassword } = matchedStudent.toJSON();
+      return res.json({ success: true, user: { ...userWithoutPassword, role: 'student' } });
+    }
+
+    return res.status(401).json({ error: 'Invalid email or password' });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Database login error' });
@@ -320,20 +505,68 @@ app.post('/api/login', async (req, res) => {
 
 // 3. COMPLAINTS API
 app.get('/api/complaints', async (req, res) => {
+  const { userEmail, userRole, studentEmail } = req.query;
+
   try {
-    const complaints = await Complaint.find().sort({ createdAt: -1 });
+    let filter = {};
+    const effectiveEmail = (userEmail || studentEmail || '').toLowerCase().trim();
+    const effectiveRole = (userRole || '').toLowerCase().trim();
+
+    if (effectiveRole === 'student') {
+      if (effectiveEmail) {
+        filter = { studentEmail: effectiveEmail };
+      }
+    } else if (effectiveRole === 'warden') {
+      const assignment = await BlockAssignment.findOne({ wardenEmail: effectiveEmail });
+      if (assignment) {
+        if (assignment.role === 'headwarden' || assignment.blocks.length >= 6) {
+          filter = {}; // Head Warden views all complaints across all blocks
+        } else {
+          // Block Warden views only assigned blocks (e.g., A, B, C for ABC Warden)
+          const blockRegexes = assignment.blocks.map(b => new RegExp(`^(${b}|${b}\\s*Block|Block\\s*${b})$`, 'i'));
+          filter = {
+            $or: [
+              { studentBlock: { $in: assignment.blocks } },
+              { studentBlock: { $in: blockRegexes } },
+              { assignedWardenEmail: effectiveEmail }
+            ]
+          };
+        }
+      }
+    } else if (effectiveRole === 'headwarden' || effectiveRole === 'management') {
+      filter = {}; // Head Warden & Management view all complaints
+    } else if (effectiveEmail) {
+      // Automatic lookup if role query string is omitted
+      const studentMatch = await Student.findOne({ email: effectiveEmail });
+      if (studentMatch) {
+        filter = { studentEmail: effectiveEmail };
+      } else {
+        const assignment = await BlockAssignment.findOne({ wardenEmail: effectiveEmail });
+        if (assignment && assignment.role !== 'headwarden' && assignment.blocks.length < 6) {
+          const blockRegexes = assignment.blocks.map(b => new RegExp(`^(${b}|${b}\\s*Block|Block\\s*${b})$`, 'i'));
+          filter = {
+            $or: [
+              { studentBlock: { $in: assignment.blocks } },
+              { studentBlock: { $in: blockRegexes } },
+              { assignedWardenEmail: effectiveEmail }
+            ]
+          };
+        }
+      }
+    }
+
+    const complaints = await Complaint.find(filter).sort({ createdAt: -1 });
     const students = await Student.find();
+    
     const resolved = complaints.map(c => {
       const obj = c.toJSON();
 
-      // Dynamically resolve legacy 'Just now' timestamps to their actual creation date/time
       const formattedTime = (obj.time && obj.time !== 'Just now')
         ? obj.time
         : new Date(obj.createdAt || Date.now()).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) + 
           ' - ' + 
           new Date(obj.createdAt || Date.now()).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-      // Find matching student
       let matched = null;
       if (obj.studentEmail) {
         matched = students.find(s => s.email.toLowerCase() === obj.studentEmail.toLowerCase());
@@ -356,30 +589,26 @@ app.get('/api/complaints', async (req, res) => {
           studentRoll: matched.rollNo,
           studentRoom: matched.roomNo,
           studentBlock: matched.block,
-          studentPhoto: matched.profilePhoto || null
+          studentPhoto: matched.profilePhoto || null,
+          assignedWardenEmail: obj.assignedWardenEmail || null,
+          assignedWardenName: obj.assignedWardenName || null
         };
       }
-
-      const defaultStudent = students.find(s => s.email === 'student@gmail.com') || {
-        name: 'Arun Kumar',
-        phoneNo: '9876543210',
-        rollNo: '2021CS101',
-        roomNo: '305',
-        block: 'C',
-        profilePhoto: null
-      };
 
       return {
         ...obj,
         time: formattedTime,
-        studentName: defaultStudent.name,
-        studentPhone: defaultStudent.phoneNo,
-        studentRoll: defaultStudent.rollNo,
-        studentRoom: defaultStudent.roomNo,
-        studentBlock: defaultStudent.block,
-        studentPhoto: defaultStudent.profilePhoto || null
+        studentName: obj.studentName || 'Student',
+        studentPhone: obj.studentPhone || 'N/A',
+        studentRoll: obj.studentRoll || 'N/A',
+        studentRoom: obj.studentRoom || 'N/A',
+        studentBlock: obj.studentBlock || 'N/A',
+        studentPhoto: null,
+        assignedWardenEmail: obj.assignedWardenEmail || null,
+        assignedWardenName: obj.assignedWardenName || null
       };
     });
+
     res.json(resolved);
   } catch (err) {
     console.error(err);
@@ -388,13 +617,23 @@ app.get('/api/complaints', async (req, res) => {
 });
 
 app.post('/api/complaints', async (req, res) => {
-  const { title, category, priority, description, location, studentName, studentPhone, studentRoll, studentRoom, studentBlock, studentEmail, proof, proofName } = req.body;
+  let { title, category, priority, description, location, studentName, studentPhone, studentRoll, studentRoom, studentBlock, studentEmail, proof, proofName } = req.body;
 
   if (!title || !category || !priority || !description || !location) {
     return res.status(400).json({ error: 'All fields are required' });
   }
 
   try {
+    if ((!studentBlock || studentBlock === 'N/A') && studentEmail) {
+      const studentDoc = await Student.findOne({ email: studentEmail.toLowerCase() });
+      if (studentDoc && studentDoc.block) {
+        studentBlock = studentDoc.block;
+      }
+    }
+
+    // Automatically assign the correct Block Warden via DB BlockAssignment
+    const wardenInfo = await getAssignedWardenForBlock(studentBlock);
+
     const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) + 
                     ' - ' + 
                     new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -413,6 +652,8 @@ app.post('/api/complaints', async (req, res) => {
       studentRoom: studentRoom || 'N/A',
       studentBlock: studentBlock || 'N/A',
       studentEmail: studentEmail || null,
+      assignedWardenEmail: wardenInfo.wardenEmail,
+      assignedWardenName: wardenInfo.wardenName,
       proof: proof || null,
       proofName: proofName || null
     });
@@ -420,6 +661,36 @@ app.post('/api/complaints', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Database write error' });
+  }
+});
+
+// BLOCK ASSIGNMENTS API
+app.get('/api/block-assignments', async (req, res) => {
+  try {
+    const assignments = await BlockAssignment.find();
+    res.json(assignments);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch block assignments' });
+  }
+});
+
+app.post('/api/block-assignments', async (req, res) => {
+  const { wardenEmail, wardenName, blocks, role } = req.body;
+  if (!wardenEmail || !blocks || !Array.isArray(blocks)) {
+    return res.status(400).json({ error: 'wardenEmail and blocks array are required' });
+  }
+  try {
+    const cleanEmail = wardenEmail.toLowerCase().trim();
+    const updated = await BlockAssignment.findOneAndUpdate(
+      { wardenEmail: cleanEmail },
+      { wardenEmail: cleanEmail, wardenName: wardenName || 'Warden', blocks, role: role || 'warden' },
+      { upsert: true, returnDocument: 'after' }
+    );
+    res.json({ success: true, assignment: updated });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update block assignment' });
   }
 });
 
@@ -615,10 +886,10 @@ app.get('/api/announcements', async (req, res) => {
 });
 
 app.post('/api/announcements', async (req, res) => {
-  const { title, text, attachment, attachmentName, important } = req.body;
+  const { title, text, attachment, attachmentName, important, postedBy, authorName } = req.body;
 
   if (!text) {
-    return res.status(400).json({ error: 'Text is required' });
+    return res.status(400).json({ error: 'Text content is required for announcement' });
   }
 
   try {
@@ -632,7 +903,9 @@ app.post('/api/announcements', async (req, res) => {
       attachment: attachment || null,
       attachmentName: attachmentName || null,
       important: !!important,
-      date: dateStr
+      date: dateStr,
+      postedBy: postedBy || 'Warden',
+      authorName: authorName || 'Hostel Administration'
     });
     res.status(201).json({ success: true, announcement: newAnnouncement });
   } catch (err) {
@@ -783,12 +1056,60 @@ app.post('/api/workers', async (req, res) => {
 
 // 6. MESSAGES API
 app.get('/api/messages', async (req, res) => {
-  const { studentEmail } = req.query;
+  const { studentEmail, userEmail, userRole } = req.query;
   try {
     let query = {};
+    const effectiveEmail = (userEmail || '').toLowerCase().trim();
+    const effectiveRole = (userRole || '').toLowerCase().trim();
+
     if (studentEmail) {
-      query.studentEmail = studentEmail.toLowerCase();
+      query.studentEmail = studentEmail.toLowerCase().trim();
+    } else if (effectiveRole === 'warden' && effectiveEmail) {
+      const assignment = await BlockAssignment.findOne({ wardenEmail: effectiveEmail });
+      if (assignment) {
+        if (assignment.role === 'headwarden' || assignment.blocks.length >= 6) {
+          query = {}; // Head warden can see all messages across all blocks
+        } else {
+          // Block warden sees messages ONLY from students in their assigned blocks
+          const blockRegexes = assignment.blocks.map(b => new RegExp(`^(${b}|${b}\\s*Block|Block\\s*${b})$`, 'i'));
+          const studentsInBlock = await Student.find({
+            $or: [
+              { block: { $in: assignment.blocks } },
+              { block: { $in: blockRegexes } }
+            ]
+          });
+          const studentEmails = studentsInBlock.map(s => s.email.toLowerCase());
+          query = {
+            $or: [
+              { studentEmail: { $in: studentEmails } },
+              { studentEmail: effectiveEmail },
+              { studentBlock: { $in: assignment.blocks } },
+              { studentBlock: { $in: blockRegexes } }
+            ]
+          };
+        }
+      }
+    } else if (effectiveEmail && effectiveRole !== 'headwarden' && effectiveRole !== 'management') {
+      const assignment = await BlockAssignment.findOne({ wardenEmail: effectiveEmail });
+      if (assignment && assignment.role !== 'headwarden' && assignment.blocks.length < 6) {
+        const blockRegexes = assignment.blocks.map(b => new RegExp(`^(${b}|${b}\\s*Block|Block\\s*${b})$`, 'i'));
+        const studentsInBlock = await Student.find({
+          $or: [
+            { block: { $in: assignment.blocks } },
+            { block: { $in: blockRegexes } }
+          ]
+        });
+        const studentEmails = studentsInBlock.map(s => s.email.toLowerCase());
+        query = {
+          $or: [
+            { studentEmail: { $in: studentEmails } },
+            { studentBlock: { $in: assignment.blocks } },
+            { studentBlock: { $in: blockRegexes } }
+          ]
+        };
+      }
     }
+
     const messages = await Message.find(query).sort({ createdAt: 1 });
     res.json(messages);
   } catch (err) {
@@ -798,20 +1119,30 @@ app.get('/api/messages', async (req, res) => {
 });
 
 app.post('/api/messages', async (req, res) => {
-  const { text, sender, studentEmail, studentName } = req.body;
+  let { text, sender, studentEmail, studentName, studentBlock } = req.body;
 
   if (!text || !sender) {
     return res.status(400).json({ error: 'Text and sender are required' });
   }
 
+  const cleanEmail = (studentEmail || 'student@gmail.com').toLowerCase().trim();
+
   try {
+    if ((!studentBlock || studentBlock === 'N/A') && cleanEmail) {
+      const studentDoc = await Student.findOne({ email: cleanEmail });
+      if (studentDoc && studentDoc.block) {
+        studentBlock = studentDoc.block;
+      }
+    }
+
     const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     const newMessage = await Message.create({ 
       text, 
       sender, 
       time: timeStr,
-      studentEmail: (studentEmail || 'student@gmail.com').toLowerCase(),
-      studentName: studentName || 'Student'
+      studentEmail: cleanEmail,
+      studentName: studentName || 'Student',
+      studentBlock: studentBlock || 'N/A'
     });
     res.status(201).json({ success: true, message: newMessage });
   } catch (err) {
@@ -876,10 +1207,45 @@ app.put('/api/messages/read', async (req, res) => {
   }
 });
 
-// 7. STUDENTS LIST API
+// 7. STUDENTS LIST API (Filtered by Warden's assigned blocks)
 app.get('/api/students', async (req, res) => {
+  const { userEmail, userRole } = req.query;
+
   try {
-    const students = await Student.find({}, { password: 0 });
+    let filter = {};
+    const effectiveEmail = (userEmail || '').toLowerCase().trim();
+    const effectiveRole = (userRole || '').toLowerCase().trim();
+
+    if (effectiveRole === 'warden' && effectiveEmail) {
+      const assignment = await BlockAssignment.findOne({ wardenEmail: effectiveEmail });
+      if (assignment) {
+        if (assignment.role === 'headwarden' || assignment.blocks.length >= 6) {
+          filter = {}; // Head warden can view all residents across all blocks
+        } else {
+          // Block warden sees ONLY residents belonging to their assigned blocks
+          const blockRegexes = assignment.blocks.map(b => new RegExp(`^(${b}|${b}\\s*Block|Block\\s*${b})$`, 'i'));
+          filter = {
+            $or: [
+              { block: { $in: assignment.blocks } },
+              { block: { $in: blockRegexes } }
+            ]
+          };
+        }
+      }
+    } else if (effectiveEmail && effectiveRole !== 'headwarden' && effectiveRole !== 'management') {
+      const assignment = await BlockAssignment.findOne({ wardenEmail: effectiveEmail });
+      if (assignment && assignment.role !== 'headwarden' && assignment.blocks.length < 6) {
+        const blockRegexes = assignment.blocks.map(b => new RegExp(`^(${b}|${b}\\s*Block|Block\\s*${b})$`, 'i'));
+        filter = {
+          $or: [
+            { block: { $in: assignment.blocks } },
+            { block: { $in: blockRegexes } }
+          ]
+        };
+      }
+    }
+
+    const students = await Student.find(filter, { password: 0 });
     res.json(students);
   } catch (err) {
     console.error(err);
@@ -887,11 +1253,21 @@ app.get('/api/students', async (req, res) => {
   }
 });
 
-// 8. WARDENS LIST API
+// 8. WARDENS LIST API (With Assigned Blocks)
 app.get('/api/wardens', async (req, res) => {
   try {
     const wardens = await Warden.find({}, { password: 0 });
-    res.json(wardens);
+    const assignments = await BlockAssignment.find({});
+    
+    const wardensWithAssignments = wardens.map(w => {
+      const assign = assignments.find(a => a.wardenEmail.toLowerCase() === w.email.toLowerCase());
+      return {
+        ...w.toObject(),
+        blocks: assign ? assign.blocks : (w.block ? w.block.split(',').map(b => b.trim()) : ['A', 'B', 'C', 'D', 'E', 'F'])
+      };
+    });
+
+    res.json(wardensWithAssignments);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Database read error' });
@@ -902,9 +1278,9 @@ app.get('/api/wardens', async (req, res) => {
 // FEEDBACK SYSTEM APIs
 // ==========================================
 
-// Create a new feedback request (Warden)
+// Create a new feedback request (Warden or Management)
 app.post('/api/feedback-requests', async (req, res) => {
-  const { title, description } = req.body;
+  const { title, description, postedBy, authorName } = req.body;
   if (!title || !description) {
     return res.status(400).json({ error: 'Title and description are required' });
   }
@@ -915,7 +1291,9 @@ app.post('/api/feedback-requests', async (req, res) => {
     const newRequest = new FeedbackRequest({
       title,
       description,
-      active: true
+      active: true,
+      postedBy: postedBy || 'Warden',
+      authorName: authorName || 'Hostel Administration'
     });
     await newRequest.save();
     res.status(201).json(newRequest);

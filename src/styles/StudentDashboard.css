@@ -144,10 +144,12 @@ body {
 .student-main-content {
   flex: 1;
   margin-left: 260px;
+  max-width: calc(100vw - 260px);
   min-height: 100vh;
   padding: 2rem 2.5rem;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 }
 
 /* Header style */
@@ -431,10 +433,11 @@ body {
 .grid-flex-row {
   display: flex;
   gap: 1.5rem;
+  width: 100%;
 }
 
-.col-60 { width: 60%; }
-.col-40 { width: 40%; }
+.col-60 { flex: 6; min-width: 0; }
+.col-40 { flex: 4; min-width: 0; }
 
 .grid-widget {
   background-color: #ffffff;
@@ -442,6 +445,7 @@ body {
   border-radius: 16px;
   padding: 1.5rem;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  min-width: 0;
 }
 
 .widget-header {

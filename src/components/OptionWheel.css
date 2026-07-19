@@ -1,0 +1,52 @@
+.option-wheel {
+  --ow-text-color: #64748b;
+  --ow-active-color: #0f172a;
+  --ow-font-size: 1.35rem;
+  --ow-inset: 50px;
+
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+  overflow: visible;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  outline: none;
+  z-index: 2;
+}
+
+.option-wheel--dragging {
+  cursor: grabbing;
+}
+
+/* Each option is absolutely centered at top: 50%, then translated along the curve */
+.option-wheel__item {
+  position: absolute;
+  top: 50%;
+  left: var(--ow-inset);
+  white-space: nowrap !important;
+  font-size: var(--ow-font-size);
+  line-height: 1.2 !important;
+  font-weight: 600;
+  font-family: 'Plus Jakarta Sans', 'Outfit', 'Arvo', system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  transform-origin: left center;
+  cursor: pointer;
+  will-change: transform, opacity, filter;
+  color: #64748b;
+  transition: color 0.15s ease, font-weight 0.15s ease, letter-spacing 0.15s ease;
+}
+
+.option-wheel--right .option-wheel__item {
+  left: auto;
+  right: var(--ow-inset);
+  transform-origin: right center;
+}
+
+.option-wheel__item--selected {
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  letter-spacing: 0.05em !important;
+  font-size: 1.45rem !important;
+}

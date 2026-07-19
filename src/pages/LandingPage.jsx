@@ -7,6 +7,7 @@ import LogoLoop from '../components/LogoLoop';
 import BlurText from '../components/BlurText';
 import TextPressure from '../components/TextPressure';
 import CountUp from '../components/CountUp';
+import OptionWheel from '../components/OptionWheel';
 import '../styles/LandingPage.css';
 
 // Import assets
@@ -20,10 +21,20 @@ import h6 from '../assets/h6.jpg';
 import h7 from '../assets/h7.jpg';
 import h8 from '../assets/h8.jpg';
 
+const WORKFLOW_WHEEL_ITEMS = [
+  'Submit Ticket',
+  'AI Grouping',
+  'Warden Review',
+  'Tech Dispatch',
+  'Resolution',
+  'Student Rating'
+];
+
 const LandingPage = ({ onLoginClick }) => {
   // Slideshow state
   const slides = [h1, h2, h3, h4, h5, h6, h7, h8];
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [activeWheelIndex, setActiveWheelIndex] = useState(0);
 
   // References for navigation scrolling
   const overviewRef = useRef(null);
@@ -485,10 +496,10 @@ const LandingPage = ({ onLoginClick }) => {
         </div>
       </section>
 
-      {/* Interactive Process Workflow Timeline */}
-      <section style={{ padding: '5rem 0', backgroundColor: '#ffffff', width: '100%', borderBottom: '1px solid #f1f5f9' }}>
+      {/* Interactive Process Workflow Timeline with OptionWheel */}
+      <section style={{ padding: '5rem 0', backgroundColor: '#ffffff', width: '100%', borderBottom: '1px solid #f1f5f9', overflow: 'hidden' }}>
         <div className="section-container">
-          <div className="landing-section-header">
+          <div className="landing-section-header" style={{ marginBottom: '3rem' }}>
             <span className="section-label" style={{ color: '#2563eb', fontWeight: 700, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Operational Cycle</span>
             <div style={{ height: '48px', position: 'relative', width: '100%', maxWidth: '600px', margin: '0.5rem auto 0 auto' }}>
               <TextPressure
@@ -506,48 +517,178 @@ const LandingPage = ({ onLoginClick }) => {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2.5rem' }}>
-            {/* Step 1 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '2rem', backgroundColor: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0', position: 'relative' }}>
-              <div style={{ position: 'absolute', top: '-15px', left: '2rem', backgroundColor: '#2563eb', color: '#fff', width: '35px', height: '35px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1rem', boxShadow: '0 4px 10px rgba(37,99,235,0.3)' }}>1</div>
-              <div style={{ width: '45px', height: '45px', backgroundColor: '#dbeafe', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '0.5rem' }}>
-                <svg width="22" height="22" fill="none" stroke="#2563eb" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '3rem', alignItems: 'center' }}>
+            {/* LEFT COLUMN: OptionWheel Animation */}
+            <div style={{ 
+              height: '520px', 
+              backgroundColor: 'transparent', 
+              position: 'relative', 
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              overflow: 'hidden'
+            }}>
+              {/* Sleek Center Focus Indicator Pill */}
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '10px',
+                right: '10px',
+                height: '58px',
+                transform: 'translateY(-50%)',
+                backgroundColor: '#eff6ff',
+                borderRadius: '16px',
+                border: '1px solid #bfdbfe',
+                boxShadow: '0 4px 15px rgba(37, 99, 235, 0.08)',
+                pointerEvents: 'none',
+                zIndex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                paddingLeft: '16px'
+              }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#2563eb', boxShadow: '0 0 8px rgba(37,99,235,0.5)' }}></div>
               </div>
-              <h4 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>Submit Ticket Request</h4>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569', lineHeight: '1.5' }}>
-                Students lodge issues by choosing the category, room location, priority, and attaching image proof files directly from their panel.
-              </p>
+
+              <OptionWheel
+                items={WORKFLOW_WHEEL_ITEMS}
+                defaultSelected={0}
+                textColor="#64748b"
+                activeColor="#0f172a"
+                side="left"
+                fontSize={1.25}
+                spacing={2.6}
+                curve={1.4}
+                tilt={16}
+                blur={0}
+                fade={0.35}
+                minOpacity={0.25}
+                smoothing={200}
+                inset={45}
+                loop={true}
+                draggable={true}
+                onChange={(idx) => setActiveWheelIndex(idx)}
+              />
             </div>
 
-            {/* Step 2 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '2rem', backgroundColor: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0', position: 'relative' }}>
-              <div style={{ position: 'absolute', top: '-15px', left: '2rem', backgroundColor: '#2563eb', color: '#fff', width: '35px', height: '35px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1rem', boxShadow: '0 4px 10px rgba(37,99,235,0.3)' }}>2</div>
-              <div style={{ width: '45px', height: '45px', backgroundColor: '#dbeafe', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '0.5rem' }}>
-                <svg width="22" height="22" fill="none" stroke="#2563eb" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                </svg>
-              </div>
-              <h4 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>AI Grouping & Assignment</h4>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569', lineHeight: '1.5' }}>
-                The algorithm automatically merges identical complaints. The Warden assigns the work order to specialized hostel technicians.
-              </p>
+            {/* RIGHT COLUMN: Synchronized Workflow Cards */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {[
+                {
+                  id: 0,
+                  num: '1',
+                  icon: (
+                    <svg width="22" height="22" fill="none" stroke="#2563eb" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  ),
+                  title: 'Submit Ticket Request',
+                  desc: 'Students lodge issues by choosing category, room location, priority, and attaching image proof files directly from their student dashboard.'
+                },
+                {
+                  id: 1,
+                  num: '2',
+                  icon: (
+                    <svg width="22" height="22" fill="none" stroke="#2563eb" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                    </svg>
+                  ),
+                  title: 'AI Grouping & Merge',
+                  desc: 'The smart algorithm automatically detects and groups duplicate complaints across the hostel, preventing technician double-booking.'
+                },
+                {
+                  id: 2,
+                  num: '3',
+                  icon: (
+                    <svg width="22" height="22" fill="none" stroke="#2563eb" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  ),
+                  title: 'Warden Review & Approval',
+                  desc: 'Block wardens review incident details, verify priority urgency, and assign duty orders to specialized campus maintenance workers.'
+                },
+                {
+                  id: 3,
+                  num: '4',
+                  icon: (
+                    <svg width="22" height="22" fill="none" stroke="#2563eb" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    </svg>
+                  ),
+                  title: 'Tech Dispatch Order',
+                  desc: 'Hostel maintenance workers receive push notifications with location details and room access codes to fix the issue on site.'
+                },
+                {
+                  id: 4,
+                  num: '5',
+                  icon: (
+                    <svg width="22" height="22" fill="none" stroke="#2563eb" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  ),
+                  title: 'Issue Resolution Mark',
+                  desc: 'Technicians mark the work order completed and attach resolution photos, notifying both the student and block warden immediately.'
+                },
+                {
+                  id: 5,
+                  num: '6',
+                  icon: (
+                    <svg width="22" height="22" fill="none" stroke="#2563eb" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                    </svg>
+                  ),
+                  title: 'Student Rating Campaign',
+                  desc: 'Students rate the repair quality with gold stars and feedback comments, automatically compiling metrics for management.'
+                }
+              ].map(step => {
+                const isActive = activeWheelIndex === step.id;
+
+                return (
+                  <div 
+                    key={step.id}
+                    onClick={() => setActiveWheelIndex(step.id)}
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'flex-start',
+                      gap: '1.25rem', 
+                      padding: '1.25rem 1.5rem', 
+                      backgroundColor: isActive ? '#ffffff' : '#f8fafc', 
+                      borderRadius: '16px', 
+                      border: isActive ? '2px solid #2563eb' : '1px solid #e2e8f0', 
+                      boxShadow: isActive ? '0 10px 25px -5px rgba(37, 99, 235, 0.15)' : 'none',
+                      transition: 'all 0.3s ease',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <div style={{ 
+                      backgroundColor: isActive ? '#2563eb' : '#cbd5e1', 
+                      color: '#fff', 
+                      minWidth: '32px', 
+                      height: '32px', 
+                      borderRadius: '50%', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      fontWeight: 'bold', 
+                      fontSize: '0.9rem',
+                      marginTop: '0.2rem',
+                      transition: 'all 0.3s ease'
+                    }}>
+                      {step.num}
+                    </div>
+
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ margin: '0 0 0.35rem 0', fontSize: '1.05rem', fontWeight: 800, color: isActive ? '#2563eb' : '#0f172a' }}>
+                        {step.title}
+                      </h4>
+                      <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569', lineHeight: '1.5' }}>
+                        {step.desc}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Step 3 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '2rem', backgroundColor: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0', position: 'relative' }}>
-              <div style={{ position: 'absolute', top: '-15px', left: '2rem', backgroundColor: '#2563eb', color: '#fff', width: '35px', height: '35px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1rem', boxShadow: '0 4px 10px rgba(37,99,235,0.3)' }}>3</div>
-              <div style={{ width: '45px', height: '45px', backgroundColor: '#dbeafe', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '0.5rem' }}>
-                <svg width="22" height="22" fill="none" stroke="#2563eb" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h4 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>Resolution & Rating</h4>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569', lineHeight: '1.5' }}>
-                Technicians mark tasks as resolved. Wardens query active feedback rating campaigns to log student satisfaction scores.
-              </p>
-            </div>
           </div>
         </div>
       </section>
