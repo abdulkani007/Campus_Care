@@ -16,27 +16,30 @@ const SplashScreen = ({ onComplete }) => {
     const ctx = canvas.getContext('2d');
     let animationFrameId;
 
-    let width = (canvas.width = window.innerWidth);
-    let height = (canvas.height = window.innerHeight);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let width = (canvas.width = window.innerWidth * dpr);
+    let height = (canvas.height = window.innerHeight * dpr);
+    ctx.scale(dpr, dpr);
 
     const handleResize = () => {
       if (!canvas) return;
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
+      width = canvas.width = window.innerWidth * dpr;
+      height = canvas.height = window.innerHeight * dpr;
+      ctx.scale(dpr, dpr);
     };
     window.addEventListener('resize', handleResize);
 
-    // Calculate number of particles based on screen size
-    const particleCount = Math.min(50, Math.floor((width * height) / 30000));
+    // Calculate number of particles based on screen size (optimized for mobile 60fps)
+    const particleCount = window.innerWidth < 640 ? 25 : Math.min(50, Math.floor((window.innerWidth * window.innerHeight) / 30000));
     const particles = [];
 
     for (let i = 0; i < particleCount; i++) {
       particles.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.35, // Slow, premium floating speeds
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        vx: (Math.random() - 0.5) * 0.35,
         vy: (Math.random() - 0.5) * 0.35,
-        radius: Math.random() * 2 + 1, // Subtle, small sizes
+        radius: Math.random() * 2 + 1,
       });
     }
 

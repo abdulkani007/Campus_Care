@@ -140,33 +140,7 @@ const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
         {/* Floating Back to Website Button */}
         <button
           onClick={onBackToHome}
-          style={{
-            position: 'absolute',
-            top: '2rem',
-            left: '2rem',
-            padding: '0.65rem 1.25rem',
-            borderRadius: '8px',
-            border: '1px solid rgba(15, 61, 122, 0.12)',
-            backgroundColor: '#ffffff',
-            color: '#1e293b',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            boxShadow: '0 4px 12px rgba(15, 23, 42, 0.04)',
-            transition: 'all 0.2s ease',
-            zIndex: 20,
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.backgroundColor = '#f1f5f9';
-            e.currentTarget.style.transform = 'translateX(-2px)';
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.backgroundColor = '#ffffff';
-            e.currentTarget.style.transform = 'none';
-          }}
+          className="back-home-btn"
         >
           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ transform: 'rotate(180deg)' }}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -174,10 +148,9 @@ const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
           Back to Website
         </button>
 
-        {/* Login Card (Mimics third screenshot exactly) */}
+        {/* Login Card */}
         <div 
-          className="login-card"
-          style={isSignupMode ? { maxWidth: '540px', transition: 'max-width 0.3s ease', padding: '2.5rem 2rem' } : { transition: 'max-width 0.3s ease' }}
+          className={`login-card ${isSignupMode ? 'signup-card-expanded' : ''}`}
         >
           {/* Logo Image */}
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
@@ -227,8 +200,8 @@ const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
 
           <form onSubmit={handleSubmit} style={{ textAlign: 'left' }}>
             {isSignupMode ? (
-              /* Signup fields in 2-column grid */
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
+              /* Signup fields in responsive grid */
+              <div className="signup-grid-layout">
                 {/* Name */}
                 <div className="input-wrapper" style={{ marginBottom: 0 }}>
                   <span className="input-icon-left" style={{ left: '0.75rem' }}>

@@ -1,11 +1,16 @@
-// backend/server.js
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// Load environment variables
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables from backend/.env or root .env
+dotenv.config({ path: path.join(__dirname, '.env') });
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/campuscare';
 const PORT = process.env.PORT || 5000;
@@ -25,9 +30,6 @@ mongoose.set('toJSON', {
     return ret;
   }
 });
-
-// Disable command buffering globally so Mongoose fails fast instead of hanging when offline
-mongoose.set('bufferCommands', false);
 
 // Connect to MongoDB
 mongoose.connect(MONGODB_URI)
@@ -109,6 +111,14 @@ const ComplaintSchema = new mongoose.Schema({
   studentEmail: { type: String, default: null },
   assignedWardenEmail: { type: String, default: null },
   assignedWardenName: { type: String, default: null },
+  assignedWorkerId: { type: String, default: null },
+  assignedWorkerName: { type: String, default: null },
+  assignedWorkerCategory: { type: String, default: null },
+  assignedWorkerPhone: { type: String, default: null },
+  workerStatus: { type: String, default: null },
+  workerNotes: { type: String, default: null },
+  workerProofImage: { type: String, default: null },
+  completionDate: { type: Date, default: null },
   proof: { type: String, default: null },
   proofName: { type: String, default: null },
   createdAt: { type: Date, default: Date.now }
@@ -152,12 +162,45 @@ const Message = mongoose.model('Message', MessageSchema);
 
 const WorkerSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  role: { type: String, required: true },
+  email: { type: String, default: '' },
+  phone: { type: String, required: true },
+  category: { 
+    type: String, 
+    enum: ['Electrician', 'Plumber', 'Carpenter', 'Housekeeping', 'Network Technician', 'Painter', 'Mess Staff', 'Other'], 
+    required: true 
+  },
+  experience: { type: String, default: '' },
+  address: { type: String, default: '' },
+  status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' },
+  createdBy: { type: String, default: 'Warden' },
+  role: { type: String }, // Backward compatibility (defaults to category)
   tasks: { type: Number, default: 0 },
-  avatar: { type: String, required: true },
-  color: { type: String, required: true }
+  avatar: { type: String },
+  color: { type: String },
+  createdAt: { type: Date, default: Date.now }
 });
 const Worker = mongoose.model('Worker', WorkerSchema);
+
+const WorkerTaskSchema = new mongoose.Schema({
+  taskId: { type: String, required: true, unique: true },
+  complaintId: { type: String, required: true },
+  workerId: { type: String },
+  workerEmail: { type: String, default: 'workers@campuscare.com' },
+  workerName: { type: String, required: true },
+  workerCategory: { type: String, default: 'General' },
+  assignedBy: { type: String, default: 'Block Warden' },
+  assignedDate: { type: Date, default: Date.now },
+  acceptedDate: { type: Date },
+  completedDate: { type: Date },
+  status: { 
+    type: String, 
+    enum: ['Assigned', 'Accepted', 'In Progress', 'Completed', 'Verified', 'Closed', 'Rejected'], 
+    default: 'Assigned' 
+  },
+  completionNotes: { type: String, default: '' },
+  proofImage: { type: String, default: '' }
+});
+const WorkerTask = mongoose.model('WorkerTask', WorkerTaskSchema);
 
 const FeedbackRequestSchema = new mongoose.Schema({
   title: { type: String, required: true },
@@ -371,6 +414,9 @@ const seedDefaults = async () => {
       await Student.create(defaultStudent);
       console.log('Seeded default Student.');
     }
+
+    // Clean out default system-seeded workers so only warden-added workers appear
+    await Worker.deleteMany({ createdBy: 'System' });
   } catch (err) {
     console.error('Error seeding default data:', err);
   }
@@ -466,6 +512,38 @@ app.post('/api/login', async (req, res) => {
         return res.json({ success: true, user: { ...userWithoutPassword, role: 'management' } });
       } else {
         return res.status(401).json({ error: 'Invalid email or password' });
+      }
+    }
+
+    // 4. Worker login
+    if (role === 'worker' || cleanEmail === 'workers@campuscare.com') {
+      if (cleanEmail === 'workers@campuscare.com' && password === 'sece123') {
+        return res.json({
+          success: true,
+          user: {
+            name: 'CampusCare Worker Staff',
+            email: 'workers@campuscare.com',
+            role: 'worker',
+            category: 'General Maintenance'
+          }
+        });
+      }
+      const matchedWorker = await Worker.findOne({ email: cleanEmail });
+      if (matchedWorker && password === 'sece123') {
+        return res.json({
+          success: true,
+          user: {
+            _id: matchedWorker._id,
+            name: matchedWorker.name,
+            email: matchedWorker.email || 'workers@campuscare.com',
+            phone: matchedWorker.phone,
+            category: matchedWorker.category,
+            role: 'worker'
+          }
+        });
+      }
+      if (role === 'worker') {
+        return res.status(401).json({ error: 'Invalid worker credentials' });
       }
     }
 
@@ -992,47 +1070,21 @@ app.delete('/api/event-banner', async (req, res) => {
   }
 });
 
-// 5. WORKERS API
+// 5. WORKERS API & TASK MANAGEMENT
 app.get('/api/workers', async (req, res) => {
   try {
-    const workers = await Worker.find();
+    const workers = await Worker.find().sort({ createdAt: -1 });
     res.json(workers);
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: 'Database read error' });
   }
 });
 
-app.post('/api/workers/request', async (req, res) => {
-  const { workerName } = req.body;
-
-  if (!workerName) {
-    return res.status(400).json({ error: 'Worker name is required' });
-  }
-
-  try {
-    const worker = await Worker.findOneAndUpdate(
-      { name: { $regex: new RegExp(`^${workerName}$`, 'i') } },
-      { $inc: { tasks: 1 } },
-      { returnDocument: 'after' }
-    );
-
-    if (worker) {
-      return res.json({ success: true, worker });
-    } else {
-      return res.status(404).json({ error: 'Worker not found' });
-    }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Database update error' });
-  }
-});
-
 app.post('/api/workers', async (req, res) => {
-  const { name, role } = req.body;
+  const { name, email, phone, category, experience, address, status, createdBy } = req.body;
 
-  if (!name || !role) {
-    return res.status(400).json({ error: 'Name and role are required' });
+  if (!name || !phone || !category) {
+    return res.status(400).json({ error: 'Full Name, Phone Number, and Worker Category are required' });
   }
 
   try {
@@ -1042,15 +1094,196 @@ app.post('/api/workers', async (req, res) => {
 
     const newWorker = await Worker.create({
       name,
-      role,
+      email: email || 'workers@campuscare.com',
+      phone,
+      category,
+      role: category,
+      experience: experience || '',
+      address: address || '',
+      status: status || 'Active',
+      createdBy: createdBy || 'Warden',
       tasks: 0,
       avatar,
       color
     });
     res.status(201).json({ success: true, worker: newWorker });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Database write error' });
+    res.status(500).json({ error: 'Error creating worker', details: err.message });
+  }
+});
+
+app.put('/api/workers/:id', async (req, res) => {
+  const { name, email, phone, category, experience, address, status } = req.body;
+  try {
+    const updated = await Worker.findByIdAndUpdate(
+      req.params.id,
+      {
+        name,
+        email,
+        phone,
+        category,
+        role: category,
+        experience,
+        address,
+        status
+      },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ error: 'Worker not found' });
+    res.json({ success: true, worker: updated });
+  } catch (err) {
+    res.status(500).json({ error: 'Error updating worker' });
+  }
+});
+
+app.delete('/api/workers/:id', async (req, res) => {
+  try {
+    // Prevent deletion if worker has active tasks
+    const activeTasks = await WorkerTask.find({
+      workerId: req.params.id,
+      status: { $in: ['Assigned', 'Accepted', 'In Progress'] }
+    });
+
+    if (activeTasks.length > 0) {
+      return res.status(400).json({
+        error: `Cannot delete worker with ${activeTasks.length} active task(s). Please reassign their active tasks or set status to Inactive instead.`
+      });
+    }
+
+    const deleted = await Worker.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ error: 'Worker not found' });
+    res.json({ success: true, message: 'Worker removed successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error deleting worker' });
+  }
+});
+
+// ASSIGN WORKER TO COMPLAINT
+app.post('/api/complaints/:id/assign-worker', async (req, res) => {
+  const { workerId, workerName, workerCategory, workerPhone, assignedBy } = req.body;
+
+  if (!workerId || !workerName) {
+    return res.status(400).json({ error: 'Worker ID and Worker Name are required' });
+  }
+
+  try {
+    const complaint = await Complaint.findById(req.params.id);
+    if (!complaint) return res.status(404).json({ error: 'Complaint not found' });
+
+    const worker = await Worker.findById(workerId);
+
+    // Update complaint model
+    complaint.assignedWorkerId = workerId;
+    complaint.assignedWorkerName = workerName;
+    complaint.assignedWorkerCategory = workerCategory || (worker ? worker.category : 'General');
+    complaint.assignedWorkerPhone = workerPhone || (worker ? worker.phone : 'N/A');
+    complaint.workerStatus = 'Assigned';
+    complaint.status = 'In Progress';
+    await complaint.save();
+
+    // Create or update WorkerTask
+    const taskId = `WT-${Date.now()}`;
+    const task = await WorkerTask.create({
+      taskId,
+      complaintId: complaint._id.toString(),
+      workerId,
+      workerEmail: (worker && worker.email) ? worker.email : 'workers@campuscare.com',
+      workerName,
+      workerCategory: workerCategory || (worker ? worker.category : 'General'),
+      assignedBy: assignedBy || 'Block Warden',
+      assignedDate: new Date(),
+      status: 'Assigned'
+    });
+
+    // Increment worker task count
+    if (worker) {
+      worker.tasks = (worker.tasks || 0) + 1;
+      await worker.save();
+    }
+
+    res.json({ success: true, complaint, task });
+  } catch (err) {
+    res.status(500).json({ error: 'Error assigning worker', details: err.message });
+  }
+});
+
+// GET WORKER TASKS
+app.get('/api/worker-tasks', async (req, res) => {
+  const { workerEmail, workerId, complaintId } = req.query;
+  try {
+    let filter = {};
+    if (complaintId) {
+      filter.complaintId = complaintId;
+    } else if (workerId) {
+      filter.workerId = workerId;
+    } else if (workerEmail) {
+      filter.$or = [
+        { workerEmail: workerEmail.toLowerCase().trim() },
+        { workerEmail: 'workers@campuscare.com' }
+      ];
+    }
+    const tasks = await WorkerTask.find(filter).sort({ assignedDate: -1 });
+
+    // Populate associated complaint details for each task
+    const complaintIds = tasks.map(t => t.complaintId).filter(Boolean);
+    const complaints = await Complaint.find({ _id: { $in: complaintIds } });
+    const complaintMap = {};
+    complaints.forEach(c => { complaintMap[c._id.toString()] = c; });
+
+    const enrichedTasks = tasks.map(t => ({
+      ...t.toJSON(),
+      complaint: complaintMap[t.complaintId] || null
+    }));
+
+    res.json(enrichedTasks);
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching worker tasks' });
+  }
+});
+
+// UPDATE WORKER TASK STATUS
+app.put('/api/worker-tasks/:taskId/status', async (req, res) => {
+  const { status, completionNotes, proofImage } = req.body;
+  try {
+    const task = await WorkerTask.findOne({ taskId: req.params.taskId });
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+
+    task.status = status;
+    if (status === 'Accepted') {
+      task.acceptedDate = new Date();
+    } else if (status === 'Completed') {
+      task.completedDate = new Date();
+      if (completionNotes) task.completionNotes = completionNotes;
+      if (proofImage) task.proofImage = proofImage;
+    }
+    await task.save();
+
+    // Sync status to Complaint model
+    const complaint = await Complaint.findById(task.complaintId);
+    if (complaint) {
+      complaint.workerStatus = status;
+      if (status === 'Accepted') {
+        complaint.status = 'In Progress';
+      } else if (status === 'Completed') {
+        complaint.status = 'Completed';
+        complaint.workerNotes = completionNotes || complaint.workerNotes;
+        complaint.workerProofImage = proofImage || complaint.workerProofImage;
+        complaint.completionDate = new Date();
+      } else if (status === 'Verified' || status === 'Closed') {
+        complaint.status = 'Closed';
+        complaint.workerStatus = 'Closed';
+      } else if (status === 'Rejected') {
+        complaint.status = 'Open';
+        complaint.assignedWorkerId = null;
+        complaint.assignedWorkerName = null;
+        complaint.workerStatus = null;
+      }
+      await complaint.save();
+    }
+
+    res.json({ success: true, task, complaint });
+  } catch (err) {
+    res.status(500).json({ error: 'Error updating task status' });
   }
 });
 
@@ -1216,13 +1449,15 @@ app.get('/api/students', async (req, res) => {
     const effectiveEmail = (userEmail || '').toLowerCase().trim();
     const effectiveRole = (userRole || '').toLowerCase().trim();
 
-    if (effectiveRole === 'warden' && effectiveEmail) {
+    if (effectiveRole === 'headwarden' || effectiveRole === 'management') {
+      filter = {}; // Head warden and Management see ALL students across ALL blocks (A, B, C, D, E, F)
+    } else if (effectiveEmail) {
       const assignment = await BlockAssignment.findOne({ wardenEmail: effectiveEmail });
       if (assignment) {
-        if (assignment.role === 'headwarden' || assignment.blocks.length >= 6) {
+        if (assignment.role === 'headwarden' || (assignment.blocks && assignment.blocks.length >= 6)) {
           filter = {}; // Head warden can view all residents across all blocks
-        } else {
-          // Block warden sees ONLY residents belonging to their assigned blocks
+        } else if (assignment.blocks && assignment.blocks.length > 0) {
+          // Block warden sees ONLY residents belonging to their assigned blocks (e.g. D Block for D Warden)
           const blockRegexes = assignment.blocks.map(b => new RegExp(`^(${b}|${b}\\s*Block|Block\\s*${b})$`, 'i'));
           filter = {
             $or: [
@@ -1231,25 +1466,26 @@ app.get('/api/students', async (req, res) => {
             ]
           };
         }
-      }
-    } else if (effectiveEmail && effectiveRole !== 'headwarden' && effectiveRole !== 'management') {
-      const assignment = await BlockAssignment.findOne({ wardenEmail: effectiveEmail });
-      if (assignment && assignment.role !== 'headwarden' && assignment.blocks.length < 6) {
-        const blockRegexes = assignment.blocks.map(b => new RegExp(`^(${b}|${b}\\s*Block|Block\\s*${b})$`, 'i'));
-        filter = {
-          $or: [
-            { block: { $in: assignment.blocks } },
-            { block: { $in: blockRegexes } }
-          ]
-        };
+      } else {
+        // Fallback if no BlockAssignment record: match by user's profile block if present
+        const userDoc = await User.findOne({ email: effectiveEmail });
+        if (userDoc && userDoc.block && userDoc.block !== 'All') {
+          const b = userDoc.block;
+          const blockRegex = new RegExp(`^(${b}|${b}\\s*Block|Block\\s*${b})$`, 'i');
+          filter = {
+            $or: [
+              { block: b },
+              { block: blockRegex }
+            ]
+          };
+        }
       }
     }
 
     const students = await Student.find(filter, { password: 0 });
     res.json(students);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Database read error' });
+    res.status(500).json({ message: 'Error fetching students', error: err.message });
   }
 });
 

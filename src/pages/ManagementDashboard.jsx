@@ -340,11 +340,21 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
     reader.readAsDataURL(file);
   };
 
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
   return (
     <div className="management-dashboard-layout">
       
+      {/* MOBILE BACKDROP OVERLAY */}
+      {isMobileSidebarOpen && (
+        <div 
+          className="mobile-sidebar-backdrop" 
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* 1. DARK BLUE SIDEBAR */}
-      <aside className="management-sidebar">
+      <aside className={`management-sidebar ${isMobileSidebarOpen ? 'open-mobile' : ''}`}>
         <div className="sidebar-brand-header">
           <img src={logo} alt="Campus Care" className="brand-logo-icon" />
           <div>
@@ -363,11 +373,6 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
             { id: 'Complaints Overview', label: 'Complaints Overview', icon: (
               <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            )},
-            { id: 'Incident Groups', label: 'Incident Groups', icon: (
-              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
             )},
             { id: 'Residents', label: 'Residents', icon: (
@@ -414,7 +419,10 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
             <button
               key={item.id}
               className={`sidebar-nav-item ${activeTab === item.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => {
+                setActiveTab(item.id);
+                setIsMobileSidebarOpen(false);
+              }}
             >
               <span className="nav-icon">{item.icon}</span>
               <span className="nav-label">{item.label}</span>
@@ -442,7 +450,16 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
         {/* TOP HEADER */}
         <header className="management-header">
           <div className="header-left-heading">
-            <svg className="menu-toggle-icon" width="22" height="22" fill="none" stroke="#475569" strokeWidth="2.2" viewBox="0 0 24 24">
+            <svg 
+              className="menu-toggle-icon" 
+              width="22" 
+              height="22" 
+              fill="none" 
+              stroke="#475569" 
+              strokeWidth="2.2" 
+              viewBox="0 0 24 24"
+              onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
             <div>
@@ -1184,23 +1201,46 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
         {activeTab === 'Maintenance Workers' && (
           <div className="fallback-tab-panel">
             <div className="section-header" style={{ marginBottom: '1.5rem' }}>
-              <h2>Maintenance Staff Roster</h2>
-              <p style={{ color: '#64748b' }}>Active maintenance workers and task loads</p>
+              <h2>Global Maintenance Staff Roster</h2>
+              <p style={{ color: '#64748b' }}>Campus-wide maintenance workers, category distribution, and task loads</p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
-              {workers.map(w => (
-                <div key={w._id || w.name} className="mgt-widget-card" style={{ padding: '1.25rem', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: w.color || '#3b82f6', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1rem' }}>
-                    {w.avatar || w.name?.split(' ').map(n=>n[0]).join('')}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
+              {workers.map(w => {
+                const avatarLetters = w.avatar || (w.name ? w.name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2) : 'WK');
+                return (
+                  <div key={w._id || w.id || w.name} className="mgt-widget-card" style={{ padding: '1.25rem', backgroundColor: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '1.1rem' }}>
+                          {avatarLetters}
+                        </div>
+                        <div>
+                          <h4 style={{ margin: 0, fontSize: '1.05rem', color: '#0f172a', fontWeight: 800 }}>{w.name}</h4>
+                          <span style={{ fontSize: '0.8rem', color: '#2563eb', fontWeight: 700 }}>{w.category || w.role || 'Technician'}</span>
+                        </div>
+                      </div>
+                      <span style={{
+                        padding: '0.2rem 0.6rem',
+                        borderRadius: '12px',
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        backgroundColor: (w.status === 'Inactive') ? '#fef2f2' : '#d1fae5',
+                        color: (w.status === 'Inactive') ? '#ef4444' : '#059669'
+                      }}>
+                        ● {w.status || 'Active'}
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '0.85rem', color: '#475569', display: 'flex', flexDirection: 'column', gap: '0.3rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.75rem' }}>
+                      <div><strong>Phone:</strong> {w.phone || 'N/A'}</div>
+                      <div><strong>Email:</strong> {w.email || 'workers@campuscare.com'}</div>
+                      {w.experience && <div><strong>Experience:</strong> {w.experience}</div>}
+                      <div><strong>Active Task Orders:</strong> <span style={{ color: '#2563eb', fontWeight: 800 }}>{w.tasks || 0} active</span></div>
+                    </div>
                   </div>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: '1rem', color: '#0f172a', fontWeight: 700 }}>{w.name}</h4>
-                    <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: '#64748b' }}>Role: <strong>{w.role}</strong></p>
-                    <span style={{ fontSize: '0.78rem', color: '#10b981', fontWeight: 600 }}>Active Tasks: {w.tasks || 0}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

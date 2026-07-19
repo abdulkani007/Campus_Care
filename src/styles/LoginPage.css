@@ -3,11 +3,12 @@
 .login-page-container {
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
   width: 100vw;
   background-color: #f8fafc;
   font-family: 'Arvo', 'Roboto Slab', serif;
   margin: 0;
-  overflow: hidden;
+  overflow-x: hidden;
 }
 
 /* Left Visual Panel - Slanted Slide Container */
@@ -15,6 +16,7 @@
   position: relative;
   width: 46%;
   height: 100vh;
+  height: 100dvh;
   background-color: #f8fafc;
   clip-path: polygon(0 0, 100% 0, 85% 100%, 0 100%);
   display: flex;
@@ -31,7 +33,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(180deg, #f8b400 0%, #d97706 100%); /* Gold accent border line */
+  background: linear-gradient(180deg, #f8b400 0%, #d97706 100%);
   z-index: 10;
   pointer-events: none;
   clip-path: polygon(calc(100% - 6px) 0, 100% 0, 85% 100%, calc(85% - 6px) 100%);
@@ -65,22 +67,50 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: none; /* No filter so the photos display in their full normal colors */
+  filter: none;
 }
 
 /* Right Panel - Form Panel */
 .login-form-panel {
   position: relative;
   width: 54%;
-  height: 100vh;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 3rem;
+  padding: 3rem 2rem;
   box-sizing: border-box;
   overflow-y: auto;
   background-color: #f8fafc;
+}
+
+/* Floating Back Button */
+.back-home-btn {
+  position: absolute;
+  top: 2rem;
+  left: 2rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 61, 122, 0.12);
+  background-color: #ffffff;
+  color: #1e293b;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: 'Arvo', 'Roboto Slab', serif;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  transition: all 0.2s ease;
+  z-index: 20;
+}
+
+.back-home-btn:hover {
+  background-color: #f1f5f9;
+  transform: translateX(-2px);
 }
 
 /* Login card */
@@ -94,6 +124,12 @@
   box-sizing: border-box;
   text-align: center;
   border: 1px solid #f1f5f9;
+  transition: max-width 0.3s ease, padding 0.3s ease;
+}
+
+.login-card.signup-card-expanded {
+  max-width: 540px;
+  padding: 2.5rem 2rem;
 }
 
 .login-title {
@@ -108,6 +144,13 @@
   font-size: 0.9rem;
   color: #64748b;
   margin: 0 0 2rem 0;
+}
+
+.signup-grid-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
 }
 
 /* Input Fields styling */
@@ -324,12 +367,54 @@
   text-decoration: underline;
 }
 
-/* Responsive adjustments */
+/* RESPONSIVE MEDIA QUERIES FOR MOBILE PERFECT LAYOUT */
 @media (max-width: 968px) {
   .login-visual-panel {
     display: none;
   }
   .login-form-panel {
     width: 100%;
+    padding: 5rem 1.5rem 2rem 1.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .login-form-panel {
+    padding: 4.5rem 1rem 2rem 1rem;
+  }
+
+  .back-home-btn {
+    top: 1rem;
+    left: 1rem;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.78rem;
+  }
+
+  .login-card {
+    padding: 1.75rem 1.25rem;
+    border-radius: 16px;
+  }
+
+  .login-card.signup-card-expanded {
+    padding: 1.75rem 1.25rem;
+  }
+
+  .signup-grid-layout {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+
+  .role-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.65rem;
+  }
+
+  .login-title {
+    font-size: 1.5rem;
+  }
+
+  .login-subtitle {
+    font-size: 0.82rem;
+    margin-bottom: 1.5rem;
   }
 }

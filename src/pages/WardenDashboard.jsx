@@ -39,6 +39,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMails, setShowMails] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Stats State
   const [stats, setStats] = useState({
@@ -59,16 +60,51 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
   // Active Residents list state
   const [residents, setResidents] = useState([]);
 
-  // Active Incident Groups (Computed dynamically from high priority complaints)
-  const incidents = complaints
-    .filter(c => c.status === 'High Priority' || c.priority === 'High')
-    .map((c, idx) => ({
-      id: c.id || idx,
-      title: c.title,
-      affected: `Block: ${c.location.split(' - ')[0] || 'Hostel'}`,
-      status: c.status || 'High Priority',
-      color: '#ef4444'
-    }));
+  // Residents Filter and Search states
+  const [residentSearchQuery, setResidentSearchQuery] = useState('');
+  const [residentBlockFilter, setResidentBlockFilter] = useState('All');
+  const [residentSortBy, setResidentSortBy] = useState('name');
+
+  const isHeadWarden = user?.role === 'headwarden' || profile.block === 'All';
+  const wardenAssignedBlocks = isHeadWarden 
+    ? ['All', 'A', 'B', 'C', 'D', 'E', 'F'] 
+    : (profile.blocks && profile.blocks.length > 0 ? profile.blocks : [profile.block || 'D']);
+
+  // Filtered residents list with strict role and block isolation
+  const filteredResidents = residents.filter(res => {
+    // 1. Strict Warden Block Enforce: If regular block warden (e.g. D Warden), ONLY show residents belonging to assigned block (D)
+    if (!isHeadWarden) {
+      const resBlockClean = (res.block || profile.block || '').replace(/block/i, '').trim().toUpperCase();
+      const isAssigned = wardenAssignedBlocks.some(b => b.toUpperCase() === resBlockClean);
+      if (!isAssigned) return false;
+    }
+
+    // 2. Search Query Filter
+    const query = residentSearchQuery.toLowerCase().trim();
+    const matchesSearch = !query || (
+      (res.name && res.name.toLowerCase().includes(query)) ||
+      (res.email && res.email.toLowerCase().includes(query)) ||
+      (res.roomNo && String(res.roomNo).toLowerCase().includes(query)) ||
+      (res.rollNo && String(res.rollNo).toLowerCase().includes(query)) ||
+      (res.block && res.block.toLowerCase().includes(query))
+    );
+
+    // 3. Block Dropdown/Pill Filter
+    const matchesBlock = residentBlockFilter === 'All' || (
+      res.block && res.block.toUpperCase().includes(residentBlockFilter.toUpperCase())
+    );
+
+    return matchesSearch && matchesBlock;
+  }).sort((a, b) => {
+    if (residentSortBy === 'room') {
+      return String(a.roomNo || '').localeCompare(String(b.roomNo || ''), undefined, { numeric: true });
+    }
+    if (residentSortBy === 'roll') {
+      return String(a.rollNo || '').localeCompare(String(b.rollNo || ''), undefined, { numeric: true });
+    }
+    // Default: Sort by Name (A-Z)
+    return String(a.name || '').localeCompare(String(b.name || ''));
+  });
 
   // Workers on Duty
   const [workers, setWorkers] = useState([]);
@@ -84,7 +120,20 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [showComplaintModal, setShowComplaintModal] = useState(false);
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
   const [showAddWorkerModal, setShowAddWorkerModal] = useState(false);
-  const [workerForm, setWorkerForm] = useState({ name: '', role: 'Electrician' });
+  const [workerForm, setWorkerForm] = useState({
+    id: null,
+    name: '',
+    email: 'workers@campuscare.com',
+    phone: '',
+    category: 'Electrician',
+    experience: '',
+    address: '',
+    status: 'Active'
+  });
+  const [showAssignWorkerModal, setShowAssignWorkerModal] = useState(false);
+  const [targetAssignComplaint, setTargetAssignComplaint] = useState(null);
+  const [selectedWorkerId, setSelectedWorkerId] = useState('');
+  const [workerCategoryFilter, setWorkerCategoryFilter] = useState('All');
   const [zoomImage, setZoomImage] = useState(null);
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   
@@ -446,34 +495,123 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
     }
   };
 
-  const handleAddWorker = async (e) => {
+  const handleSaveWorker = async (e) => {
     e.preventDefault();
-    if (!workerForm.name) {
-      alert('Please enter worker name.');
+    if (!workerForm.name || !workerForm.phone || !workerForm.category) {
+      alert('Please fill in Full Name, Phone Number, and Worker Category.');
       return;
     }
 
     try {
-      const res = await fetch('/api/workers', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name: workerForm.name, role: workerForm.role }),
+      const method = workerForm.id ? 'PUT' : 'POST';
+      const url = workerForm.id ? `/api/workers/${workerForm.id}` : '/api/workers';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: workerForm.name,
+          email: workerForm.email || 'workers@campuscare.com',
+          phone: workerForm.phone,
+          category: workerForm.category,
+          experience: workerForm.experience,
+          address: workerForm.address,
+          status: workerForm.status || 'Active',
+          createdBy: user?.name || profile.name
+        }),
       });
 
       if (res.ok) {
-        const data = await res.json();
-        setWorkers(prev => [...prev, data.worker]);
-        setWorkerForm({ name: '', role: 'Electrician' });
+        const workersRes = await fetch('/api/workers');
+        if (workersRes.ok) {
+          const updatedWorkers = await workersRes.json();
+          setWorkers(updatedWorkers);
+        }
+        setWorkerForm({ id: null, name: '', email: 'workers@campuscare.com', phone: '', category: 'Electrician', experience: '', address: '', status: 'Active' });
         setShowAddWorkerModal(false);
-        alert('Worker added successfully!');
+        alert(workerForm.id ? 'Worker updated successfully!' : 'Worker added to global database successfully!');
       } else {
-        alert('Failed to add worker.');
+        const errData = await res.json();
+        alert(errData.error || 'Failed to save worker.');
       }
     } catch (err) {
       console.error(err);
-      alert('Network error adding worker.');
+      alert('Network error saving worker.');
+    }
+  };
+
+  const handleEditWorker = (w) => {
+    setWorkerForm({
+      id: w._id || w.id,
+      name: w.name,
+      email: w.email || 'workers@campuscare.com',
+      phone: w.phone || '',
+      category: w.category || w.role || 'Electrician',
+      experience: w.experience || '',
+      address: w.address || '',
+      status: w.status || 'Active'
+    });
+    setShowAddWorkerModal(true);
+  };
+
+  const handleDeleteWorker = async (workerId) => {
+    if (!window.confirm('Are you sure you want to remove this worker from the global database?')) return;
+    try {
+      const res = await fetch(`/api/workers/${workerId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        setWorkers(prev => prev.filter(w => (w._id !== workerId && w.id !== workerId)));
+        alert('Worker removed successfully.');
+      } else {
+        alert(data.error || 'Failed to remove worker.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error removing worker.');
+    }
+  };
+
+  const handleAssignWorkerSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedWorkerId || !targetAssignComplaint) {
+      alert('Please select a worker to assign.');
+      return;
+    }
+    const worker = workers.find(w => w._id === selectedWorkerId || w.id === selectedWorkerId);
+    if (!worker) {
+      alert('Selected worker not found.');
+      return;
+    }
+
+    try {
+      const complaintId = targetAssignComplaint._id || targetAssignComplaint.id;
+      const res = await fetch(`/api/complaints/${complaintId}/assign-worker`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workerId: worker._id || worker.id,
+          workerName: worker.name,
+          workerCategory: worker.category || worker.role,
+          workerPhone: worker.phone,
+          assignedBy: user?.name || profile.name
+        })
+      });
+
+      if (res.ok) {
+        const complaintsRes = await fetch(`/api/complaints?userEmail=${encodeURIComponent(user?.email || profile.email)}&userRole=${encodeURIComponent(user?.role || 'warden')}`);
+        if (complaintsRes.ok) {
+          setComplaints(await complaintsRes.json());
+        }
+        setShowAssignWorkerModal(false);
+        setTargetAssignComplaint(null);
+        setSelectedWorkerId('');
+        alert(`Worker ${worker.name} assigned successfully! Task order dispatched.`);
+      } else {
+        alert('Failed to assign worker to complaint.');
+      }
+    } catch (err) {
+      console.error('Error assigning worker:', err);
+      alert('Network error assigning worker.');
     }
   };
 
@@ -889,6 +1027,19 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
       {/* 1. TOP HEADER BANNER */}
       <header className="dashboard-header">
         <div className="header-left">
+          <svg 
+            width="24" 
+            height="24" 
+            fill="none" 
+            stroke="#64748b" 
+            strokeWidth="2" 
+            viewBox="0 0 24 24" 
+            style={{ cursor: 'pointer', marginRight: '0.85rem' }}
+            onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+            className="hamburger-icon-svg"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
           {/* Logo */}
           <div className="brand-logo-container">
             <img src={logo} alt="Campus Care" className="brand-logo-img" />
@@ -1028,11 +1179,19 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
         </div>
       </header>
 
+      {/* MOBILE BACKDROP OVERLAY */}
+      {isMobileSidebarOpen && (
+        <div 
+          className="mobile-sidebar-backdrop" 
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* 2. DOCK BODY LAYOUT */}
       <div className="dashboard-body">
         
         {/* SIDEBAR NAVIGATION */}
-        <aside className="sidebar-aside">
+        <aside className={`sidebar-aside ${isMobileSidebarOpen ? 'open-mobile' : ''}`}>
           <ul className="sidebar-menu">
             {[
               { name: 'Dashboard', icon: (
@@ -1058,11 +1217,6 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
               { name: 'Workers', icon: (
                 <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-              )},
-              { name: 'Incident Groups', icon: (
-                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20H7m10 0H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               )},
               { name: 'Maintenance Tasks', icon: (
@@ -1113,7 +1267,10 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
               <li key={tab.name}>
                 <button
                   className={`menu-btn ${activeTab === tab.name ? 'active' : ''}`}
-                  onClick={() => setActiveTab(tab.name)}
+                  onClick={() => {
+                    setActiveTab(tab.name);
+                    setIsMobileSidebarOpen(false);
+                  }}
                 >
                   <span className="menu-icon">{tab.icon}</span>
                   <span className="menu-text">{tab.name}</span>
@@ -1353,28 +1510,6 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                         ))}
                       </tbody>
                     </table>
-                  </div>
-                </div>
-
-                {/* 2. Active Incident Groups */}
-                <div className="grid-card col-28">
-                  <div className="card-header" style={{ borderBottom: 'none' }}>
-                    <span className="card-title">Active Incident Groups</span>
-                    <button className="view-all-link" onClick={() => setActiveTab('Incident Groups')}>View All</button>
-                  </div>
-
-                  <div className="incidents-stack">
-                    {incidents.map((inc) => (
-                      <div key={inc.id} className="incident-box">
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                          <span className="incident-title">{inc.title}</span>
-                          <span className="incident-students">{inc.affected}</span>
-                        </div>
-                        <span className={`incident-badge`} style={{ color: inc.color, backgroundColor: `${inc.color}10` }}>
-                          {inc.status}
-                        </span>
-                      </div>
-                    ))}
                   </div>
                 </div>
 
@@ -1629,23 +1764,244 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
           {/* TAB 3: RESIDENTS */}
           {activeTab === 'Residents' && (
             <div className="tab-focused-view">
-              <div className="section-header">
-                <h2>Hostel Residents</h2>
-                <p style={{ color: '#64748b' }}>Students registered in Block {profile.block}</p>
+              <div className="section-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Hostel Residents Roster</h2>
+                  <p style={{ color: '#64748b', marginTop: '0.25rem', margin: 0 }}>
+                    {profile.block === 'All' || user?.role === 'headwarden' 
+                      ? 'Managing registered student residents across all hostel blocks'
+                      : `Students registered in Block ${profile.block}`}
+                  </p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ 
+                    padding: '0.4rem 0.85rem', 
+                    borderRadius: '20px', 
+                    backgroundColor: '#eff6ff', 
+                    color: '#2563eb', 
+                    fontSize: '0.85rem', 
+                    fontWeight: 700,
+                    border: '1px solid #bfdbfe'
+                  }}>
+                    {filteredResidents.length} {filteredResidents.length === 1 ? 'Student' : 'Students'} Found
+                  </span>
+                </div>
               </div>
 
+              {/* SEARCH & FILTER CONTROLS BAR */}
+              <div className="grid-card" style={{ padding: '1.25rem', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+                  
+                  {/* Search Input Bar */}
+                  <div style={{ flex: '1 1 300px', position: 'relative' }}>
+                    <svg style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '18px', height: '18px', color: '#64748b' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input 
+                      type="text" 
+                      placeholder="Search by student name, room no, roll no, or email..."
+                      value={residentSearchQuery}
+                      onChange={(e) => setResidentSearchQuery(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem 1rem 0.75rem 2.6rem',
+                        borderRadius: '12px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '0.9rem',
+                        outline: 'none',
+                        color: '#0f172a',
+                        backgroundColor: '#ffffff',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
+                      }}
+                    />
+                    {residentSearchQuery && (
+                      <button 
+                        onClick={() => setResidentSearchQuery('')}
+                        style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '1.1rem' }}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Block Filter Select */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Block:</span>
+                    <select
+                      value={residentBlockFilter}
+                      onChange={(e) => setResidentBlockFilter(e.target.value)}
+                      style={{
+                        padding: '0.7rem 1rem',
+                        borderRadius: '12px',
+                        border: '1px solid #cbd5e1',
+                        backgroundColor: '#ffffff',
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
+                        color: '#0f172a',
+                        cursor: 'pointer',
+                        outline: 'none'
+                      }}
+                    >
+                      {isHeadWarden ? (
+                        <>
+                          <option value="All">All Blocks</option>
+                          <option value="A">A Block</option>
+                          <option value="B">B Block</option>
+                          <option value="C">C Block</option>
+                          <option value="D">D Block</option>
+                          <option value="E">E Block</option>
+                          <option value="F">F Block</option>
+                        </>
+                      ) : (
+                        wardenAssignedBlocks.map(blk => (
+                          <option key={blk} value={blk}>{blk} Block (Assigned)</option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+
+                  {/* Sort By Dropdown */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Sort By:</span>
+                    <select
+                      value={residentSortBy}
+                      onChange={(e) => setResidentSortBy(e.target.value)}
+                      style={{
+                        padding: '0.7rem 1rem',
+                        borderRadius: '12px',
+                        border: '1px solid #cbd5e1',
+                        backgroundColor: '#ffffff',
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
+                        color: '#0f172a',
+                        cursor: 'pointer',
+                        outline: 'none'
+                      }}
+                    >
+                      <option value="name">Name (A-Z)</option>
+                      <option value="room">Room Number</option>
+                      <option value="roll">Roll Number</option>
+                    </select>
+                  </div>
+
+                </div>
+
+                {/* Quick Block Filter Pills */}
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9' }}>
+                  {(isHeadWarden ? ['All', 'A', 'B', 'C', 'D', 'E', 'F'] : wardenAssignedBlocks).map((blk) => (
+                    <button
+                      key={blk}
+                      onClick={() => setResidentBlockFilter(blk)}
+                      style={{
+                        padding: '0.4rem 0.9rem',
+                        borderRadius: '20px',
+                        border: residentBlockFilter === blk ? '1px solid #2563eb' : '1px solid #e2e8f0',
+                        backgroundColor: residentBlockFilter === blk ? '#2563eb' : '#f8fafc',
+                        color: residentBlockFilter === blk ? '#ffffff' : '#64748b',
+                        fontSize: '0.82rem',
+                        fontWeight: residentBlockFilter === blk ? 700 : 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {blk === 'All' ? 'All Blocks' : `${blk} Block`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* RESIDENTS GRID CARDS */}
               <div className="grid-card" style={{ padding: '1.5rem' }}>
                 <div className="residents-grid">
-                  {residents.length === 0 ? (
-                    <div style={{ color: '#64748b', textAlign: 'center', width: '100%', padding: '2rem 0' }}>No registered student residents found.</div>
+                  {filteredResidents.length === 0 ? (
+                    <div style={{ color: '#64748b', textAlign: 'center', width: '100%', padding: '3rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                      <svg style={{ width: '48px', height: '48px', color: '#cbd5e1' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                      <span style={{ fontWeight: 600, fontSize: '1rem', color: '#475569' }}>No student residents match your search filter.</span>
+                      <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: 0 }}>Try adjusting your search terms or clearing the block filter.</p>
+                    </div>
                   ) : (
-                    residents.map((res, index) => (
-                      <div key={index} className="resident-card">
-                        <div className="res-avatar">{res.name.split(' ').map(n=>n[0]).join('')}</div>
-                        <h4>{res.name}</h4>
-                        <p>Room: {res.block || profile.block} - {res.roomNo || '101'}</p>
-                        <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Roll: {res.rollNo || 'N/A'}</p>
-                        <span className="res-email-badge">{res.email}</span>
+                    filteredResidents.map((res, index) => (
+                      <div key={index} className="resident-card" style={{
+                        borderRadius: '16px',
+                        border: '1px solid #e2e8f0',
+                        padding: '1.25rem',
+                        backgroundColor: '#ffffff',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)',
+                        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        textAlign: 'center'
+                      }}>
+                        <div className="res-avatar" style={{
+                          width: '56px',
+                          height: '56px',
+                          borderRadius: '50%',
+                          backgroundColor: '#eff6ff',
+                          color: '#2563eb',
+                          fontWeight: 800,
+                          fontSize: '1.2rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginBottom: '0.75rem',
+                          border: '2px solid #bfdbfe'
+                        }}>
+                          {res.name ? res.name.split(' ').map(n=>n[0]).join('').slice(0, 2).toUpperCase() : 'ST'}
+                        </div>
+                        <h4 style={{ margin: '0 0 0.35rem 0', fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>{res.name}</h4>
+                        <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.6rem', borderRadius: '12px', backgroundColor: '#f1f5f9', color: '#475569' }}>
+                            {res.block ? `${res.block} Block` : `Block ${profile.block}`}
+                          </span>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.6rem', borderRadius: '12px', backgroundColor: '#eff6ff', color: '#2563eb' }}>
+                            Room {res.roomNo || '101'}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0 0 0.5rem 0' }}>Roll: {res.rollNo || 'N/A'}</p>
+                        <span className="res-email-badge" style={{ 
+                          fontSize: '0.78rem', 
+                          color: '#475569', 
+                          backgroundColor: '#f8fafc', 
+                          padding: '0.3rem 0.75rem', 
+                          borderRadius: '20px', 
+                          border: '1px solid #e2e8f0',
+                          wordBreak: 'break-all',
+                          marginBottom: '0.75rem'
+                        }}>
+                          {res.email}
+                        </span>
+
+                        <button
+                          onClick={() => {
+                            setSelectedResidentEmail(res.email);
+                            setActiveTab('Messages');
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '0.55rem',
+                            borderRadius: '10px',
+                            border: '1px solid #bfdbfe',
+                            backgroundColor: '#eff6ff',
+                            color: '#2563eb',
+                            fontSize: '0.82rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.4rem',
+                            marginTop: 'auto',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <svg style={{ width: '14px', height: '14px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                          </svg>
+                          Message Student
+                        </button>
                       </div>
                     ))
                   )}
@@ -1659,82 +2015,122 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
             <div className="tab-focused-view">
               <div className="section-header">
                 <div>
-                  <h2>Maintenance Workers</h2>
-                  <p style={{ color: '#64748b' }}>Contact & assign available technicians</p>
+                  <h2>Global Maintenance Workers</h2>
+                  <p style={{ color: '#64748b' }}>Manage shared hostel technicians, view contact details & assign tasks</p>
                 </div>
-                <button className="lodge-complaint-trigger-btn" onClick={() => setShowAddWorkerModal(true)}>
-                  + Add Worker
+                <button 
+                  className="lodge-complaint-trigger-btn" 
+                  onClick={() => {
+                    setWorkerForm({ id: null, name: '', email: 'workers@campuscare.com', phone: '', category: 'Electrician', experience: '', address: '', status: 'Active' });
+                    setShowAddWorkerModal(true);
+                  }}
+                >
+                  + Add New Worker
                 </button>
               </div>
 
+              {/* GLOBAL WORKER NOTICE BANNER */}
+              <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', padding: '1rem 1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <svg width="24" height="24" fill="none" stroke="#2563eb" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span style={{ fontSize: '0.85rem', color: '#1e40af', fontWeight: 600 }}>
+                  <strong>Global Worker Pool:</strong> All workers added by any Block Warden (A-F) or Head Warden are available across the entire hostel campus.
+                </span>
+              </div>
+
+              {/* CATEGORY FILTER PILLS */}
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+                {['All', 'Electrician', 'Plumber', 'Carpenter', 'Housekeeping', 'Network Technician', 'Painter', 'Mess Staff', 'Other'].map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setWorkerCategoryFilter(cat)}
+                    style={{
+                      padding: '0.4rem 0.9rem',
+                      borderRadius: '20px',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      border: workerCategoryFilter === cat ? 'none' : '1px solid #cbd5e1',
+                      backgroundColor: workerCategoryFilter === cat ? '#2563eb' : '#ffffff',
+                      color: workerCategoryFilter === cat ? '#ffffff' : '#475569',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+
               <div className="grid-card" style={{ padding: '1.5rem' }}>
-                {workers.length === 0 ? (
-                  <div style={{ color: '#64748b', textAlign: 'center', padding: '2rem 0' }}>
-                    No workers registered yet. Click "+ Add Worker" at the top to add a new technician.
+                {workers.filter(w => workerCategoryFilter === 'All' || (w.category || w.role) === workerCategoryFilter).length === 0 ? (
+                  <div style={{ color: '#64748b', textAlign: 'center', padding: '3rem 0' }}>
+                    No workers found in this category. Click "+ Add New Worker" to register a technician.
                   </div>
                 ) : (
-                  <div className="workers-expanded-grid">
-                    {workers.map(w => (
-                      <div key={w.id} className="worker-details-card">
-                        <div className="worker-card-header">
-                          <div className="worker-avatar" style={{ backgroundColor: `${w.color}15`, color: w.color, width: '48px', height: '48px', fontSize: '1.25rem' }}>
-                            {w.avatar}
+                  <div className="workers-expanded-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
+                    {workers
+                      .filter(w => workerCategoryFilter === 'All' || (w.category || w.role) === workerCategoryFilter)
+                      .map(w => {
+                        const avatarLetters = w.avatar || (w.name ? w.name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2) : 'WK');
+                        const cardColor = w.color || '#2563eb';
+                        return (
+                          <div key={w._id || w.id} className="worker-details-card" style={{ border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem', backgroundColor: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+                            <div className="worker-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                                <div className="worker-avatar" style={{ backgroundColor: `${cardColor}15`, color: cardColor, width: '48px', height: '48px', fontSize: '1.1rem', fontWeight: 800, borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  {avatarLetters}
+                                </div>
+                                <div>
+                                  <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>{w.name}</h3>
+                                  <span style={{ fontSize: '0.8rem', color: cardColor, fontWeight: 700 }}>{w.category || w.role || 'Technician'}</span>
+                                </div>
+                              </div>
+                              <span style={{
+                                padding: '0.2rem 0.6rem',
+                                borderRadius: '12px',
+                                fontSize: '0.72rem',
+                                fontWeight: 800,
+                                backgroundColor: (w.status === 'Inactive') ? '#fef2f2' : '#d1fae5',
+                                color: (w.status === 'Inactive') ? '#ef4444' : '#059669'
+                              }}>
+                                ● {w.status || 'Active'}
+                              </span>
+                            </div>
+
+                            <div className="worker-meta" style={{ fontSize: '0.85rem', color: '#475569', display: 'flex', flexDirection: 'column', gap: '0.35rem', marginBottom: '1.25rem' }}>
+                              <div><strong>Phone:</strong> {w.phone || 'N/A'}</div>
+                              <div><strong>Email:</strong> {w.email || 'workers@campuscare.com'}</div>
+                              {w.experience && <div><strong>Experience:</strong> {w.experience}</div>}
+                              {w.address && <div><strong>Address / Station:</strong> {w.address}</div>}
+                              <div><strong>Current Assigned Tasks:</strong> <span style={{ color: '#2563eb', fontWeight: 800 }}>{w.tasks || 0} active</span></div>
+                            </div>
+
+                            {/* WORKER ACTIONS */}
+                            <div style={{ display: 'flex', gap: '0.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.75rem' }}>
+                              <button
+                                onClick={() => handleEditWorker(w)}
+                                style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#334155', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteWorker(w._id || w.id)}
+                                style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: '1px solid #fca5a5', backgroundColor: '#fff1f2', color: '#e11d48', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}
+                              >
+                                Remove
+                              </button>
+                            </div>
                           </div>
-                          <div>
-                            <h3>{w.name}</h3>
-                            <p style={{ color: w.color, fontWeight: 600 }}>{w.role}</p>
-                          </div>
-                        </div>
-                        <div className="worker-meta">
-                          <p>Status: <span style={{ color: '#10b981', fontWeight: 600 }}>On Duty</span></p>
-                          <p>Current Backlog: <strong>{w.tasks} unresolved tasks</strong></p>
-                        </div>
-                        <button 
-                          className="request-worker-btn" 
-                          style={{ backgroundColor: w.color }}
-                          onClick={() => handleWorkerRequest(w.name)}
-                        >
-                          Assign Task
-                        </button>
-                      </div>
-                    ))}
+                        );
+                      })}
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* TAB 5: INCIDENT GROUPS */}
-          {activeTab === 'Incident Groups' && (
-            <div className="tab-focused-view">
-              <div className="section-header">
-                <h2>Incident Groups</h2>
-                <p style={{ color: '#64748b' }}>Warden-managed general block clusters</p>
-              </div>
 
-              <div className="grid-card" style={{ padding: '1.5rem' }}>
-                <div className="incidents-stack-expanded">
-                  {incidents.map(inc => (
-                    <div key={inc.id} className="incident-card-item">
-                      <div className="inc-header">
-                        <h3>{inc.title}</h3>
-                        <span className="incident-badge" style={{ color: inc.color, backgroundColor: `${inc.color}10` }}>
-                          {inc.status}
-                        </span>
-                      </div>
-                      <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '0.25rem' }}>{inc.affected} in Block {profile.block}.</p>
-                      <div className="incident-progress">
-                        <div className="incident-progress-inner" style={{ width: inc.status === 'High Priority' ? '80%' : inc.status === 'In Progress' ? '50%' : '20%', backgroundColor: inc.color }}></div>
-                      </div>
-                      <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.5rem' }}>
-                        Warden Update: Technicians have been assigned and are resolving the root issue.
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* TAB 6: MAINTENANCE TASKS */}
           {activeTab === 'Maintenance Tasks' && (
@@ -3009,18 +3405,19 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
           </div>
         </div>
       )}
-      {/* 5. ADD WORKER MODAL */}
+      {/* 5. ADD / EDIT WORKER MODAL */}
       {showAddWorkerModal && (
         <div className="modal-backdrop">
-          <div className="modal-content-card">
+          <div className="modal-content-card" style={{ maxWidth: '540px' }}>
             <div className="modal-header">
-              <h3>Add Maintenance Worker</h3>
+              <h3>{workerForm.id ? 'Edit Worker Details' : 'Add Maintenance Worker'}</h3>
               <button className="close-modal-btn" onClick={() => setShowAddWorkerModal(false)}>×</button>
             </div>
 
-            <form onSubmit={handleAddWorker} className="modal-form-body">
+            <form onSubmit={handleSaveWorker} className="modal-form-body">
+              {/* Full Name */}
               <div className="form-group">
-                <label>Worker Full Name *</label>
+                <label>Full Name *</label>
                 <input
                   type="text"
                   placeholder="e.g. Ramesh Kumar"
@@ -3031,24 +3428,185 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 />
               </div>
 
+              {/* Phone & Email */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label>Phone Number *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 9876543210"
+                    required
+                    value={workerForm.phone}
+                    onChange={(e) => setWorkerForm({ ...workerForm, phone: e.target.value })}
+                    className="modal-input-field"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Worker Email</label>
+                  <input
+                    type="email"
+                    placeholder="workers@campuscare.com"
+                    value={workerForm.email}
+                    onChange={(e) => setWorkerForm({ ...workerForm, email: e.target.value })}
+                    className="modal-input-field"
+                  />
+                </div>
+              </div>
+
+              {/* Category & Status */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label>Worker Category *</label>
+                  <select
+                    value={workerForm.category}
+                    onChange={(e) => setWorkerForm({ ...workerForm, category: e.target.value })}
+                    className="modal-select-field"
+                  >
+                    <option value="Electrician">Electrician</option>
+                    <option value="Plumber">Plumber</option>
+                    <option value="Carpenter">Carpenter</option>
+                    <option value="Housekeeping">Housekeeping</option>
+                    <option value="Network Technician">Network Technician</option>
+                    <option value="Painter">Painter</option>
+                    <option value="Mess Staff">Mess Staff</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Duty Status *</label>
+                  <select
+                    value={workerForm.status}
+                    onChange={(e) => setWorkerForm({ ...workerForm, status: e.target.value })}
+                    className="modal-select-field"
+                  >
+                    <option value="Active">Active (On Duty)</option>
+                    <option value="Inactive">Inactive (Off Duty)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Experience (Optional) */}
               <div className="form-group">
-                <label>Designated Role *</label>
-                <select
-                  value={workerForm.role}
-                  onChange={(e) => setWorkerForm({ ...workerForm, role: e.target.value })}
-                  className="modal-select-field"
-                >
-                  <option value="Electrician">Electrician</option>
-                  <option value="Plumber">Plumber</option>
-                  <option value="General Maintenance">General Maintenance</option>
-                  <option value="Internet Technician">Internet Technician</option>
-                  <option value="Cleaning Staff">Cleaning Staff</option>
-                </select>
+                <label>Experience (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 5 Years in Industrial Electrical Repairs"
+                  value={workerForm.experience}
+                  onChange={(e) => setWorkerForm({ ...workerForm, experience: e.target.value })}
+                  className="modal-input-field"
+                />
+              </div>
+
+              {/* Address (Optional) */}
+              <div className="form-group">
+                <label>Address / Maintenance Station (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Campus Staff Quarters, Block A"
+                  value={workerForm.address}
+                  onChange={(e) => setWorkerForm({ ...workerForm, address: e.target.value })}
+                  className="modal-input-field"
+                />
               </div>
 
               <div className="modal-footer-actions">
                 <button type="button" className="cancel-btn" onClick={() => setShowAddWorkerModal(false)}>Cancel</button>
-                <button type="submit" className="submit-btn">Add Worker</button>
+                <button type="submit" className="submit-btn">{workerForm.id ? 'Update Worker' : 'Save Worker'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 6. ASSIGN WORKER POPUP MODAL */}
+      {showAssignWorkerModal && targetAssignComplaint && (
+        <div className="modal-backdrop">
+          <div className="modal-content-card" style={{ maxWidth: '580px' }}>
+            <div className="modal-header">
+              <div>
+                <h3 style={{ margin: 0 }}>Assign Worker to Ticket</h3>
+                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                  Target: <strong>{targetAssignComplaint.title}</strong> ({targetAssignComplaint.category})
+                </span>
+              </div>
+              <button className="close-modal-btn" onClick={() => {
+                setShowAssignWorkerModal(false);
+                setTargetAssignComplaint(null);
+              }}>×</button>
+            </div>
+
+            <form onSubmit={handleAssignWorkerSubmit} className="modal-form-body">
+              <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', padding: '0.85rem 1rem', borderRadius: '10px', fontSize: '0.85rem', color: '#1e40af', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span><strong>Category Matching:</strong> Complaint Category is <strong>{targetAssignComplaint.category}</strong>. Suggested technicians matching this category are highlighted below.</span>
+              </div>
+
+              <div className="form-group">
+                <label>Select Active Worker *</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', maxHeight: '240px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.75rem' }}>
+                  {workers.filter(w => w.status !== 'Inactive').length === 0 ? (
+                    <div style={{ color: '#64748b', textAlign: 'center', padding: '1rem' }}>No active workers found in database.</div>
+                  ) : (
+                    workers
+                      .filter(w => w.status !== 'Inactive')
+                      .sort((a, b) => {
+                        const targetCat = (targetAssignComplaint.category || '').toLowerCase();
+                        const aMatches = (a.category || a.role || '').toLowerCase().includes(targetCat) || targetCat.includes((a.category || a.role || '').toLowerCase());
+                        const bMatches = (b.category || b.role || '').toLowerCase().includes(targetCat) || targetCat.includes((b.category || b.role || '').toLowerCase());
+                        return bMatches - aMatches;
+                      })
+                      .map(w => {
+                        const targetCat = (targetAssignComplaint.category || '').toLowerCase();
+                        const isSuggested = (w.category || w.role || '').toLowerCase().includes(targetCat) || targetCat.includes((w.category || w.role || '').toLowerCase());
+                        const isSelected = selectedWorkerId === (w._id || w.id);
+                        return (
+                          <div
+                            key={w._id || w.id}
+                            onClick={() => setSelectedWorkerId(w._id || w.id)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '0.75rem 1rem',
+                              borderRadius: '10px',
+                              border: isSelected ? '2px solid #2563eb' : '1px solid #e2e8f0',
+                              backgroundColor: isSelected ? '#eff6ff' : isSuggested ? '#f0fdf4' : '#ffffff',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <div>
+                              <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.92rem' }}>
+                                {w.name} {isSuggested && <span style={{ fontSize: '0.72rem', backgroundColor: '#d1fae5', color: '#059669', padding: '0.15rem 0.5rem', borderRadius: '10px', marginLeft: '0.5rem', fontWeight: 800 }}>Suggested Match ★</span>}
+                              </div>
+                              <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                                {w.category || w.role} • Phone: {w.phone || 'N/A'} • Active Tasks: {w.tasks || 0}
+                              </div>
+                            </div>
+                            <input
+                              type="radio"
+                              name="selectedWorker"
+                              checked={isSelected}
+                              onChange={() => setSelectedWorkerId(w._id || w.id)}
+                              style={{ accentColor: '#2563eb', width: '18px', height: '18px', cursor: 'pointer' }}
+                            />
+                          </div>
+                        );
+                      })
+                  )}
+                </div>
+              </div>
+
+              <div className="modal-footer-actions">
+                <button type="button" className="cancel-btn" onClick={() => {
+                  setShowAssignWorkerModal(false);
+                  setTargetAssignComplaint(null);
+                }}>Cancel</button>
+                <button type="submit" className="submit-btn" disabled={!selectedWorkerId}>Confirm Assignment</button>
               </div>
             </form>
           </div>
@@ -3179,6 +3737,78 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 <div style={{ fontSize: '0.95rem', color: '#1e293b', lineHeight: 1.6, backgroundColor: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', whiteSpace: 'pre-wrap' }}>
                   {selectedComplaint.description || 'No detailed description provided.'}
                 </div>
+              </div>
+
+              {/* WORKER ASSIGNMENT CONTROL & CARD */}
+              <div style={{ backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', padding: '1.25rem', borderRadius: '14px', marginBottom: '1.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <h5 style={{ margin: 0, fontSize: '0.82rem', color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
+                    </svg>
+                    Assigned Maintenance Worker
+                  </h5>
+                  <button
+                    onClick={() => {
+                      setTargetAssignComplaint(selectedComplaint);
+                      setSelectedComplaint(null);
+                      setShowAssignWorkerModal(true);
+                    }}
+                    style={{
+                      padding: '0.45rem 1rem',
+                      borderRadius: '8px',
+                      border: 'none',
+                      backgroundColor: '#2563eb',
+                      color: '#ffffff',
+                      fontSize: '0.8rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem'
+                    }}
+                  >
+                    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    {selectedComplaint.assignedWorkerName ? 'Reassign Worker' : 'Assign Worker'}
+                  </button>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>WORKER NAME</span>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a' }}>
+                      {selectedComplaint.assignedWorkerName || 'Not Assigned Yet'}
+                    </div>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>WORKER CATEGORY</span>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a' }}>
+                      {selectedComplaint.assignedWorkerCategory || selectedComplaint.category}
+                    </div>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>WORKER STATUS</span>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0284c7' }}>
+                      {selectedComplaint.workerStatus || selectedComplaint.status || 'Pending Assignment'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* WORKER COMPLETION NOTES & PROOF IF COMPLETED */}
+                {selectedComplaint.workerNotes && (
+                  <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #bae6fd' }}>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#047857', marginBottom: '0.25rem' }}>WORKER COMPLETION REPORT & PROOF:</div>
+                    <div style={{ fontSize: '0.88rem', color: '#065f46', fontStyle: 'italic' }}>"{selectedComplaint.workerNotes}"</div>
+                    {selectedComplaint.workerProofImage && (
+                      <div style={{ marginTop: '0.5rem' }}>
+                        <img src={selectedComplaint.workerProofImage} alt="Worker Proof" style={{ maxHeight: '140px', borderRadius: '8px', border: '1px solid #6ee7b7' }} />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Meta Grid (Location & Time) */}

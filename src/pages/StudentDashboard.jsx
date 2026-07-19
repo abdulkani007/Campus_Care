@@ -37,6 +37,9 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showMails, setShowMails] = useState(false);
 
+  // Mobile Sidebar Drawer state
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
   // States fetched from API
   const [complaints, setComplaints] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
@@ -452,8 +455,16 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
   return (
     <div className="student-dashboard-layout">
       
+      {/* MOBILE BACKDROP OVERLAY */}
+      {isMobileSidebarOpen && (
+        <div 
+          className="mobile-sidebar-backdrop" 
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* SIDEBAR */}
-      <aside className="student-sidebar">
+      <aside className={`student-sidebar ${isMobileSidebarOpen ? 'open-mobile' : ''}`}>
         <div className="sidebar-brand">
           <img src={logo} alt="Campus Care" className="brand-logo" />
           <span className="brand-text">CampusCare</span>
@@ -506,6 +517,7 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
               key={item.id}
               className={`sidebar-nav-btn ${activeTab === item.id ? 'active' : ''}`}
               onClick={() => {
+                setIsMobileSidebarOpen(false);
                 if (item.id === 'New Complaint') {
                   setShowComplaintModal(true);
                 } else {
@@ -539,11 +551,21 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
         {/* HEADER */}
         <header className="student-header">
           <div className="header-meta-left">
-            <svg width="24" height="24" fill="none" stroke="#64748b" strokeWidth="2" viewBox="0 0 24 24" style={{ cursor: 'pointer', marginRight: '1rem' }}>
+            <svg 
+              width="24" 
+              height="24" 
+              fill="none" 
+              stroke="#64748b" 
+              strokeWidth="2" 
+              viewBox="0 0 24 24" 
+              style={{ cursor: 'pointer', marginRight: '1rem' }}
+              onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+              className="hamburger-icon-svg"
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
             <div>
-              <h1 className="header-title">Dashboard</h1>
+              <h1 className="header-title">{activeTab}</h1>
               <p className="header-greeting">Welcome back, {profile.name.split(' ')[0]}!</p>
             </div>
           </div>
@@ -1640,6 +1662,87 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
                   {selectedComplaint.description || 'No detailed description provided.'}
                 </div>
               </div>
+
+              {/* WORKER ASSIGNMENT & STATUS TRACKER CARD */}
+              <div style={{ padding: '1.25rem', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '14px', marginBottom: '1.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <h5 style={{ margin: 0, fontSize: '0.82rem', color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 800 }}>
+                    🛠️ Maintenance Worker Status Tracker
+                  </h5>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0284c7', backgroundColor: '#e0f2fe', padding: '0.2rem 0.6rem', borderRadius: '12px' }}>
+                    {selectedComplaint.workerStatus || selectedComplaint.status || 'Open'}
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>ASSIGNED WORKER</span>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a' }}>
+                      {selectedComplaint.assignedWorkerName || 'Awaiting Worker Assignment'}
+                    </div>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>WORKER CATEGORY</span>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a' }}>
+                      {selectedComplaint.assignedWorkerCategory || selectedComplaint.category || 'Maintenance Staff'}
+                    </div>
+                  </div>
+                  {selectedComplaint.completionDate && (
+                    <div>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>COMPLETION DATE</span>
+                      <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#059669' }}>
+                        {new Date(selectedComplaint.completionDate).toLocaleDateString()}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* PROGRESS TRACKER TIMELINE */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', marginTop: '1rem', padding: '0 0.5rem' }}>
+                  {[
+                    { label: 'Submitted', active: true },
+                    { label: 'Assigned', active: !!selectedComplaint.assignedWorkerName },
+                    { label: 'Accepted', active: selectedComplaint.workerStatus === 'Accepted' || selectedComplaint.workerStatus === 'In Progress' || selectedComplaint.workerStatus === 'Completed' || selectedComplaint.workerStatus === 'Closed' },
+                    { label: 'In Progress', active: selectedComplaint.workerStatus === 'In Progress' || selectedComplaint.workerStatus === 'Completed' || selectedComplaint.workerStatus === 'Closed' },
+                    { label: 'Completed', active: selectedComplaint.workerStatus === 'Completed' || selectedComplaint.workerStatus === 'Closed' },
+                    { label: 'Verified & Closed', active: selectedComplaint.workerStatus === 'Closed' || selectedComplaint.status === 'Closed' }
+                  ].map((step, idx) => (
+                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 2 }}>
+                      <div style={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        backgroundColor: step.active ? '#2563eb' : '#cbd5e1',
+                        color: '#ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.7rem',
+                        fontWeight: 800,
+                        boxShadow: step.active ? '0 0 0 4px #bfdbfe' : 'none'
+                      }}>
+                        {idx + 1}
+                      </div>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 700, color: step.active ? '#1e293b' : '#94a3b8', marginTop: '0.35rem', textAlign: 'center' }}>
+                        {step.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* WORKER COMPLETION PROOF & NOTES */}
+              {selectedComplaint.workerNotes && (
+                <div style={{ backgroundColor: '#ecfdf5', border: '1px solid #6ee7b7', padding: '1.25rem', borderRadius: '14px', marginBottom: '1.75rem' }}>
+                  <h5 style={{ margin: '0 0 0.35rem', fontSize: '0.8rem', color: '#047857', textTransform: 'uppercase', fontWeight: 800 }}>Worker Completion Notes</h5>
+                  <p style={{ margin: 0, fontSize: '0.9rem', color: '#065f46' }}>{selectedComplaint.workerNotes}</p>
+                  {selectedComplaint.workerProofImage && (
+                    <div style={{ marginTop: '0.75rem' }}>
+                      <img src={selectedComplaint.workerProofImage} alt="Completion Proof" style={{ maxHeight: '160px', borderRadius: '10px', border: '1px solid #a7f3d0' }} />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Meta Grid (Location & Time) */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.75rem' }}>

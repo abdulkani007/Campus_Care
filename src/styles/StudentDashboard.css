@@ -1217,3 +1217,123 @@ body {
 .submit-btn:hover {
   background-color: #1d4ed8;
 }
+
+/* Mobile Sidebar Backdrop */
+.mobile-sidebar-backdrop {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 99;
+}
+
+/* RESPONSIVE MEDIA QUERIES FOR STUDENT DASHBOARD */
+@media (max-width: 968px) {
+  .student-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: -280px;
+    width: 260px;
+    z-index: 1000;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    transition: left 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+
+  .student-sidebar.open-mobile {
+    left: 0;
+  }
+
+  .mobile-sidebar-backdrop {
+    display: block;
+  }
+
+  .student-main-content {
+    margin-left: 0;
+    max-width: 100vw;
+    padding: 1.25rem 1rem;
+  }
+
+  .grid-flex-row {
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .col-60, .col-40 {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .stat-cards-bar-card {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem 0.5rem;
+    padding: 1.25rem 0.75rem;
+  }
+
+  .bar-stat-column:nth-child(2) {
+    border-right: none;
+  }
+
+  .bar-stat-column {
+    gap: 0.75rem;
+  }
+
+  .bar-stat-column .stat-number {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .student-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .header-meta-left {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .header-meta-right {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .search-wrapper {
+    flex: 1;
+    width: 100%;
+  }
+
+  .header-search-bar {
+    width: 100%;
+  }
+
+  .student-avatar-card .avatar-meta {
+    display: none;
+  }
+
+  .stat-cards-bar-card {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .modal-content-card {
+    max-width: 95vw;
+    margin: 0 0.5rem;
+    border-radius: 14px;
+  }
+
+  .messages-chat-box {
+    height: calc(100vh - 220px);
+    min-height: 400px;
+  }
+
+  .chat-bubble {
+    max-width: 85%;
+  }
+}
