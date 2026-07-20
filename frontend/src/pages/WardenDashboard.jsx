@@ -2395,10 +2395,10 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 <h2>Message Center</h2>
               </div>
 
-              <div style={{ display: 'flex', flex: 1, width: '100%', backgroundColor: '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0' }}>
+              <div className="message-center-layout" style={{ display: 'flex', flex: 1, width: '100%', backgroundColor: '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0' }}>
                 
                 {/* 1. LEFT SIDEBAR: CHAT SESSIONS */}
-                <div style={{ width: '320px', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
+                <div className={`chats-sidebar ${selectedResidentEmail ? 'mobile-hidden' : ''}`} style={{ width: '320px', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
                   <div style={{ padding: '1rem', borderBottom: '1px solid #e2e8f0', backgroundColor: '#fff' }}>
                     <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Chats</h3>
                   </div>
@@ -2458,7 +2458,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 </div>
 
                 {/* 2. RIGHT CONTENT: ACTIVE CONVERSATION BOX */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#efeae2' }}>
+                <div className={`active-chat-box ${!selectedResidentEmail ? 'mobile-hidden' : ''}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#efeae2' }}>
                   {(() => {
                     const activeResident = residents.find(r => r.email === selectedResidentEmail);
                     if (!activeResident) {
@@ -2478,6 +2478,25 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                       <>
                         {/* Chat Header */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderBottom: '1px solid #e2e8f0', backgroundColor: '#fff', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', zIndex: 10 }}>
+                          <button 
+                            className="chat-back-to-list-btn"
+                            onClick={() => {
+                              setSelectedResidentEmail(null);
+                              setEditingMessageId(null);
+                            }}
+                            style={{
+                              display: 'none',
+                              background: 'none',
+                              border: 'none',
+                              color: '#2563eb',
+                              fontSize: '0.9rem',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              marginRight: '0.5rem'
+                            }}
+                          >
+                            ← Back
+                          </button>
                           {activeResident.profilePhoto ? (
                             <img src={activeResident.profilePhoto} alt="avatar" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} />
                           ) : (
@@ -2617,12 +2636,12 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
           {/* TAB: MANAGEMENT MESSAGES */}
           {activeTab === 'Management Messages' && (
             <div className="tab-focused-view" style={{ height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column', width: '100%' }}>
-              <div className="section-header" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+              <div className="section-header mgt-chat-header-flex" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                 <div>
                   <h2>Management Direct Chat</h2>
                   <p style={{ color: '#64748b' }}>Official 2-way communication channel with Campus Management</p>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#eff6ff', padding: '0.4rem 0.85rem', borderRadius: '9999px', border: '1px solid #bfdbfe' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#eff6ff', padding: '0.4rem 0.85rem', borderRadius: '9999px', border: '1px solid #bfdbfe', flexShrink: 0 }}>
                   <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#2563eb' }}></span>
                   <span style={{ fontSize: '0.8rem', color: '#1e40af', fontWeight: 600 }}>Official Channel</span>
                 </div>
@@ -2632,14 +2651,14 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 
                 {/* Executive Header Strip */}
                 <div style={{ padding: '1rem 1.25rem', backgroundColor: '#0f172a', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '50%', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: '42px', height: '42px', borderRadius: '50%', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                     </svg>
                   </div>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#fff', fontWeight: 700 }}>Hostel Management Executive</h3>
-                    <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8' }}>management@campuscare.com • Direct Office Line</p>
+                  <div style={{ minWidth: 0 }}>
+                    <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#fff', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Hostel Management Executive</h3>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>management@campuscare.com</p>
                   </div>
                 </div>
 
@@ -2704,29 +2723,31 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 </div>
 
                 {/* Send Input Form */}
-                <form onSubmit={handleSendManagementReply} style={{ padding: '1rem', backgroundColor: '#fff', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '0.75rem' }}>
+                <form onSubmit={handleSendManagementReply} style={{ padding: '1rem', backgroundColor: '#fff', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                   <input 
                     type="text" 
-                    placeholder="Type a message or reply to Management..." 
+                    placeholder="Type your message to Management..." 
                     value={mgtMsgText}
                     onChange={(e) => setMgtMsgText(e.target.value)}
-                    style={{ flex: 1, padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem' }}
+                    style={{ flex: 1, padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', minWidth: 0 }}
                   />
                   <button 
                     type="submit" 
                     style={{ 
                       backgroundColor: '#0f172a', 
                       color: '#ffffff', 
-                      padding: '0.75rem 1.6rem', 
+                      padding: '0.75rem 1.25rem', 
                       border: 'none', 
                       borderRadius: '8px', 
                       fontWeight: 650, 
                       cursor: 'pointer', 
-                      fontSize: '0.88rem',
+                      fontSize: '0.85rem',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '0.5rem',
-                      boxShadow: '0 4px 12px rgba(15, 23, 42, 0.15)'
+                      boxShadow: '0 4px 12px rgba(15, 23, 42, 0.15)',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0
                     }}
                   >
                     <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
