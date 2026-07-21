@@ -453,6 +453,125 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
     reader.readAsDataURL(file);
   };
 
+  // CSV Download Helper
+  const downloadCSV = (filename, headers, rows) => {
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(field => `"${String(field || '').replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${filename}_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // 1. Export All Complaints CSV
+  const handleExportComplaintsCSV = () => {
+    const headers = ['Complaint ID', 'Title', 'Category', 'Priority', 'Status', 'Student Name', 'Roll No', 'Room', 'Block', 'Contact Phone', 'Submitted Date', 'Description'];
+    const rows = complaints.map(c => [
+      c.id || c._id || '',
+      c.title || '',
+      c.category || '',
+      c.priority || '',
+      c.status || '',
+      c.studentName || '',
+      c.studentRoll || '',
+      c.studentRoom || '',
+      c.studentBlock || '',
+      c.studentPhone || '',
+      c.time || '',
+      c.description || ''
+    ]);
+    downloadCSV('CampusCare_All_Complaints_Report', headers, rows);
+  };
+
+  // 2. Export Block-wise Summary CSV
+  const handleExportBlockSummaryCSV = () => {
+    const headers = ['Block Name', 'In-Charge Warden', 'Warden Contact', 'Total Registered Students', 'Total Complaints', 'Resolved Complaints', 'Open Complaints', 'In Progress Complaints'];
+    const blocks = ['A', 'B', 'C', 'D', 'E', 'F'];
+    const rows = blocks.map(blockName => {
+      const matchingStudents = residentsList.filter(s => (s.block || '').toUpperCase().includes(blockName));
+      const matchingComplaints = complaints.filter(c => (c.studentBlock || c.location || '').toUpperCase().includes(blockName));
+      const inChargeWarden = wardensList.find(w => Array.isArray(w.blocks) ? w.blocks.includes(blockName) : (w.block || '').includes(blockName));
+      
+      const resolved = matchingComplaints.filter(c => c.status === 'Resolved').length;
+      const open = matchingComplaints.filter(c => c.status === 'Open').length;
+      const inProgress = matchingComplaints.filter(c => c.status === 'In Progress').length;
+
+      return [
+        `${blockName} Block`,
+        inChargeWarden ? inChargeWarden.name : 'Head Warden',
+        inChargeWarden ? (inChargeWarden.phoneNo || 'N/A') : '9876543215',
+        matchingStudents.length,
+        matchingComplaints.length,
+        resolved,
+        open,
+        inProgress
+      ];
+    });
+    downloadCSV('CampusCare_Hostel_Block_Summary_Report', headers, rows);
+  };
+
+  // 3. Export Students Roster CSV
+  const handleExportStudentsCSV = () => {
+    const headers = ['Student Name', 'Email', 'Roll No', 'Hostel Block', 'Room No', 'Contact Phone'];
+    const rows = residentsList.map(r => [
+      r.name || '',
+      r.email || '',
+      r.rollNo || '',
+      r.block || '',
+      r.roomNo || '',
+      r.phoneNo || ''
+    ]);
+    downloadCSV('CampusCare_Registered_Students_Directory', headers, rows);
+  };
+
+  // 4. Export Workers Roster CSV
+  const handleExportWorkersCSV = () => {
+    const headers = ['Worker Name', 'Category / Role', 'Phone', 'Email', 'Status', 'Active Task Orders'];
+    const rows = workers.map(w => [
+      w.name || '',
+      w.category || w.role || '',
+      w.phone || '',
+      w.email || '',
+      w.status || 'Active',
+      w.tasks || 0
+    ]);
+    downloadCSV('CampusCare_Maintenance_Workers_Roster', headers, rows);
+  };
+
+  // 5. Export Wardens Roster CSV
+  const handleExportWardensCSV = () => {
+    const headers = ['Warden Name', 'Role', 'Email', 'Assigned Blocks', 'Contact Phone', 'Office / Room'];
+    const rows = wardensList.map(w => [
+      w.name || '',
+      w.role === 'headwarden' ? 'Head Warden' : 'Block Warden',
+      w.email || '',
+      Array.isArray(w.blocks) ? w.blocks.join(', ') : (w.block || 'A, B, C, D, E, F'),
+      w.phoneNo || '',
+      w.roomNo || ''
+    ]);
+    downloadCSV('CampusCare_Wardens_Roster', headers, rows);
+  };
+
+  // 6. Export Feedback Responses CSV
+  const handleExportFeedbackCSV = () => {
+    const headers = ['Campaign Title', 'Description', 'Target Block', 'Status', 'Created Date'];
+    const rows = feedbackRequests.map(f => [
+      f.title || '',
+      f.description || '',
+      Array.isArray(f.targetBlocks) ? f.targetBlocks.join(', ') : (f.targetBlock || 'All'),
+      f.active ? 'Active' : 'Closed',
+      f.createdAt ? new Date(f.createdAt).toLocaleDateString() : ''
+    ]);
+    downloadCSV('CampusCare_Feedback_Campaigns_Report', headers, rows);
+  };
+
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   return (
@@ -1280,7 +1399,7 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
             </div>
 
             {/* 2-COLUMN SIDE-BY-SIDE CARDS */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
               
               {/* LEFT CARD: Publish Feedback Form */}
               <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.75rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
@@ -1616,6 +1735,189 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        )}
+
+        {/* REPORTS & ANALYTICS TAB */}
+        {activeTab === 'Reports & Analytics' && (
+          <div className="fallback-tab-panel">
+            <div className="section-header" style={{ marginBottom: '1.5rem' }}>
+              <h2>📊 Reports & Analytics Hub</h2>
+              <p style={{ color: '#64748b' }}>Download comprehensive CSV reports for complaints, block statistics, residents, workers, and wardens.</p>
+            </div>
+
+            {/* Top Summary Stat Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.75rem' }}>
+              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Total Complaints</span>
+                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#2563eb', marginTop: '0.25rem' }}>{stats.total}</div>
+                <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600 }}>{stats.resolved} Resolved</span>
+              </div>
+              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Registered Students</span>
+                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', marginTop: '0.25rem' }}>{residentsList.length}</div>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Across 6 Blocks</span>
+              </div>
+              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Assigned Wardens</span>
+                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f59e0b', marginTop: '0.25rem' }}>{wardensList.length}</div>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Including Head Warden</span>
+              </div>
+              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Maintenance Staff</span>
+                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#10b981', marginTop: '0.25rem' }}>{workers.length}</div>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Active Technicians</span>
+              </div>
+            </div>
+
+            {/* Reports Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.25rem' }}>
+              
+              {/* Report 1: Complaints Master */}
+              <div className="mgt-widget-card" style={{ padding: '1.5rem', backgroundColor: '#fff', borderRadius: '14px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 4px 8px rgba(0,0,0,0.03)' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>
+                      📝
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#0f172a', fontWeight: 800 }}>Complaints Master Report</h3>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Full records of all student tickets</span>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: '#475569', lineHeight: 1.5, margin: '0 0 1rem' }}>
+                    Includes complaint titles, student names, roll numbers, room numbers, block details, priority, status, contact numbers, and descriptions.
+                  </p>
+                </div>
+                <button
+                  onClick={handleExportComplaintsCSV}
+                  style={{ width: '100%', padding: '0.75rem', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', boxShadow: '0 4px 12px rgba(37,99,235,0.2)' }}
+                >
+                  📥 Download Complaints CSV ({complaints.length})
+                </button>
+              </div>
+
+              {/* Report 2: Hostel Block Statistics */}
+              <div className="mgt-widget-card" style={{ padding: '1.5rem', backgroundColor: '#fff', borderRadius: '14px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 4px 8px rgba(0,0,0,0.03)' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#fff7ed', color: '#ea580c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>
+                      🏢
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#0f172a', fontWeight: 800 }}>Block-wise Summary Report</h3>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Blocks A, B, C, D, E, F performance</span>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: '#475569', lineHeight: 1.5, margin: '0 0 1rem' }}>
+                    Includes student capacity per block, assigned wardens, total tickets logged, open vs resolved issues, and resolution efficiency.
+                  </p>
+                </div>
+                <button
+                  onClick={handleExportBlockSummaryCSV}
+                  style={{ width: '100%', padding: '0.75rem', backgroundColor: '#ea580c', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', boxShadow: '0 4px 12px rgba(234,88,12,0.2)' }}
+                >
+                  📥 Download Block Summary CSV (6 Blocks)
+                </button>
+              </div>
+
+              {/* Report 3: Student Roster */}
+              <div className="mgt-widget-card" style={{ padding: '1.5rem', backgroundColor: '#fff', borderRadius: '14px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 4px 8px rgba(0,0,0,0.03)' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#f0fdf4', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>
+                      👥
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#0f172a', fontWeight: 800 }}>Student Roster Directory</h3>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Complete registered student list</span>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: '#475569', lineHeight: 1.5, margin: '0 0 1rem' }}>
+                    Includes student full names, emails, roll numbers, block allocations, room numbers, and contact phone numbers.
+                  </p>
+                </div>
+                <button
+                  onClick={handleExportStudentsCSV}
+                  style={{ width: '100%', padding: '0.75rem', backgroundColor: '#16a34a', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', boxShadow: '0 4px 12px rgba(22,163,74,0.2)' }}
+                >
+                  📥 Download Student Directory CSV ({residentsList.length})
+                </button>
+              </div>
+
+              {/* Report 4: Wardens Roster */}
+              <div className="mgt-widget-card" style={{ padding: '1.5rem', backgroundColor: '#fff', borderRadius: '14px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 4px 8px rgba(0,0,0,0.03)' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#fffbeb', color: '#b45309', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>
+                      🛡️
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#0f172a', fontWeight: 800 }}>Wardens Roster Report</h3>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Head Warden & Block Wardens</span>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: '#475569', lineHeight: 1.5, margin: '0 0 1rem' }}>
+                    Includes warden names, roles (Head Warden vs Block Warden), assigned blocks, emails, phone numbers, and office locations.
+                  </p>
+                </div>
+                <button
+                  onClick={handleExportWardensCSV}
+                  style={{ width: '100%', padding: '0.75rem', backgroundColor: '#b45309', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', boxShadow: '0 4px 12px rgba(180,83,9,0.2)' }}
+                >
+                  📥 Download Wardens CSV ({wardensList.length})
+                </button>
+              </div>
+
+              {/* Report 5: Maintenance Staff */}
+              <div className="mgt-widget-card" style={{ padding: '1.5rem', backgroundColor: '#fff', borderRadius: '14px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 4px 8px rgba(0,0,0,0.03)' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#fef2f2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>
+                      👷
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#0f172a', fontWeight: 800 }}>Maintenance Workers Report</h3>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Worker categories & task loads</span>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: '#475569', lineHeight: 1.5, margin: '0 0 1rem' }}>
+                    Includes maintenance staff categories (Electrical, Plumbing, Water, Cleaning), contact details, active status, and active task orders.
+                  </p>
+                </div>
+                <button
+                  onClick={handleExportWorkersCSV}
+                  style={{ width: '100%', padding: '0.75rem', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', boxShadow: '0 4px 12px rgba(239,68,68,0.2)' }}
+                >
+                  📥 Download Workers CSV ({workers.length})
+                </button>
+              </div>
+
+              {/* Report 6: Feedback Surveys */}
+              <div className="mgt-widget-card" style={{ padding: '1.5rem', backgroundColor: '#fff', borderRadius: '14px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 4px 8px rgba(0,0,0,0.03)' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#f3e8ff', color: '#9333ea', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>
+                      📊
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#0f172a', fontWeight: 800 }}>Feedback Campaigns Report</h3>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Survey history & ratings</span>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: '#475569', lineHeight: 1.5, margin: '0 0 1rem' }}>
+                    Includes feedback campaign titles, descriptions, target blocks, active status, and created dates.
+                  </p>
+                </div>
+                <button
+                  onClick={handleExportFeedbackCSV}
+                  style={{ width: '100%', padding: '0.75rem', backgroundColor: '#9333ea', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', boxShadow: '0 4px 12px rgba(147,51,234,0.2)' }}
+                >
+                  📥 Download Feedback CSV ({feedbackRequests.length})
+                </button>
+              </div>
+
             </div>
           </div>
         )}

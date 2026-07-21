@@ -3229,7 +3229,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 <p style={{ color: '#64748b' }}>Create, publish and manage feedback forms for hostel students</p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: '2rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
                 
                 {/* COLUMN 1: CREATE FORM */}
                 <div style={{ padding: '2rem', backgroundColor: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025)' }}>
@@ -3408,7 +3408,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 <p style={{ color: '#64748b' }}>Generate and download real-time hostel activity reports in CSV format</p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
                 
                 {/* CARD 1: COMPLAINT ACTIVITY */}
                 <div style={{ padding: '2rem', backgroundColor: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
@@ -3420,8 +3420,8 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                   </h3>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    <div style={{ padding: '1rem', border: '1px solid #f1f5f9', borderRadius: '12px', backgroundColor: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ marginRight: '1rem' }}>
+                    <div style={{ padding: '1.25rem 1rem', border: '1px solid #f1f5f9', borderRadius: '12px', backgroundColor: '#f8fafc', display: 'flex', flexWrap: 'wrap', gap: '0.85rem', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ flex: '1 1 200px' }}>
                         <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#1e293b' }}>Daily Activity Report</h4>
                         <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#64748b', lineHeight: '1.4' }}>Complaints and tasks logged in the last 24 hours.</p>
                       </div>
@@ -3439,8 +3439,8 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                       </SpecularButton>
                     </div>
 
-                    <div style={{ padding: '1rem', border: '1px solid #f1f5f9', borderRadius: '12px', backgroundColor: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ marginRight: '1rem' }}>
+                    <div style={{ padding: '1.25rem 1rem', border: '1px solid #f1f5f9', borderRadius: '12px', backgroundColor: '#f8fafc', display: 'flex', flexWrap: 'wrap', gap: '0.85rem', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ flex: '1 1 200px' }}>
                         <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#1e293b' }}>Weekly Activity Report</h4>
                         <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#64748b', lineHeight: '1.4' }}>Complaints and tasks logged in the last 7 days.</p>
                       </div>
@@ -3471,8 +3471,8 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                   </h3>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    <div style={{ padding: '1rem', border: '1px solid #f1f5f9', borderRadius: '12px', backgroundColor: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ marginRight: '1rem' }}>
+                    <div style={{ padding: '1.25rem 1rem', border: '1px solid #f1f5f9', borderRadius: '12px', backgroundColor: '#f8fafc', display: 'flex', flexWrap: 'wrap', gap: '0.85rem', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ flex: '1 1 200px' }}>
                         <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#1e293b' }}>Feedback Campaigns Summary</h4>
                         <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#64748b', lineHeight: '1.4' }}>General details, dates, and statuses of all campaigns.</p>
                       </div>

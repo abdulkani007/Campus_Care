@@ -1959,7 +1959,7 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 </div>
 
                 {/* PROGRESS TRACKER TIMELINE */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', marginTop: '1rem', padding: '0 0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', position: 'relative', marginTop: '1rem', padding: '0.5rem 0.25rem', overflowX: 'auto', gap: '0.5rem' }}>
                   {[
                     { label: 'Submitted', active: true },
                     { label: 'Assigned', active: !!selectedComplaint.assignedWorkerName },
@@ -1968,23 +1968,23 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
                     { label: 'Completed', active: selectedComplaint.workerStatus === 'Completed' || selectedComplaint.workerStatus === 'Closed' },
                     { label: 'Verified & Closed', active: selectedComplaint.workerStatus === 'Closed' || selectedComplaint.status === 'Closed' }
                   ].map((step, idx) => (
-                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 2 }}>
+                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 2, minWidth: '68px', flex: '1 0 auto' }}>
                       <div style={{
-                        width: '24px',
-                        height: '24px',
+                        width: '26px',
+                        height: '26px',
                         borderRadius: '50%',
                         backgroundColor: step.active ? '#2563eb' : '#cbd5e1',
                         color: '#ffffff',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '0.7rem',
+                        fontSize: '0.72rem',
                         fontWeight: 800,
                         boxShadow: step.active ? '0 0 0 4px #bfdbfe' : 'none'
                       }}>
                         {idx + 1}
                       </div>
-                      <span style={{ fontSize: '0.65rem', fontWeight: 700, color: step.active ? '#1e293b' : '#94a3b8', marginTop: '0.35rem', textAlign: 'center' }}>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 700, color: step.active ? '#1e293b' : '#94a3b8', marginTop: '0.4rem', textAlign: 'center', lineHeight: 1.25 }}>
                         {step.label}
                       </span>
                     </div>
@@ -2006,9 +2006,9 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
               )}
 
               {/* Meta Grid (Location & Time) */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.75rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.75rem' }}>
                 <div style={{ padding: '1rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ backgroundColor: '#e0f2fe', width: '36px', height: '36px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ backgroundColor: '#e0f2fe', width: '36px', height: '36px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <svg width="18" height="18" fill="none" stroke="#0369a1" strokeWidth="2.5" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -2021,14 +2021,14 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 </div>
 
                 <div style={{ padding: '1rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ backgroundColor: '#f0fdf4', width: '36px', height: '36px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ backgroundColor: '#f0fdf4', width: '36px', height: '36px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <svg width="18" height="18" fill="none" stroke="#15803d" strokeWidth="2.5" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
                   <div>
                     <h5 style={{ margin: 0, fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Filing Time</h5>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a' }}>{selectedComplaint.time}</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap' }}>{selectedComplaint.time}</span>
                   </div>
                 </div>
               </div>
