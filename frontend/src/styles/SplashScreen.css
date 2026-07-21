@@ -163,18 +163,56 @@
 }
 
 .title-text {
-  font-size: clamp(1.4rem, 6vw, 2.5rem);
-  font-weight: 800;
-  margin: 0 0 0.65rem 0;
-  letter-spacing: 0.08em;
+  font-size: clamp(1.8rem, 7vw, 2.75rem);
+  font-weight: 900;
+  margin: 0;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #0f172a;
   display: flex;
   justify-content: center;
   align-items: center;
+  gap: 0.5rem;
   overflow: hidden;
   white-space: nowrap;
   max-width: 100%;
+}
+
+.splash-title-blue {
+  color: #0f4fa8;
+}
+
+.splash-title-yellow {
+  color: #f59e0b;
+}
+
+.splash-yellow-underline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.splash-yellow-underline .dash-long {
+  width: 58px;
+  height: 5px;
+  background-color: #f59e0b;
+  border-radius: 4px;
+}
+
+.splash-yellow-underline .dash-short {
+  width: 16px;
+  height: 5px;
+  background-color: #f59e0b;
+  border-radius: 4px;
+}
+
+.splash-yellow-underline .dash-dot {
+  width: 7px;
+  height: 5px;
+  background-color: #f59e0b;
+  border-radius: 4px;
 }
 
 .subtitle-text {

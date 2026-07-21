@@ -127,22 +127,14 @@ const SplashScreen = ({ onComplete }) => {
 
         <div className="text-group">
           <h1 className="title-text">
-            <RotatingText
-              texts={['Campus Care', 'Hostel Portal', 'Operations Platform']}
-              mainClassName="text-rotate"
-              staggerFrom="last"
-              initial={{ y: "100%", opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: "-120%", opacity: 0 }}
-              staggerDuration={0.025}
-              splitLevelClassName="overflow-hidden pb-0.5 sm:pb-1 md:pb-1"
-              transition={{ type: "spring", damping: 30, stiffness: 400 }}
-              rotationInterval={2000}
-              splitBy="characters"
-              auto
-              loop
-            />
+            <span className="splash-title-blue">CAMPUS</span>{' '}
+            <span className="splash-title-yellow">CARE</span>
           </h1>
+          <div className="splash-yellow-underline">
+            <span className="dash-long"></span>
+            <span className="dash-short"></span>
+            <span className="dash-dot"></span>
+          </div>
           <p className="subtitle-text">
             Intelligent Hostel Operations &amp; Maintenance Platform
           </p>
