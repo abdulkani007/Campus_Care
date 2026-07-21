@@ -20,6 +20,22 @@ import h6 from '../assets/h6.jpg';
 import h7 from '../assets/h7.jpg';
 import h8 from '../assets/h8.jpg';
 
+// Custom Section Heading with Blue + Yellow text and dashes underline
+const SectionHeadingBlueYellow = ({ label, titleBlue, titleYellow }) => (
+  <div className="custom-two-tone-header">
+    {label && <span className="custom-section-label">{label}</span>}
+    <h2 className="custom-two-tone-title">
+      <span className="title-blue-part">{titleBlue}</span>{' '}
+      <span className="title-yellow-part">{titleYellow}</span>
+    </h2>
+    <div className="custom-yellow-underline">
+      <span className="line-dash-long"></span>
+      <span className="line-dash-short"></span>
+      <span className="line-dash-dot"></span>
+    </div>
+  </div>
+);
+
 const LandingPage = ({ onLoginClick }) => {
   // Slideshow state
   const slides = [h1, h2, h3, h4, h5, h6, h7, h8];
@@ -33,6 +49,32 @@ const LandingPage = ({ onLoginClick }) => {
 
   const [activeTab, setActiveTab] = useState('overview');
   const [openFaqIndex, setOpenFaqIndex] = useState(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // Scroll to top visibility toggle
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPos = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+      if (scrollPos > 80) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+    };
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    document.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      document.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
+    document.body.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Slide changing logic - every 1.0 second automatically
   useEffect(() => {
@@ -366,23 +408,11 @@ const LandingPage = ({ onLoginClick }) => {
 
       {/* Complaint Types Grid Section */}
       <section ref={featuresRef} className="section-container">
-        <div className="landing-section-header">
-          <span className="section-label">Categorized Operations</span>
-          <div className="text-pressure-wrapper">
-            <TextPressure
-              text="Support & Maintenance Scope"
-              fontFamily="Roboto Flex"
-              minFontSize={18}
-              flex={true}
-              scale={false}
-              textColor="#0f172a"
-              width={true}
-              weight={true}
-              italic={false}
-              alpha={false}
-            />
-          </div>
-        </div>
+        <SectionHeadingBlueYellow 
+          label="Categorized Operations" 
+          titleBlue="SUPPORT &" 
+          titleYellow="MAINTENANCE SCOPE" 
+        />
 
         <div className="features-grid">
           {features.map((feat, index) => (
@@ -488,23 +518,11 @@ const LandingPage = ({ onLoginClick }) => {
       {/* Process Workflow Timeline Grid Section */}
       <section style={{ padding: '4rem 0', backgroundColor: '#ffffff', width: '100%', borderBottom: '1px solid #f1f5f9', overflow: 'hidden' }}>
         <div className="section-container">
-          <div className="landing-section-header" style={{ marginBottom: '2.5rem' }}>
-            <span className="section-label" style={{ color: '#2563eb', fontWeight: 700, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Operational Cycle</span>
-            <div className="text-pressure-wrapper">
-              <TextPressure
-                text="How CampusCare Works"
-                fontFamily="Roboto Flex"
-                minFontSize={18}
-                flex={true}
-                scale={false}
-                textColor="#0f172a"
-                width={true}
-                weight={true}
-                italic={false}
-                alpha={false}
-              />
-            </div>
-          </div>
+          <SectionHeadingBlueYellow 
+            label="Operational Cycle" 
+            titleBlue="HOW CAMPUSCARE" 
+            titleYellow="WORKS" 
+          />
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
             {[
@@ -609,23 +627,11 @@ const LandingPage = ({ onLoginClick }) => {
       {/* Accordion FAQ Section */}
       <section style={{ padding: '5rem 0', backgroundColor: '#f8fafc', width: '100%', borderBottom: '1px solid #e2e8f0' }}>
         <div className="section-container" style={{ maxWidth: '800px' }}>
-          <div className="landing-section-header">
-            <span className="section-label" style={{ color: '#2563eb', fontWeight: 700, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.15em' }}>FAQ Directory</span>
-            <div className="text-pressure-wrapper">
-              <TextPressure
-                text="Frequently Asked Questions"
-                fontFamily="Roboto Flex"
-                minFontSize={18}
-                flex={true}
-                scale={false}
-                textColor="#0f172a"
-                width={true}
-                weight={true}
-                italic={false}
-                alpha={false}
-              />
-            </div>
-          </div>
+          <SectionHeadingBlueYellow 
+            label="FAQ Directory" 
+            titleBlue="FREQUENTLY ASKED" 
+            titleYellow="QUESTIONS" 
+          />
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {[
@@ -740,6 +746,18 @@ const LandingPage = ({ onLoginClick }) => {
           </p>
         </div>
       </footer>
+
+      {/* FLOATING SCROLL TO TOP BUTTON - GUARANTEED ALWAYS VISIBLE */}
+      <button
+        onClick={scrollToTop}
+        className="scroll-to-top-btn"
+        aria-label="Scroll to top"
+        title="Scroll to Top"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="#0b1a30">
+          <path d="M12 3l-8.5 8.5h5.5v9.5h6v-9.5h5.5z" />
+        </svg>
+      </button>
     </div>
   );
 };
