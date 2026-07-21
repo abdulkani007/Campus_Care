@@ -754,3 +754,356 @@ input[type="search"] {
   margin: 0 !important;
   cursor: pointer !important;
 }
+
+/* ==========================================================================
+   GLOBAL RESPONSIVENESS & MOBILE OVERRIDES
+   ========================================================================== */
+
+/* 1. Viewport Overflow & Bounds Protection */
+html, body, #root {
+  max-width: 100vw !important;
+  overflow-x: hidden !important;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box !important;
+}
+
+/* 2. Responsive Cards Auto-Wrap */
+.six-stats-grid,
+.five-stats-grid,
+.stats-grid,
+.overview-cards-grid,
+.cards-grid,
+.stat-cards-bar-card {
+  display: grid !important;
+  grid-template-columns: repeat(5, 1fr) !important;
+  gap: 1rem !important;
+}
+
+@media (max-width: 1440px) {
+  .six-stats-grid,
+  .five-stats-grid,
+  .stats-grid,
+  .overview-cards-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .six-stats-grid,
+  .five-stats-grid,
+  .stats-grid,
+  .overview-cards-grid,
+  .stat-cards-bar-card {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .six-stats-grid,
+  .five-stats-grid,
+  .stats-grid,
+  .overview-cards-grid,
+  .stat-cards-bar-card {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* 3. Global Flex Row Breakpoints */
+@media (max-width: 968px) {
+  .dashboard-grid-row-2,
+  .dashboard-grid-row-3,
+  .dashboard-grid-row-4,
+  .charts-overview-row,
+  .grid-flex-row,
+  .two-col-layout {
+    flex-direction: column !important;
+    gap: 1.25rem !important;
+  }
+
+  .col-60, .col-40, .col-50, .col-30, .col-28, .col-70, .col-20, .col-35, .col-65 {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+}
+
+/* 4. Touch Targets & Input Field Sizes */
+@media (max-width: 768px) {
+  button, input, select, textarea {
+    font-size: 16px !important; /* Prevents auto iOS zoom */
+  }
+
+  .primary-btn, .secondary-btn, .action-btn, button[type="submit"] {
+    min-height: 48px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+}
+
+/* 5. Mobile Tables to Info Cards Transformation */
+@media (max-width: 768px) {
+  .mgt-data-table,
+  .complaints-table,
+  .data-table,
+  table.responsive-table {
+    display: block !important;
+    width: 100% !important;
+    border: none !important;
+  }
+
+  .mgt-data-table thead,
+  .complaints-table thead,
+  .data-table thead,
+  table.responsive-table thead {
+    display: none !important;
+  }
+
+  .mgt-data-table tbody,
+  .complaints-table tbody,
+  .data-table tbody,
+  table.responsive-table tbody {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.85rem !important;
+    width: 100% !important;
+  }
+
+  .mgt-data-table tr,
+  .complaints-table tr,
+  .data-table tr,
+  table.responsive-table tr {
+    display: flex !important;
+    flex-direction: column !important;
+    background-color: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    padding: 1rem !important;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03) !important;
+    gap: 0.5rem !important;
+  }
+
+  .mgt-data-table td,
+  .complaints-table td,
+  .data-table td,
+  table.responsive-table td {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 0.4rem 0 !important;
+    border-bottom: 1px dashed #f1f5f9 !important;
+    font-size: 0.85rem !important;
+    text-align: right !important;
+  }
+
+  .mgt-data-table td:last-child,
+  .complaints-table td:last-child,
+  .data-table td:last-child,
+  table.responsive-table td:last-child {
+    border-bottom: none !important;
+    padding-top: 0.65rem !important;
+    justify-content: flex-end !important;
+    gap: 0.5rem !important;
+  }
+
+  .mgt-data-table td::before,
+  .complaints-table td::before,
+  .data-table td::before,
+  table.responsive-table td::before {
+    content: attr(data-label) !important;
+    font-weight: 700 !important;
+    color: #64748b !important;
+    text-align: left !important;
+    font-size: 0.8rem !important;
+    margin-right: 1rem !important;
+  }
+}
+
+/* 6. Universal Responsive Modals */
+.modal-overlay,
+.modal-backdrop,
+.mgt-modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: rgba(15, 23, 42, 0.6) !important;
+  backdrop-filter: blur(4px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 9999 !important;
+  padding: 1rem !important;
+}
+
+.modal-container,
+.modal-card,
+.modal-content-card,
+.mgt-modal-card {
+  background: #ffffff !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2) !important;
+  width: 100% !important;
+  max-width: 700px !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+@media (max-width: 968px) {
+  .modal-container,
+  .modal-card,
+  .modal-content-card,
+  .mgt-modal-card {
+    max-width: 90% !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .modal-container,
+  .modal-card,
+  .modal-content-card,
+  .mgt-modal-card {
+    max-width: 95% !important;
+    padding: 1.25rem !important;
+    margin: 0 auto !important;
+  }
+
+  .modal-actions,
+  .modal-footer {
+    flex-direction: column-reverse !important;
+    gap: 0.75rem !important;
+  }
+
+  .modal-actions button,
+  .modal-footer button {
+    width: 100% !important;
+  }
+}
+
+/* 7. Comprehensive Sidebar Drawer & Main Panel Responsiveness Rules */
+@media (max-width: 1024px) {
+  /* Force sidebars off-screen by default on mobile */
+  .management-sidebar,
+  .student-sidebar,
+  .sidebar-aside,
+  .worker-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: -340px !important;
+    width: 280px !important;
+    max-width: 85vw !important;
+    height: 100vh !important;
+    z-index: 99999 !important;
+    background-color: #ffffff !important;
+    box-shadow: 10px 0 40px rgba(15, 23, 42, 0.25) !important;
+    transition: left 0.3s cubic-bezier(0.25, 1, 0.5, 1) !important;
+    overflow-y: auto !important;
+  }
+
+  /* When open-mobile is active, slide in over screen */
+  .management-sidebar.open-mobile,
+  .student-sidebar.open-mobile,
+  .sidebar-aside.open-mobile,
+  .worker-sidebar.open-mobile {
+    left: 0 !important;
+  }
+
+  /* Mobile Backdrop Overlay */
+  .mobile-sidebar-backdrop {
+    display: block !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: rgba(15, 23, 42, 0.6) !important;
+    backdrop-filter: blur(4px) !important;
+    z-index: 99990 !important;
+  }
+
+  /* Main Panels MUST take 100% full screen width on mobile */
+  .management-main-panel,
+  .student-main-content,
+  .warden-main-content,
+  .dashboard-main-content,
+  .main-content,
+  .worker-main-content,
+  .worker-app-layout {
+    margin-left: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    min-width: 100% !important;
+    padding: 1rem 0.85rem !important;
+  }
+
+  /* Headers responsive layout */
+  .management-header,
+  .student-header,
+  .dashboard-header,
+  .worker-header {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.75rem !important;
+    width: 100% !important;
+    padding: 0.5rem 0 !important;
+    margin-bottom: 1.25rem !important;
+  }
+
+  .header-left-heading,
+  .header-left,
+  .header-meta-left {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+
+  .header-left-heading h2,
+  .header-left h2,
+  .header-meta-left h2,
+  .header-left-heading h1,
+  .header-left h1,
+  .header-meta-left h1 {
+    font-size: 1.15rem !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    margin: 0 !important;
+  }
+
+  .header-left-heading p,
+  .header-left p,
+  .header-meta-left p {
+    font-size: 0.75rem !important;
+    margin: 0 !important;
+  }
+
+  .menu-toggle-icon,
+  .hamburger-menu-btn,
+  .mobile-menu-btn,
+  .hamburger-icon-svg {
+    display: block !important;
+    cursor: pointer !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Search bar on mobile sits on row 2 (width 100%) */
+  .header-search-container,
+  .header-search,
+  .search-wrapper {
+    order: 10 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-top: 0.5rem !important;
+  }
+}

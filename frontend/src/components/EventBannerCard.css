@@ -208,3 +208,25 @@
     transform: translateX(-50%);
   }
 }
+
+/* RESPONSIVE BREAKPOINTS */
+@media (max-width: 640px) {
+  .event-banner-card {
+    padding: 1.25rem 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .event-banner-title {
+    font-size: 1.45rem;
+  }
+
+  .event-banner-desc {
+    max-width: 100%;
+    font-size: 0.85rem;
+  }
+
+  .event-banner-img-overlay {
+    width: 60%;
+    opacity: 0.12;
+  }
+}

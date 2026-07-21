@@ -83,6 +83,7 @@ function App() {
           {currentScreen === 'login' && (
             <LoginPage 
               onLoginSuccess={handleLoginSuccess} 
+              onBackToHome={() => setCurrentScreen('landing')}
               onBackToWebsite={() => setCurrentScreen('landing')}
             />
           )}

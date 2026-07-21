@@ -214,6 +214,26 @@ export default function IncidentGroupsChat({ user }) {
     }
   };
 
+  const handleClearChat = async () => {
+    if (!selectedGroup) return;
+    if (!window.confirm(`Are you sure you want to clear all messages in ${selectedGroup.name}?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/incident-groups/messages/clear?blockGroup=${selectedGroup.id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setMessages([]);
+      } else {
+        alert('Failed to clear chat.');
+      }
+    } catch (err) {
+      console.error('Error clearing chat:', err);
+      alert('Failed to clear chat.');
+    }
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -354,6 +374,10 @@ export default function IncidentGroupsChat({ user }) {
 
                   <button className="ai-summarize-btn" onClick={handleSummarize}>
                     ✨ Summarize
+                  </button>
+
+                  <button className="clear-chat-btn" onClick={handleClearChat} title="Clear all messages in this group">
+                    🗑️ Clear Chat
                   </button>
                 </div>
               </div>

@@ -187,6 +187,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [feedbackRequests, setFeedbackRequests] = useState([]);
   const [newFeedbackTitle, setNewFeedbackTitle] = useState('');
   const [newFeedbackDesc, setNewFeedbackDesc] = useState('');
+  const [newFeedbackTargetBlock, setNewFeedbackTargetBlock] = useState('');
   const [selectedFeedbackRequest, setSelectedFeedbackRequest] = useState(null);
   const [selectedFeedbackResponses, setSelectedFeedbackResponses] = useState([]);
   const [showResponsesModal, setShowResponsesModal] = useState(false);
@@ -204,6 +205,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
 
   const socketCtx = useSocket();
   const socket = socketCtx?.socket;
+  const sendRealtimeMessage = socketCtx?.sendRealtimeMessage;
 
   // Real-time socket message notification listener
   useEffect(() => {
@@ -211,14 +213,30 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
 
     const handleDirectMsg = (msg) => {
       if (!msg) return;
-      if (msg.sender === 'student') {
+      
+      const currentEmail = (user?.email || profile.email || '').toLowerCase();
+
+      // 1. Management <-> Warden Messages
+      if ((msg.sender === 'management' || msg.sender === 'warden') && msg.studentEmail && msg.studentEmail.toLowerCase() === currentEmail) {
+        setManagementMessages(prev => {
+          const exists = prev.some(m => (m.id && m.id === msg.id) || (m._id && m._id === msg._id));
+          if (exists) return prev;
+          return [...prev, msg];
+        });
+      }
+
+      // 2. Student <-> Warden Messages
+      if (msg.sender === 'student' || (msg.sender === 'warden' && msg.studentEmail && msg.studentEmail.toLowerCase() !== currentEmail)) {
         setChatMessages(prev => {
           const exists = prev.some(m => (m.id && m.id === msg.id) || (m._id && m._id === msg._id));
           if (exists) return prev;
           return [...prev, msg];
         });
-      } else if (msg.sender === 'management') {
-        setManagementMessages(prev => {
+      }
+
+      // 3. Head Warden <-> Warden Chat Modal
+      if (selectedWardenChat && msg.studentEmail && msg.studentEmail.toLowerCase() === selectedWardenChat.email.toLowerCase()) {
+        setWardenMessages(prev => {
           const exists = prev.some(m => (m.id && m.id === msg.id) || (m._id && m._id === msg._id));
           if (exists) return prev;
           return [...prev, msg];
@@ -233,7 +251,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
       socket.off('receive_direct_message', handleDirectMsg);
       socket.off('global_activity_notification', handleDirectMsg);
     };
-  }, [socket]);
+  }, [socket, user?.email, profile.email, selectedWardenChat]);
 
   // Fetch all data from API in parallel on mount
   useEffect(() => {
@@ -262,8 +280,8 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
           fetch('/api/event-banner'),
           fetch(`/api/messages?studentEmail=${email}`),
           fetch('/api/wardens'),
-          fetch('/api/feedback-requests'),
-          fetch('/api/feedback-responses')
+          fetch(`/api/feedback-requests?targetBlock=${encodeURIComponent(profile.block || '')}`),
+          fetch(`/api/feedback-responses?targetBlock=${encodeURIComponent(profile.block || '')}`)
         ]);
 
         if (complaintsRes.ok) setComplaints(await complaintsRes.json());
@@ -331,7 +349,13 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
 
       if (res.ok) {
         const data = await res.json();
-        setManagementMessages(prev => [...prev, data.message || data]);
+        const createdMsg = data.message || data;
+        if (sendRealtimeMessage) sendRealtimeMessage(createdMsg);
+        setManagementMessages(prev => {
+          const exists = prev.some(m => (m.id && m.id === createdMsg.id) || (m._id && m._id === createdMsg._id));
+          if (exists) return prev;
+          return [...prev, createdMsg];
+        });
         setMgtMsgText('');
       }
     } catch (err) {
@@ -377,7 +401,13 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
 
       if (res.ok) {
         const data = await res.json();
-        setWardenMessages(prev => [...prev, data.message || data]);
+        const createdMsg = data.message || data;
+        if (sendRealtimeMessage) sendRealtimeMessage(createdMsg);
+        setWardenMessages(prev => {
+          const exists = prev.some(m => (m.id && m.id === createdMsg.id) || (m._id && m._id === createdMsg._id));
+          if (exists) return prev;
+          return [...prev, createdMsg];
+        });
         setWardenMsgText('');
       }
     } catch (err) {
@@ -872,18 +902,26 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
       alert('Please fill in both title and description.');
       return;
     }
+    const targetBlockToUse = newFeedbackTargetBlock || profile.block || 'All';
     try {
       const res = await fetch('/api/feedback-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: newFeedbackTitle, description: newFeedbackDesc })
+        body: JSON.stringify({ 
+          title: newFeedbackTitle, 
+          description: newFeedbackDesc,
+          targetBlock: targetBlockToUse,
+          postedBy: user?.role || 'Warden',
+          authorName: profile.name || 'Block Warden',
+          authorEmail: profile.email || ''
+        })
       });
       if (res.ok) {
         const data = await res.json();
         setFeedbackRequests(prev => [data, ...prev.map(r => ({ ...r, active: false }))]);
         setNewFeedbackTitle('');
         setNewFeedbackDesc('');
-        alert('Feedback form published to students successfully!');
+        alert(`Feedback form published to ${targetBlockToUse} Block students successfully!`);
       } else {
         alert('Failed to publish feedback form.');
       }
@@ -1680,9 +1718,9 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                       <tbody>
                         {filteredComplaints.slice(0, 4).map((c) => (
                           <tr key={c.id}>
-                            <td style={{ fontWeight: 500, color: '#0f172a' }}>{c.title}</td>
-                            <td style={{ color: '#64748b' }}>{c.location}</td>
-                            <td>
+                            <td data-label="Title" style={{ fontWeight: 500, color: '#0f172a' }}>{c.title}</td>
+                            <td data-label="Location" style={{ color: '#64748b' }}>{c.location}</td>
+                            <td data-label="Status">
                               <span className={`status-pill ${
                                 c.status === 'Resolved' ? 'resolved' :
                                 c.status === 'In Progress' ? 'in-progress' :
@@ -1691,7 +1729,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                                 {c.status}
                               </span>
                             </td>
-                            <td style={{ color: '#94a3b8' }}>{c.time}</td>
+                            <td data-label="Time" style={{ color: '#94a3b8' }}>{c.time}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2729,12 +2767,44 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                               {activeResident.name.split(' ').map(n=>n[0]).join('')}
                             </div>
                           )}
-                          <div>
+                          <div style={{ flex: 1 }}>
                             <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>{activeResident.name}</h3>
                             <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: '#64748b' }}>
                               Room {activeResident.roomNo} • Block {activeResident.block} • {activeResident.phoneNo}
                             </p>
                           </div>
+                          <button
+                            onClick={async () => {
+                              if (!window.confirm(`Are you sure you want to clear chat history with ${activeResident.name}?`)) return;
+                              try {
+                                const res = await fetch(`/api/messages/conversation?studentEmail=${encodeURIComponent(activeResident.email)}`, {
+                                  method: 'DELETE'
+                                });
+                                if (res.ok) {
+                                  setChatMessages(prev => prev.filter(m => m.studentEmail?.toLowerCase() !== activeResident.email.toLowerCase()));
+                                } else {
+                                  alert('Failed to clear chat');
+                                }
+                              } catch (err) {
+                                console.error(err);
+                                alert('Error clearing chat');
+                              }
+                            }}
+                            style={{
+                              marginLeft: 'auto',
+                              backgroundColor: '#fff1f2',
+                              color: '#e11d48',
+                              border: '1px solid #fecdd3',
+                              borderRadius: '8px',
+                              padding: '0.35rem 0.75rem',
+                              fontSize: '0.75rem',
+                              fontWeight: '700',
+                              cursor: 'pointer'
+                            }}
+                            title="Clear conversation history"
+                          >
+                            🗑️ Clear Chat
+                          </button>
                         </div>
 
                         {/* Chat Messages Body */}
@@ -3192,6 +3262,26 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                         required
                       ></textarea>
                     </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <label style={{ fontWeight: 700, color: '#334155', fontSize: '0.85rem' }}>Target Block / Audience</label>
+                      <select 
+                        style={{ padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', backgroundColor: '#fff', cursor: 'pointer' }}
+                        value={newFeedbackTargetBlock || profile.block || 'All'}
+                        onChange={(e) => setNewFeedbackTargetBlock(e.target.value)}
+                      >
+                        {profile.block && profile.block !== 'All' && (
+                          <option value={profile.block}>{profile.block.includes('Block') ? profile.block : `${profile.block} Block`}</option>
+                        )}
+                        <option value="A">A Block</option>
+                        <option value="B">B Block</option>
+                        <option value="C">C Block</option>
+                        <option value="D">D Block</option>
+                        <option value="E">E Block</option>
+                        <option value="F">F Block</option>
+                        <option value="A, B, C">ABC Block</option>
+                        <option value="All">All Blocks</option>
+                      </select>
+                    </div>
                     <SpecularButton 
                       type="submit" 
                       size="md" 
@@ -3242,19 +3332,34 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                             <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#1e293b' }}>
                               {req.title}
                             </h4>
-                            <span 
-                              style={{ 
-                                padding: '4px 10px', 
-                                borderRadius: '9999px', 
-                                fontSize: '0.75rem', 
-                                fontWeight: 700, 
-                                backgroundColor: req.active ? '#dcfce7' : '#f1f5f9', 
-                                color: req.active ? '#166534' : '#475569',
-                                border: req.active ? '1px solid #bbf7d0' : '1px solid #e2e8f0'
-                              }}
-                            >
-                              {req.active ? 'Active' : 'Closed'}
-                            </span>
+                            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                              <span 
+                                style={{ 
+                                  padding: '4px 10px', 
+                                  borderRadius: '9999px', 
+                                  fontSize: '0.72rem', 
+                                  fontWeight: 700, 
+                                  backgroundColor: '#e0f2fe', 
+                                  color: '#0369a1',
+                                  border: '1px solid #bae6fd'
+                                }}
+                              >
+                                Target: {req.targetBlock || 'All'}
+                              </span>
+                              <span 
+                                style={{ 
+                                  padding: '4px 10px', 
+                                  borderRadius: '9999px', 
+                                  fontSize: '0.72rem', 
+                                  fontWeight: 700, 
+                                  backgroundColor: req.active ? '#dcfce7' : '#f1f5f9', 
+                                  color: req.active ? '#166534' : '#475569',
+                                  border: req.active ? '1px solid #bbf7d0' : '1px solid #e2e8f0'
+                                }}
+                              >
+                                {req.active ? 'Active' : 'Closed'}
+                              </span>
+                            </div>
                           </div>
                           <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569', lineHeight: '1.5' }}>
                             {req.description}

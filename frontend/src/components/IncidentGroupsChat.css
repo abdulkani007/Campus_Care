@@ -267,6 +267,27 @@
   transform: translateY(-1px);
 }
 
+.clear-chat-btn {
+  background-color: #fff1f2;
+  color: #e11d48;
+  border: 1px solid #fecdd3;
+  border-radius: 8px;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.clear-chat-btn:hover {
+  background-color: #ffe4e6;
+  border-color: #fda4af;
+  transform: translateY(-1px);
+}
+
 /* CHAT MESSAGES AREA */
 .chat-messages-area {
   flex: 1;

@@ -27,7 +27,8 @@ const io = new SocketIOServer(server, {
 });
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Set global JSON conversion transform to map _id -> id for 100% React compatibility
 mongoose.set('toJSON', {
@@ -217,6 +218,8 @@ const FeedbackRequestSchema = new mongoose.Schema({
   active: { type: Boolean, default: true },
   postedBy: { type: String, default: 'Warden' },
   authorName: { type: String, default: 'Hostel Administration' },
+  authorEmail: { type: String, default: '' },
+  targetBlock: { type: String, default: 'All' },
   createdAt: { type: Date, default: Date.now }
 });
 const FeedbackRequest = mongoose.model('FeedbackRequest', FeedbackRequestSchema);
@@ -225,11 +228,32 @@ const FeedbackResponseSchema = new mongoose.Schema({
   feedbackRequestId: { type: mongoose.Schema.Types.ObjectId, ref: 'FeedbackRequest', required: true },
   studentEmail: { type: String, required: true },
   studentName: { type: String, required: true },
+  studentBlock: { type: String, default: '' },
   rating: { type: Number, required: true, min: 1, max: 5 },
   comments: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now }
 });
 const FeedbackResponse = mongoose.model('FeedbackResponse', FeedbackResponseSchema);
+
+// Helper to extract clean array of block letters (e.g. "A, B, C", "D Block", "Block E" -> ["A", "B", "C"], ["D"], ["E"])
+const extractBlockLetters = (blockStr) => {
+  if (!blockStr) return [];
+  const clean = blockStr.toString().toUpperCase().replace(/BLOCK/g, '');
+  const letters = clean.match(/[A-Z0-9]+/g) || [];
+  return letters.filter(l => l !== 'ALL');
+};
+
+// Helper to check if targetBlock matches userBlock/studentBlock
+const matchesBlock = (targetBlock, userBlock) => {
+  if (!targetBlock || targetBlock === 'All' || targetBlock === 'ALL') return true;
+  if (!userBlock || userBlock === 'All' || userBlock === 'ALL') return true;
+  
+  const targetLetters = extractBlockLetters(targetBlock);
+  const userLetters = extractBlockLetters(userBlock);
+  
+  if (targetLetters.length === 0 || userLetters.length === 0) return true;
+  return userLetters.some(ul => targetLetters.includes(ul));
+};
 
 const IncidentGroupMessageSchema = new mongoose.Schema({
   blockGroup: { type: String, required: true }, // 'ABC', 'D', 'E', 'F'
@@ -1478,7 +1502,7 @@ app.post('/api/messages', async (req, res) => {
     });
 
     const msgObj = newMessage.toJSON();
-    io.to(`user:${cleanEmail}`).emit('receive_direct_message', msgObj);
+    io.emit('receive_direct_message', msgObj);
     io.emit('global_activity_notification', msgObj);
 
     res.status(201).json({ success: true, message: newMessage });
@@ -1511,7 +1535,24 @@ app.put('/api/messages/:id', async (req, res) => {
   }
 });
 
-// Delete Message
+// Clear Entire Direct Message Conversation (Must be before /:id route)
+app.delete('/api/messages/conversation', async (req, res) => {
+  const { studentEmail } = req.query;
+  if (!studentEmail) {
+    return res.status(400).json({ error: 'studentEmail query param is required' });
+  }
+  try {
+    const cleanEmail = studentEmail.trim().toLowerCase();
+    const regex = new RegExp(`^${cleanEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i');
+    await Message.deleteMany({ studentEmail: regex });
+    res.json({ success: true, message: 'Conversation cleared successfully' });
+  } catch (err) {
+    console.error('Error clearing conversation:', err);
+    res.status(500).json({ error: 'Database write error' });
+  }
+});
+
+// Delete Single Message
 app.delete('/api/messages/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -1528,15 +1569,14 @@ app.delete('/api/messages/:id', async (req, res) => {
 
 // Mark Messages as Read
 app.put('/api/messages/read', async (req, res) => {
-  const { studentEmail, sender } = req.body;
-  if (!studentEmail || !sender) {
-    return res.status(400).json({ error: 'studentEmail and sender are required' });
+  const { studentEmail, sender } = req.body || {};
+  if (!studentEmail) {
+    return res.status(400).json({ error: 'studentEmail is required' });
   }
   try {
-    await Message.updateMany(
-      { studentEmail: studentEmail.toLowerCase(), sender },
-      { read: true }
-    );
+    const filter = { studentEmail: studentEmail.toLowerCase() };
+    if (sender) filter.sender = sender;
+    await Message.updateMany(filter, { read: true });
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -1629,22 +1669,37 @@ app.get('/api/wardens', async (req, res) => {
 
 // Create a new feedback request (Warden or Management)
 app.post('/api/feedback-requests', async (req, res) => {
-  const { title, description, postedBy, authorName } = req.body;
+  const { title, description, postedBy, authorName, targetBlock, authorEmail } = req.body;
   if (!title || !description) {
     return res.status(400).json({ error: 'Title and description are required' });
   }
   try {
-    // Automatically deactivate other active feedback requests so only one is active at a time
-    await FeedbackRequest.updateMany({}, { active: false });
+    const cleanTarget = targetBlock || 'All';
+
+    // Deactivate previous active feedback requests for matching target block
+    const allActive = await FeedbackRequest.find({ active: true });
+    for (const reqItem of allActive) {
+      if (matchesBlock(reqItem.targetBlock, cleanTarget) || cleanTarget === 'All') {
+        reqItem.active = false;
+        await reqItem.save();
+      }
+    }
 
     const newRequest = new FeedbackRequest({
       title,
       description,
       active: true,
       postedBy: postedBy || 'Warden',
-      authorName: authorName || 'Hostel Administration'
+      authorName: authorName || 'Hostel Administration',
+      authorEmail: authorEmail || '',
+      targetBlock: cleanTarget
     });
     await newRequest.save();
+
+    if (io) {
+      io.emit('new_feedback_campaign', newRequest.toJSON());
+    }
+
     res.status(201).json(newRequest);
   } catch (err) {
     console.error(err);
@@ -1652,10 +1707,17 @@ app.post('/api/feedback-requests', async (req, res) => {
   }
 });
 
-// Get all feedback requests (Warden)
+// Get all feedback requests (Warden / Management)
 app.get('/api/feedback-requests', async (req, res) => {
+  const { targetBlock, wardenBlock } = req.query;
+  const blockToFilter = targetBlock || wardenBlock;
   try {
-    const requests = await FeedbackRequest.find().sort({ createdAt: -1 });
+    let requests = await FeedbackRequest.find().sort({ createdAt: -1 });
+
+    if (blockToFilter && blockToFilter !== 'All' && blockToFilter !== 'ALL') {
+      requests = requests.filter(r => matchesBlock(r.targetBlock, blockToFilter));
+    }
+
     res.json(requests);
   } catch (err) {
     console.error(err);
@@ -1665,9 +1727,17 @@ app.get('/api/feedback-requests', async (req, res) => {
 
 // Get active feedback request(s) (Student)
 app.get('/api/feedback-requests/active', async (req, res) => {
+  const { studentBlock } = req.query;
   try {
     const activeRequests = await FeedbackRequest.find({ active: true });
-    res.json(activeRequests);
+
+    if (!studentBlock) {
+      return res.json(activeRequests);
+    }
+
+    const matching = activeRequests.filter(reqItem => matchesBlock(reqItem.targetBlock, studentBlock));
+
+    res.json(matching);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Database read error' });
@@ -1712,7 +1782,7 @@ app.delete('/api/feedback-requests/:id', async (req, res) => {
 
 // Submit a feedback response (Student)
 app.post('/api/feedback-responses', async (req, res) => {
-  const { feedbackRequestId, studentEmail, studentName, rating, comments } = req.body;
+  const { feedbackRequestId, studentEmail, studentName, rating, comments, studentBlock } = req.body;
   if (!feedbackRequestId) {
     return res.status(400).json({ error: 'feedbackRequestId is required' });
   }
@@ -1726,10 +1796,17 @@ app.post('/api/feedback-responses', async (req, res) => {
     return res.status(400).json({ error: 'rating is required' });
   }
   try {
+    let resolvedBlock = studentBlock || '';
+    if (!resolvedBlock && studentEmail) {
+      const student = await Student.findOne({ email: studentEmail.toLowerCase() });
+      if (student) resolvedBlock = student.block;
+    }
+
     const response = new FeedbackResponse({
       feedbackRequestId,
-      studentEmail,
+      studentEmail: studentEmail.toLowerCase(),
       studentName,
+      studentBlock: resolvedBlock,
       rating,
       comments: comments || ''
     });
@@ -1743,7 +1820,8 @@ app.post('/api/feedback-responses', async (req, res) => {
 
 // Get all responses for a feedback request (Warden)
 app.get('/api/feedback-responses', async (req, res) => {
-  const { feedbackRequestId, studentEmail } = req.query;
+  const { feedbackRequestId, studentEmail, targetBlock, wardenBlock } = req.query;
+  const blockToFilter = targetBlock || wardenBlock;
   try {
     let query = {};
     if (feedbackRequestId) {
@@ -1754,7 +1832,24 @@ app.get('/api/feedback-responses', async (req, res) => {
       }
     }
     if (studentEmail) query.studentEmail = studentEmail.toLowerCase();
-    const responses = await FeedbackResponse.find(query).sort({ createdAt: -1 });
+    let responses = await FeedbackResponse.find(query).sort({ createdAt: -1 });
+
+    if (blockToFilter && blockToFilter !== 'All' && blockToFilter !== 'ALL') {
+      const requests = await FeedbackRequest.find();
+      const requestMap = new Map(requests.map(r => [r._id.toString(), r]));
+
+      responses = responses.filter(resp => {
+        if (resp.studentBlock && matchesBlock(blockToFilter, resp.studentBlock)) {
+          return true;
+        }
+        const parentReq = requestMap.get(resp.feedbackRequestId?.toString());
+        if (parentReq && matchesBlock(parentReq.targetBlock, blockToFilter)) {
+          return true;
+        }
+        return false;
+      });
+    }
+
     res.json(responses);
   } catch (err) {
     console.error(err);
@@ -2093,6 +2188,22 @@ app.post('/api/incident-groups/messages', async (req, res) => {
   }
 });
 
+// Clear all messages for an incident group
+app.delete('/api/incident-groups/messages/clear', async (req, res) => {
+  const { blockGroup } = req.query;
+  if (!blockGroup) {
+    return res.status(400).json({ error: 'blockGroup is required' });
+  }
+  try {
+    await IncidentGroupMessage.deleteMany({ blockGroup });
+    io.to(`group_${blockGroup}`).emit('clear_group_messages', { blockGroup });
+    res.json({ success: true, message: 'Group chat cleared successfully' });
+  } catch (err) {
+    console.error('Error clearing group chat:', err);
+    res.status(500).json({ error: 'Failed to clear group chat' });
+  }
+});
+
 // 4. Summarize messages for a group using Groq API
 app.post('/api/incident-groups/summarize', async (req, res) => {
   const { blockGroup } = req.body;
@@ -2337,12 +2448,8 @@ io.on('connection', (socket) => {
   socket.on('send_realtime_message', (msgData) => {
     if (msgData.blockGroup) {
       io.to(`group_${msgData.blockGroup}`).emit('receive_group_message', msgData);
-    }
-    if (msgData.studentEmail) {
-      io.to(`user:${msgData.studentEmail.toLowerCase()}`).emit('receive_direct_message', msgData);
-    }
-    if (msgData.recipientEmail) {
-      io.to(`user:${msgData.recipientEmail.toLowerCase()}`).emit('receive_direct_message', msgData);
+    } else {
+      io.emit('receive_direct_message', msgData);
     }
     io.emit('global_activity_notification', msgData);
   });
