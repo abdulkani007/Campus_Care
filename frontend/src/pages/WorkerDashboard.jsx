@@ -190,7 +190,7 @@ const WorkerDashboard = ({ user, onLogout }) => {
       {/* 2. BODY LAYOUT */}
       <div className="worker-body-wrapper">
         {/* Sidebar Navigation */}
-        <aside className="worker-sidebar">
+        <aside className={`worker-sidebar ${isMobileSidebarOpen ? 'open-mobile' : ''}`}>
           <ul className="worker-sidebar-menu">
             <li>
               <button className={`worker-sidebar-btn ${activeTab === 'Overview' ? 'active' : ''}`} onClick={() => setActiveTab('Overview')}>
