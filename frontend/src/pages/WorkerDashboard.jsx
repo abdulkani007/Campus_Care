@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import logo from '../assets/CC.png';
 import '../styles/WorkerDashboard.css';
 
-// SVG Lucide-style Icons (Zero Emoji - 100% Vector Icons)
+// SVG Lucide Vector Icons (Zero Emojis)
 const LayoutDashboardIcon = () => (
   <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
     <rect x="3" y="3" width="7" height="7" rx="1.5" />
@@ -49,10 +49,10 @@ const UserRoundIcon = () => (
   </svg>
 );
 
-const MapPinnedIcon = () => (
+const MapPinIcon = () => (
   <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-    <path d="M18 8c0 4.5-6 9-6 9s-6-4.5-6-9a6 6 0 0112 0z" />
-    <circle cx="12" cy="8" r="2" />
+    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+    <circle cx="12" cy="10" r="3" />
   </svg>
 );
 
@@ -62,7 +62,7 @@ const PhoneIcon = () => (
   </svg>
 );
 
-const CalendarDaysIcon = () => (
+const CalendarIcon = () => (
   <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
     <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
     <line x1="16" y1="2" x2="16" y2="6" />
@@ -77,13 +77,25 @@ const FileTextIcon = () => (
     <polyline points="14 2 14 8 20 8" />
     <line x1="16" y1="13" x2="8" y2="13" />
     <line x1="16" y1="17" x2="8" y2="17" />
-    <polyline points="10 9 9 9 8 9" />
   </svg>
 );
 
 const WrenchIcon = () => (
   <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
     <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
+  </svg>
+);
+
+const BellIcon = () => (
+  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+    <path d="M13.73 21a2 2 0 01-3.46 0" />
+  </svg>
+);
+
+const MessageSquareIcon = () => (
+  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
   </svg>
 );
 
@@ -254,7 +266,7 @@ const WorkerDashboard = ({ user, onLogout }) => {
   const workerCategory = user?.category || user?.role || 'Electrician';
   const avatarInitials = workerName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
-  // Donut chart stroke calculation
+  // Donut chart stroke calculations
   const totalForDonut = Math.max(totalAssigned, 1);
   const strokeAssigned = (pendingCount / totalForDonut) * 100;
   const strokeAccepted = (acceptedCount / totalForDonut) * 100;
@@ -281,24 +293,24 @@ const WorkerDashboard = ({ user, onLogout }) => {
     
     let actionText = `Assigned task #${t.taskId} for ${location}`;
     let icon = <ClipboardListIcon />;
-    let color = '#2563eb';
+    let color = '#1E5BBF';
     
     if (t.status === 'Accepted') {
       actionText = `Accepted repair order #${t.taskId} for ${location}`;
       icon = <CheckCircle2Icon />;
-      color = '#1d4ed8';
+      color = '#1D4ED8';
     } else if (t.status === 'In Progress') {
       actionText = `Started active repair on #${t.taskId} (${title})`;
       icon = <WrenchIcon />;
-      color = '#f97316';
+      color = '#F59E0B';
     } else if (t.status === 'Completed' || t.status === 'Verified' || t.status === 'Closed') {
       actionText = `Completed repair & uploaded proof for #${t.taskId}`;
       icon = <CheckCircle2Icon />;
-      color = '#10b981';
+      color = '#22C55E';
     } else if (t.status === 'Rejected') {
       actionText = `Rejected task order #${t.taskId}`;
       icon = <CircleXIcon />;
-      color = '#ef4444';
+      color = '#EF4444';
     }
 
     return { id: t._id || idx, actionText, icon, color, dateStr, taskId: t.taskId };
@@ -306,14 +318,14 @@ const WorkerDashboard = ({ user, onLogout }) => {
 
   return (
     <div className="worker-dashboard-layout">
-      {/* 1. ENTERPRISE NAVBAR */}
+      {/* 1. ENTERPRISE STICKY WHITE HEADER */}
       <header className="worker-header">
         <div className="worker-brand">
           <svg 
             width="24" 
             height="24" 
             fill="none" 
-            stroke="#64748b" 
+            stroke="#64748B" 
             strokeWidth="2" 
             viewBox="0 0 24 24" 
             style={{ cursor: 'pointer', display: 'none' }}
@@ -327,40 +339,51 @@ const WorkerDashboard = ({ user, onLogout }) => {
           <span className="worker-brand-badge">Worker Console</span>
         </div>
 
-        {/* User Profile Badge */}
-        <div className="worker-user-profile" onClick={() => setShowProfileMenu(!showProfileMenu)}>
-          <div className="worker-avatar">{avatarInitials}</div>
-          <div className="worker-info">
-            <span className="worker-name-text">{workerName}</span>
-            <span className="worker-role-text">{workerCategory} Technician</span>
+        {/* Header Right Actions */}
+        <div className="header-actions-group">
+          <div className="header-icon-btn" title="Notifications">
+            <BellIcon />
+            {pendingCount > 0 && <span className="header-dot-badge"></span>}
           </div>
-          <svg width="16" height="16" fill="none" stroke="#64748b" strokeWidth="2" viewBox="0 0 24 24" style={{ transform: showProfileMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
 
-          {showProfileMenu && (
-            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', width: '220px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', padding: '0.5rem 0', zIndex: 100 }}>
-              <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #f1f5f9' }}>
-                <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: '#0f172a' }}>{user?.email || 'workers@campuscare.com'}</p>
-                <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: '#10b981', fontWeight: 800 }}>● Active On Duty</p>
-              </div>
-              <div style={{ padding: '0.6rem 1rem', fontSize: '0.84rem', color: '#334155', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={() => { setActiveTab('My Profile & Duty'); setShowProfileMenu(false); }}>
-                <UserRoundIcon /> My Profile & Duty
-              </div>
-              <div style={{ padding: '0.6rem 1rem', fontSize: '0.84rem', color: '#334155', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={() => { setActiveTab('Assigned Task Orders'); setShowProfileMenu(false); }}>
-                <ClipboardListIcon /> Assigned Tasks ({activeUncompletedCount})
-              </div>
-              <div style={{ borderTop: '1px solid #f1f5f9', padding: '0.6rem 1rem', fontSize: '0.84rem', color: '#ef4444', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={onLogout}>
-                <CircleXIcon /> Log Out
-              </div>
+          <div className="header-icon-btn" title="Messages">
+            <MessageSquareIcon />
+          </div>
+
+          <div className="worker-user-profile" onClick={() => setShowProfileMenu(!showProfileMenu)}>
+            <div className="worker-avatar">{avatarInitials}</div>
+            <div className="worker-info">
+              <span className="worker-name-text">{workerName}</span>
+              <span className="worker-role-text">{workerCategory} Technician</span>
             </div>
-          )}
+            <svg width="16" height="16" fill="none" stroke="#64748B" strokeWidth="2" viewBox="0 0 24 24" style={{ transform: showProfileMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+
+            {showProfileMenu && (
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', width: '220px', backgroundColor: '#ffffff', border: '1px solid #E4ECF8', borderRadius: '14px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', padding: '0.5rem 0', zIndex: 100 }}>
+                <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #F1F5F9' }}>
+                  <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: '#1E293B' }}>{user?.email || 'workers@campuscare.com'}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: '#22C55E', fontWeight: 800 }}>● Active On Duty</p>
+                </div>
+                <div style={{ padding: '0.6rem 1rem', fontSize: '0.84rem', color: '#334155', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={() => { setActiveTab('My Profile & Duty'); setShowProfileMenu(false); }}>
+                  <UserRoundIcon /> My Profile & Duty
+                </div>
+                <div style={{ padding: '0.6rem 1rem', fontSize: '0.84rem', color: '#334155', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={() => { setActiveTab('Assigned Task Orders'); setShowProfileMenu(false); }}>
+                  <ClipboardListIcon /> Assigned Tasks ({activeUncompletedCount})
+                </div>
+                <div style={{ borderTop: '1px solid #F1F5F9', padding: '0.6rem 1rem', fontSize: '0.84rem', color: '#EF4444', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={onLogout}>
+                  <CircleXIcon /> Log Out
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
       {/* 2. BODY LAYOUT */}
       <div className="worker-body-wrapper">
-        {/* Full-Height Sticky Sidebar (280px Desktop / 250px Tablet) */}
+        {/* Fixed Full-Height Sidebar (280px Desktop) */}
         <aside className={`worker-sidebar ${isMobileSidebarOpen ? 'open-mobile' : ''}`}>
           <ul className="worker-sidebar-menu">
             <li>
@@ -416,197 +439,160 @@ const WorkerDashboard = ({ user, onLogout }) => {
             </li>
           </ul>
 
-          <div style={{ backgroundColor: '#f8fafc', padding: '0.85rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-            <span style={{ fontSize: '0.68rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Maintenance Station</span>
-            <p style={{ margin: '3px 0 0', fontSize: '0.82rem', fontWeight: 800, color: '#0f172a' }}>Central Maintenance Yard</p>
+          <div style={{ backgroundColor: '#F8FAFC', padding: '0.85rem', borderRadius: '12px', border: '1px solid #E4ECF8' }}>
+            <span style={{ fontSize: '0.68rem', color: '#64748B', textTransform: 'uppercase', fontWeight: 700 }}>Maintenance Station</span>
+            <p style={{ margin: '3px 0 0', fontSize: '0.82rem', fontWeight: 800, color: '#1E293B' }}>Central Maintenance Yard</p>
           </div>
         </aside>
 
-        {/* Main Content Area */}
+        {/* Main Content Area (Max Width 1600px Centered) */}
         <main className="worker-main-content">
           
-          {/* TAB 1: DASHBOARD (SINGLE-SCREEN COMPACT ANALYTICS - ZERO EMOJIS, ZERO SCROLLING) */}
+          {/* TAB 1: DASHBOARD (STATISTICS ROW + 2x2 ANALYTICS GRID - NO SCROLL) */}
           {activeTab === 'Dashboard' && (
             <>
-              {/* TOP COMPACT KPI STAT CARDS ROW */}
-              <div className="worker-kpi-grid">
+              {/* 1. STATISTICS ROW: EXACTLY 6 EQUAL CARDS */}
+              <div className="worker-kpi-grid-6">
                 <div className="worker-kpi-card">
-                  <span className="worker-kpi-label">Assigned Orders</span>
+                  <span className="worker-kpi-label">
+                    <span>Assigned Orders</span>
+                    <span className="kpi-trend-badge">+12%</span>
+                  </span>
                   <div className="worker-kpi-flex">
-                    <span className="worker-kpi-number" style={{ color: '#0f172a' }}>{totalAssigned}</span>
-                    <div className="worker-kpi-icon-box" style={{ backgroundColor: '#eff6ff', color: '#2563eb' }}><ClipboardListIcon /></div>
+                    <span className="worker-kpi-number">{totalAssigned}</span>
+                    <div className="worker-kpi-icon-box" style={{ backgroundColor: '#EFF6FF', color: '#1E5BBF' }}><ClipboardListIcon /></div>
                   </div>
                 </div>
 
                 <div className="worker-kpi-card">
-                  <span className="worker-kpi-label">Pending / Assigned</span>
+                  <span className="worker-kpi-label">
+                    <span>Pending</span>
+                    <span className="kpi-trend-badge" style={{ backgroundColor: '#FEF3C7', color: '#B45309' }}>Action Req</span>
+                  </span>
                   <div className="worker-kpi-flex">
-                    <span className="worker-kpi-number" style={{ color: '#b45309' }}>{pendingCount}</span>
-                    <div className="worker-kpi-icon-box" style={{ backgroundColor: '#fef3c7', color: '#b45309' }}><Clock3Icon /></div>
+                    <span className="worker-kpi-number" style={{ color: '#B45309' }}>{pendingCount}</span>
+                    <div className="worker-kpi-icon-box" style={{ backgroundColor: '#FEF3C7', color: '#B45309' }}><Clock3Icon /></div>
                   </div>
                 </div>
 
                 <div className="worker-kpi-card">
-                  <span className="worker-kpi-label">In Progress</span>
+                  <span className="worker-kpi-label">
+                    <span>In Progress</span>
+                    <span className="kpi-trend-badge" style={{ backgroundColor: '#FFF7ED', color: '#C2410C' }}>Active</span>
+                  </span>
                   <div className="worker-kpi-flex">
-                    <span className="worker-kpi-number" style={{ color: '#c2410c' }}>{inProgressCount}</span>
-                    <div className="worker-kpi-icon-box" style={{ backgroundColor: '#fff7ed', color: '#c2410c' }}><WrenchIcon /></div>
+                    <span className="worker-kpi-number" style={{ color: '#C2410C' }}>{inProgressCount}</span>
+                    <div className="worker-kpi-icon-box" style={{ backgroundColor: '#FFF7ED', color: '#C2410C' }}><WrenchIcon /></div>
                   </div>
                 </div>
 
                 <div className="worker-kpi-card">
-                  <span className="worker-kpi-label">Completed Today</span>
+                  <span className="worker-kpi-label">
+                    <span>Completed Today</span>
+                    <span className="kpi-trend-badge">Shift Done</span>
+                  </span>
                   <div className="worker-kpi-flex">
-                    <span className="worker-kpi-number" style={{ color: '#10b981' }}>{completedTodayCount}</span>
-                    <div className="worker-kpi-icon-box" style={{ backgroundColor: '#ecfdf5', color: '#10b981' }}><CheckCircle2Icon /></div>
+                    <span className="worker-kpi-number" style={{ color: '#22C55E' }}>{completedTodayCount}</span>
+                    <div className="worker-kpi-icon-box" style={{ backgroundColor: '#ECFDF5', color: '#22C55E' }}><CheckCircle2Icon /></div>
                   </div>
                 </div>
 
                 <div className="worker-kpi-card">
-                  <span className="worker-kpi-label">Total Completed</span>
+                  <span className="worker-kpi-label">
+                    <span>Total Completed</span>
+                    <span className="kpi-trend-badge">+100%</span>
+                  </span>
                   <div className="worker-kpi-flex">
                     <span className="worker-kpi-number" style={{ color: '#059669' }}>{completedCount}</span>
-                    <div className="worker-kpi-icon-box" style={{ backgroundColor: '#d1fae5', color: '#059669' }}><CheckCircle2Icon /></div>
+                    <div className="worker-kpi-icon-box" style={{ backgroundColor: '#D1FAE5', color: '#059669' }}><CheckCircle2Icon /></div>
                   </div>
                 </div>
 
                 <div className="worker-kpi-card">
-                  <span className="worker-kpi-label">Avg Resolution Time</span>
+                  <span className="worker-kpi-label">
+                    <span>Avg Resolution Time</span>
+                    <span className="kpi-trend-badge">Fast</span>
+                  </span>
                   <div className="worker-kpi-flex">
-                    <span className="worker-kpi-number" style={{ color: '#6366f1' }}>42 <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Mins</span></span>
-                    <div className="worker-kpi-icon-box" style={{ backgroundColor: '#e0e7ff', color: '#6366f1' }}><Clock3Icon /></div>
+                    <span className="worker-kpi-number" style={{ color: '#6366F1' }}>42<span style={{ fontSize: '14px', fontWeight: 600 }}>m</span></span>
+                    <div className="worker-kpi-icon-box" style={{ backgroundColor: '#E0E7FF', color: '#6366F1' }}><Clock3Icon /></div>
                   </div>
                 </div>
               </div>
 
-              {/* COMPACT WIDGETS ROW 1 (STATUS DONUT, TODAY'S PERFORMANCE BAR, WEEKLY LINE, MONTHLY AREA) */}
-              <div className="analytics-widget-row-4">
-                {/* 1. TASK STATUS DONUT */}
-                <div className="compact-widget-card">
-                  <div className="widget-card-header">
-                    <div>
-                      <h4 className="widget-title">Task Status</h4>
-                      <p className="widget-subtitle">Current status breakdown</p>
-                    </div>
+              {/* 2. ANALYTICS SECTION: 2 ROWS x 2 COLUMNS (4 COMPACT CARDS) */}
+              <div className="analytics-grid-2x2">
+                {/* WIDGET 1: TASK STATUS COMPACT DONUT */}
+                <div className="compact-analytics-card">
+                  <div>
+                    <h3 className="card-heading-blue"><LayoutDashboardIcon /> Task Status</h3>
+                    <p className="card-subtitle-gray">Compact status distribution</p>
                   </div>
-                  <div className="compact-donut-container">
-                    <div style={{ position: 'relative', width: '100px', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <svg width="100" height="100" viewBox="0 0 36 36">
-                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#f1f5f9" strokeWidth="4" />
-                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#10b981" strokeWidth="4" strokeDasharray={`${strokeCompleted}, 100`} />
-                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#f97316" strokeWidth="4" strokeDasharray={`${strokeInProgress}, 100`} strokeDashoffset={`-${strokeCompleted}`} />
-                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#f59e0b" strokeWidth="4" strokeDasharray={`${strokeAssigned}, 100`} strokeDashoffset={`-${strokeCompleted + strokeInProgress}`} />
+                  <div className="donut-widget-body">
+                    <div style={{ position: 'relative', width: '120px', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="120" height="120" viewBox="0 0 36 36">
+                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F1F5F9" strokeWidth="3.8" />
+                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#22C55E" strokeWidth="3.8" strokeDasharray={`${strokeCompleted}, 100`} />
+                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F97316" strokeWidth="3.8" strokeDasharray={`${strokeInProgress}, 100`} strokeDashoffset={`-${strokeCompleted}`} />
+                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#F59E0B" strokeWidth="3.8" strokeDasharray={`${strokeAssigned}, 100`} strokeDashoffset={`-${strokeCompleted + strokeInProgress}`} />
                       </svg>
                       <div style={{ position: 'absolute', textAlign: 'center' }}>
-                        <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#0f172a' }}>{totalAssigned}</span>
+                        <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1E293B' }}>{totalAssigned}</span>
                       </div>
                     </div>
 
-                    <div className="compact-legend-list">
-                      <div className="compact-legend-item"><span className="legend-dot" style={{ backgroundColor: '#f59e0b' }}></span>Pending: {pendingCount}</div>
-                      <div className="compact-legend-item"><span className="legend-dot" style={{ backgroundColor: '#2563eb' }}></span>Accepted: {acceptedCount}</div>
-                      <div className="compact-legend-item"><span className="legend-dot" style={{ backgroundColor: '#f97316' }}></span>Progress: {inProgressCount}</div>
-                      <div className="compact-legend-item"><span className="legend-dot" style={{ backgroundColor: '#10b981' }}></span>Done: {completedCount}</div>
-                      <div className="compact-legend-item"><span className="legend-dot" style={{ backgroundColor: '#ef4444' }}></span>Rejected: {rejectedCount}</div>
+                    <div className="donut-legend-stack">
+                      <div className="legend-row"><span className="legend-dot-indicator" style={{ backgroundColor: '#F59E0B' }}></span>Pending: {pendingCount}</div>
+                      <div className="legend-row"><span className="legend-dot-indicator" style={{ backgroundColor: '#1E5BBF' }}></span>Accepted: {acceptedCount}</div>
+                      <div className="legend-row"><span className="legend-dot-indicator" style={{ backgroundColor: '#F97316' }}></span>In Progress: {inProgressCount}</div>
+                      <div className="legend-row"><span className="legend-dot-indicator" style={{ backgroundColor: '#22C55E' }}></span>Completed: {completedCount}</div>
+                      <div className="legend-row"><span className="legend-dot-indicator" style={{ backgroundColor: '#EF4444' }}></span>Rejected: {rejectedCount}</div>
                     </div>
                   </div>
                 </div>
 
-                {/* 2. TODAY'S PERFORMANCE BAR */}
-                <div className="compact-widget-card">
-                  <div className="widget-card-header">
-                    <div>
-                      <h4 className="widget-title">Today's Performance</h4>
-                      <p className="widget-subtitle">Shift resolution stats</p>
-                    </div>
+                {/* WIDGET 2: WEEKLY PERFORMANCE MINI LINE */}
+                <div className="compact-analytics-card">
+                  <div>
+                    <h3 className="card-heading-blue"><Clock3Icon /> Weekly Performance</h3>
+                    <p className="card-subtitle-gray">Tasks completed per day (Mon - Sun)</p>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', fontWeight: 700 }}>
-                      <span>Done Today</span><span style={{ color: '#10b981' }}>{completedTodayCount} Tasks</span>
-                    </div>
-                    <div className="category-progress-bg"><div className="category-progress-fill" style={{ width: `${Math.min(completedTodayCount * 25, 100)}%`, backgroundColor: '#10b981' }}></div></div>
-                    
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', fontWeight: 700, marginTop: '0.2rem' }}>
-                      <span>Pending Orders</span><span style={{ color: '#f59e0b' }}>{pendingCount} Tasks</span>
-                    </div>
-                    <div className="category-progress-bg"><div className="category-progress-fill" style={{ width: `${Math.min(pendingCount * 25, 100)}%`, backgroundColor: '#f59e0b' }}></div></div>
-                  </div>
-                </div>
-
-                {/* 3. WEEKLY TASKS MINI LINE */}
-                <div className="compact-widget-card">
-                  <div className="widget-card-header">
-                    <div>
-                      <h4 className="widget-title">Weekly Workload</h4>
-                      <p className="widget-subtitle">Daily completion trend</p>
-                    </div>
-                  </div>
-                  <div style={{ height: '90px', width: '100%' }}>
+                  <div style={{ height: '110px', width: '100%' }}>
                     <svg viewBox="0 0 300 90" style={{ width: '100%', height: '100%' }}>
-                      <path d="M0,70 Q50,40 100,55 T200,25 T300,35" fill="none" stroke="#2563eb" strokeWidth="3.5" strokeLinecap="round" />
-                      <circle cx="100" cy="55" r="4" fill="#0f4fa8" />
-                      <circle cx="200" cy="25" r="4" fill="#0f4fa8" />
-                      <circle cx="300" cy="35" r="4" fill="#0f4fa8" />
+                      <path d="M0,75 Q50,45 100,60 T200,30 T300,40" fill="none" stroke="#1E5BBF" strokeWidth="3.5" strokeLinecap="round" />
+                      <circle cx="100" cy="60" r="4.5" fill="#1E5BBF" />
+                      <circle cx="200" cy="30" r="4.5" fill="#1E5BBF" />
+                      <circle cx="300" cy="40" r="4.5" fill="#1E5BBF" />
                     </svg>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#64748b', fontWeight: 700, marginTop: '0.2rem' }}>
-                      <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748B', fontWeight: 600, marginTop: '0.2rem' }}>
+                      <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
                     </div>
                   </div>
                 </div>
 
-                {/* 4. MONTHLY TREND MINI AREA */}
-                <div className="compact-widget-card">
-                  <div className="widget-card-header">
-                    <div>
-                      <h4 className="widget-title">Monthly Volume</h4>
-                      <p className="widget-subtitle">Resolution rate trend</p>
-                    </div>
+                {/* WIDGET 3: CATEGORY DISTRIBUTION HORIZONTAL BARS */}
+                <div className="compact-analytics-card">
+                  <div>
+                    <h3 className="card-heading-blue"><WrenchIcon /> Category Distribution</h3>
+                    <p className="card-subtitle-gray">Task volume by specialty</p>
                   </div>
-                  <div style={{ height: '90px', width: '100%' }}>
-                    <svg viewBox="0 0 300 90" style={{ width: '100%', height: '100%' }}>
-                      <defs>
-                        <linearGradient id="miniGreenGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#10b981" stopOpacity="0.4" />
-                          <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
-                        </linearGradient>
-                      </defs>
-                      <path d="M0,80 C60,60 120,40 180,20 C240,10 270,30 300,15 L300,90 L0,90 Z" fill="url(#miniGreenGrad)" />
-                      <path d="M0,80 C60,60 120,40 180,20 C240,10 270,30 300,15" fill="none" stroke="#10b981" strokeWidth="3" />
-                    </svg>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#64748b', fontWeight: 700, marginTop: '0.2rem' }}>
-                      <span>Jan</span><span>Mar</span><span>May</span><span>Jul</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* COMPACT WIDGETS ROW 2 (CATEGORY BARS, PERFORMANCE SCORECARD, RECENT ACTIVITY LOG) */}
-              <div className="analytics-widget-row-3">
-                {/* 5. CATEGORY DISTRIBUTION */}
-                <div className="compact-widget-card">
-                  <div className="widget-card-header">
-                    <div>
-                      <h4 className="widget-title">Category Distribution</h4>
-                      <p className="widget-subtitle">Tasks by specialty</p>
-                    </div>
-                  </div>
-                  <div className="compact-category-list">
+                  <div className="category-bars-stack">
                     {[
-                      { name: 'Electrical', count: categoryCounts.Electrical, color: '#f59e0b' },
-                      { name: 'Plumbing', count: categoryCounts.Plumbing, color: '#2563eb' },
-                      { name: 'Water Supply', count: categoryCounts.Water, color: '#06b6d4' },
-                      { name: 'Mess & Food', count: categoryCounts.Food, color: '#eab308' },
-                      { name: 'Internet / Wi-Fi', count: categoryCounts.Internet, color: '#6366f1' },
+                      { name: 'Electrical', count: categoryCounts.Electrical, color: '#F59E0B' },
+                      { name: 'Plumbing', count: categoryCounts.Plumbing, color: '#1E5BBF' },
+                      { name: 'Water Supply', count: categoryCounts.Water, color: '#06B6D4' },
+                      { name: 'Mess & Food', count: categoryCounts.Food, color: '#EAB308' },
+                      { name: 'Internet / Wi-Fi', count: categoryCounts.Internet, color: '#6366F1' },
                     ].map(cat => {
                       const percentage = Math.min(Math.round((cat.count / totalForDonut) * 100), 100);
                       return (
-                        <div key={cat.name}>
-                          <div className="category-row-label">
+                        <div key={cat.name} className="category-bar-row">
+                          <div className="category-bar-meta">
                             <span>{cat.name}</span>
                             <span>{cat.count} Tasks ({percentage}%)</span>
                           </div>
-                          <div className="category-progress-bg">
-                            <div className="category-progress-fill" style={{ width: `${Math.max(percentage, 8)}%`, backgroundColor: cat.color }}></div>
+                          <div className="category-bar-track">
+                            <div className="category-bar-fill" style={{ width: `${Math.max(percentage, 8)}%`, backgroundColor: cat.color }}></div>
                           </div>
                         </div>
                       );
@@ -614,48 +600,18 @@ const WorkerDashboard = ({ user, onLogout }) => {
                   </div>
                 </div>
 
-                {/* 6. PERFORMANCE SCORECARD */}
-                <div className="compact-widget-card" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', color: '#ffffff' }}>
-                  <div className="widget-card-header">
-                    <div>
-                      <h4 className="widget-title" style={{ color: '#ffffff' }}>Performance Score</h4>
-                      <p className="widget-subtitle" style={{ color: '#94a3b8' }}>Technician KPI rating</p>
-                    </div>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.65rem' }}>
-                    <div style={{ background: 'rgba(255, 255, 255, 0.08)', padding: '0.85rem', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.12)' }}>
-                      <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 700 }}>Completion Rate</span>
-                      <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#10b981', marginTop: '0.2rem' }}>95.8%</div>
-                    </div>
-                    <div style={{ background: 'rgba(255, 255, 255, 0.08)', padding: '0.85rem', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.12)' }}>
-                      <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 700 }}>Avg Rating</span>
-                      <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#f59e0b', marginTop: '0.2rem' }}>4.9 / 5.0</div>
-                    </div>
-                    <div style={{ background: 'rgba(255, 255, 255, 0.08)', padding: '0.85rem', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.12)' }}>
-                      <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 700 }}>Active Tasks</span>
-                      <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#3b82f6', marginTop: '0.2rem' }}>{activeUncompletedCount}</div>
-                    </div>
-                    <div style={{ background: 'rgba(255, 255, 255, 0.08)', padding: '0.85rem', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.12)' }}>
-                      <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 700 }}>Done Today</span>
-                      <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#34d399', marginTop: '0.2rem' }}>{completedTodayCount}</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 7. RECENT ACTIVITY LOG */}
-                <div className="compact-widget-card">
-                  <div className="widget-card-header">
-                    <div>
-                      <h4 className="widget-title">Recent Activity</h4>
-                      <p className="widget-subtitle">Latest 5 updates</p>
-                    </div>
+                {/* WIDGET 4: RECENT ACTIVITY (SCROLLABLE INSIDE CARD) */}
+                <div className="compact-analytics-card">
+                  <div>
+                    <h3 className="card-heading-blue"><ClipboardListIcon /> Recent Activity</h3>
+                    <p className="card-subtitle-gray">Latest 5 updates (scrollable)</p>
                   </div>
                   {recentActivities.length === 0 ? (
-                    <div style={{ padding: '1rem 0', textAlign: 'center', color: '#64748b', fontSize: '0.8rem' }}>
-                      No recent activities.
+                    <div style={{ padding: '1.5rem 0', textAlign: 'center', color: '#64748B', fontSize: '13px' }}>
+                      No recent duty activities.
                     </div>
                   ) : (
-                    <div className="activity-feed-list">
+                    <div className="activity-feed-scrollable">
                       {recentActivities.map((act) => (
                         <div key={act.id} className="activity-feed-item">
                           <div className="activity-icon-box" style={{ backgroundColor: `${act.color}15`, color: act.color }}>
@@ -663,7 +619,7 @@ const WorkerDashboard = ({ user, onLogout }) => {
                           </div>
                           <div className="activity-content">
                             <h5 className="activity-title">{act.actionText}</h5>
-                            <p className="activity-meta">{act.dateStr}</p>
+                            <p className="activity-meta">Time: {act.dateStr}</p>
                           </div>
                         </div>
                       ))}
@@ -677,53 +633,48 @@ const WorkerDashboard = ({ user, onLogout }) => {
           {/* CONTROL FILTER BAR (FOR TASK ORDER TABS) */}
           {activeTab !== 'Dashboard' && activeTab !== 'My Profile & Duty' && (
             <div className="worker-filter-bar">
-              <div className="worker-search-row">
-                <div className="worker-search-input-wrapper">
-                  <svg className="worker-search-icon" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                  <input
-                    type="text"
-                    className="worker-search-input"
-                    placeholder="Search by title, ticket ID, room, student..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                  {searchQuery && (
-                    <button className="worker-clear-search" onClick={() => setSearchQuery('')}>×</button>
-                  )}
-                </div>
-
-                <select className="worker-select-filter" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
-                  <option value="All">All Priorities</option>
-                  <option value="High">High Priority</option>
-                  <option value="Medium">Medium Priority</option>
-                  <option value="Low">Low Priority</option>
-                </select>
-
-                <select className="worker-select-filter" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-                  <option value="All">All Categories</option>
-                  <option value="Electrical">Electrical</option>
-                  <option value="Plumbing">Plumbing</option>
-                  <option value="Water Supply">Water Supply</option>
-                  <option value="Internet">Internet</option>
-                  <option value="Cleaning">Cleaning</option>
-                  <option value="Others">Others</option>
-                </select>
-
-                <select className="worker-select-filter" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
-                  <option value="Newest">Newest First</option>
-                  <option value="Oldest">Oldest First</option>
-                </select>
+              <div className="worker-search-input-wrapper">
+                <svg className="worker-search-icon" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input
+                  type="text"
+                  className="worker-search-input"
+                  placeholder="Search by complaint title, ticket ID, room, student..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
+
+              <select className="worker-select-filter" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
+                <option value="All">All Priorities</option>
+                <option value="High">High Priority</option>
+                <option value="Medium">Medium Priority</option>
+                <option value="Low">Low Priority</option>
+              </select>
+
+              <select className="worker-select-filter" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+                <option value="All">All Categories</option>
+                <option value="Electrical">Electrical</option>
+                <option value="Plumbing">Plumbing</option>
+                <option value="Water Supply">Water Supply</option>
+                <option value="Internet">Internet</option>
+                <option value="Cleaning">Cleaning</option>
+                <option value="Others">Others</option>
+              </select>
+
+              <select className="worker-select-filter" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
+                <option value="Newest">Newest First</option>
+                <option value="Oldest">Oldest First</option>
+              </select>
             </div>
           )}
 
           {/* TAB 2: ASSIGNED TASK ORDERS */}
           {activeTab === 'Assigned Task Orders' && (
             loading ? (
-              <div style={{ textAlign: 'center', padding: '4rem 0', color: '#64748b', fontWeight: 600 }}>
+              <div style={{ textAlign: 'center', padding: '4rem 0', color: '#64748B', fontWeight: 600 }}>
                 Loading assigned task orders...
               </div>
             ) : displayedTabTasks.length === 0 ? (
@@ -759,7 +710,7 @@ const WorkerDashboard = ({ user, onLogout }) => {
 
                         <div className="worker-info-grid">
                           <div className="worker-info-box">
-                            <div className="worker-info-icon-wrapper"><MapPinnedIcon /></div>
+                            <div className="worker-info-icon-wrapper"><MapPinIcon /></div>
                             <div>
                               <div className="worker-info-label">Room & Block</div>
                               <div className="worker-info-value">{c.location || `Block ${c.studentBlock || 'A'} - Room ${c.studentRoom || '101'}`}</div>
@@ -785,7 +736,7 @@ const WorkerDashboard = ({ user, onLogout }) => {
                           </div>
 
                           <div className="worker-info-box">
-                            <div className="worker-info-icon-wrapper"><CalendarDaysIcon /></div>
+                            <div className="worker-info-icon-wrapper"><CalendarIcon /></div>
                             <div>
                               <div className="worker-info-label">Assigned Date</div>
                               <div className="worker-info-value">{new Date(t.assignedDate).toLocaleDateString()}</div>
@@ -826,7 +777,7 @@ const WorkerDashboard = ({ user, onLogout }) => {
           {/* TAB 3: IN PROGRESS REPAIRS */}
           {activeTab === 'In Progress Repairs' && (
             loading ? (
-              <div style={{ textAlign: 'center', padding: '4rem 0', color: '#64748b', fontWeight: 600 }}>
+              <div style={{ textAlign: 'center', padding: '4rem 0', color: '#64748B', fontWeight: 600 }}>
                 Loading in-progress repairs...
               </div>
             ) : displayedTabTasks.length === 0 ? (
@@ -859,7 +810,7 @@ const WorkerDashboard = ({ user, onLogout }) => {
 
                         <div className="worker-info-grid">
                           <div className="worker-info-box">
-                            <div className="worker-info-icon-wrapper"><MapPinnedIcon /></div>
+                            <div className="worker-info-icon-wrapper"><MapPinIcon /></div>
                             <div>
                               <div className="worker-info-label">Room & Block</div>
                               <div className="worker-info-value">{c.location || `Block ${c.studentBlock || 'A'} - Room ${c.studentRoom || '101'}`}</div>
@@ -878,30 +829,10 @@ const WorkerDashboard = ({ user, onLogout }) => {
                           <div className="worker-desc-title"><FileTextIcon /> Issue Description</div>
                           <p className="worker-desc-text">{c.description || 'No detailed description provided.'}</p>
                         </div>
-
-                        {/* WORK PROGRESS TIMELINE */}
-                        <div className="worker-timeline">
-                          <div className="worker-timeline-step">
-                            <div className="timeline-dot active">✓</div>
-                            <span className="timeline-label active">Assigned</span>
-                          </div>
-                          <div className="worker-timeline-step">
-                            <div className="timeline-dot active">✓</div>
-                            <span className="timeline-label active">Accepted</span>
-                          </div>
-                          <div className="worker-timeline-step">
-                            <div className="timeline-dot active">✓</div>
-                            <span className="timeline-label active">Work Started</span>
-                          </div>
-                          <div className="worker-timeline-step">
-                            <div className="timeline-dot">4</div>
-                            <span className="timeline-label">Upload Proof</span>
-                          </div>
-                        </div>
                       </div>
 
                       <div className="worker-actions-row">
-                        <button className="worker-btn-success" onClick={() => setSelectedTaskModal(t)}>
+                        <button className="worker-btn-primary" onClick={() => setSelectedTaskModal(t)}>
                           <CheckCircle2Icon /><span>Upload Proof & Mark Completed</span>
                         </button>
                       </div>
@@ -915,7 +846,7 @@ const WorkerDashboard = ({ user, onLogout }) => {
           {/* TAB 4: COMPLETED REPORTS */}
           {activeTab === 'Completed Reports' && (
             loading ? (
-              <div style={{ textAlign: 'center', padding: '4rem 0', color: '#64748b', fontWeight: 600 }}>
+              <div style={{ textAlign: 'center', padding: '4rem 0', color: '#64748B', fontWeight: 600 }}>
                 Loading completed reports...
               </div>
             ) : displayedTabTasks.length === 0 ? (
@@ -951,14 +882,14 @@ const WorkerDashboard = ({ user, onLogout }) => {
 
                           <div className="worker-info-grid">
                             <div className="worker-info-box">
-                              <div className="worker-info-icon-wrapper"><MapPinnedIcon /></div>
+                              <div className="worker-info-icon-wrapper"><MapPinIcon /></div>
                               <div>
                                 <div className="worker-info-label">Room & Block</div>
                                 <div className="worker-info-value">{c.location || `Block ${c.studentBlock || 'A'} - Room ${c.studentRoom || '101'}`}</div>
                               </div>
                             </div>
                             <div className="worker-info-box">
-                              <div className="worker-info-icon-wrapper"><CalendarDaysIcon /></div>
+                              <div className="worker-info-icon-wrapper"><CalendarIcon /></div>
                               <div>
                                 <div className="worker-info-label">Completion Date</div>
                                 <div className="worker-info-value">{new Date(t.assignedDate).toLocaleDateString()}</div>
@@ -966,19 +897,19 @@ const WorkerDashboard = ({ user, onLogout }) => {
                             </div>
                           </div>
 
-                          <div className="worker-resolution-card">
-                            <div className="worker-resolution-title">Resolution Report & Uploaded Proof</div>
-                            <div className="worker-resolution-notes">"{t.completionNotes || 'Repair executed and verified on site.'}"</div>
+                          <div style={{ backgroundColor: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: '12px', padding: '0.85rem 1rem', marginBottom: '1rem' }}>
+                            <div style={{ fontSize: '12px', fontWeight: 700, color: '#047857', textTransform: 'uppercase', marginBottom: '0.3rem' }}>Resolution Report & Uploaded Proof</div>
+                            <div style={{ fontSize: '13px', color: '#065F46', fontStyle: 'italic' }}>"{t.completionNotes || 'Repair executed and verified on site.'}"</div>
                             {t.proofImage && (
                               <div>
-                                <img src={t.proofImage} alt="Resolution Proof" className="worker-proof-img" onClick={() => setZoomImage(t.proofImage)} />
+                                <img src={t.proofImage} alt="Resolution Proof" style={{ maxHeight: '140px', borderRadius: '8px', border: '1px solid #A7F3D0', marginTop: '0.55rem', cursor: 'zoom-in' }} onClick={() => setZoomImage(t.proofImage)} />
                               </div>
                             )}
                           </div>
                         </div>
 
                         <div className="worker-actions-row">
-                          <button className="worker-btn-primary" onClick={() => handleExportCSV(t)}>
+                          <button className="worker-btn-secondary" onClick={() => handleExportCSV(t)}>
                             <DownloadIcon /><span>Download Report CSV</span>
                           </button>
                         </div>
@@ -993,7 +924,7 @@ const WorkerDashboard = ({ user, onLogout }) => {
           {/* TAB 5: REJECTED TASKS */}
           {activeTab === 'Rejected Tasks' && (
             loading ? (
-              <div style={{ textAlign: 'center', padding: '4rem 0', color: '#64748b', fontWeight: 600 }}>
+              <div style={{ textAlign: 'center', padding: '4rem 0', color: '#64748B', fontWeight: 600 }}>
                 Loading rejected tasks...
               </div>
             ) : displayedTabTasks.length === 0 ? (
@@ -1022,14 +953,14 @@ const WorkerDashboard = ({ user, onLogout }) => {
 
                         <div className="worker-info-grid">
                           <div className="worker-info-box">
-                            <div className="worker-info-icon-wrapper"><MapPinnedIcon /></div>
+                            <div className="worker-info-icon-wrapper"><MapPinIcon /></div>
                             <div>
                               <div className="worker-info-label">Room & Block</div>
                               <div className="worker-info-value">{c.location || `Block ${c.studentBlock || 'A'} - Room ${c.studentRoom || '101'}`}</div>
                             </div>
                           </div>
                           <div className="worker-info-box">
-                            <div className="worker-info-icon-wrapper"><CalendarDaysIcon /></div>
+                            <div className="worker-info-icon-wrapper"><CalendarIcon /></div>
                             <div>
                               <div className="worker-info-label">Assigned Date</div>
                               <div className="worker-info-value">{new Date(t.assignedDate).toLocaleDateString()}</div>
@@ -1051,39 +982,39 @@ const WorkerDashboard = ({ user, onLogout }) => {
 
           {/* TAB 6: MY PROFILE & DUTY */}
           {activeTab === 'My Profile & Duty' && (
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', padding: '1.75rem', border: '1px solid #e2e8f0', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', paddingBottom: '1.5rem', borderBottom: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
-                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'linear-gradient(135deg, #0f4fa8 0%, #2563eb 100%)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.6rem', fontWeight: 800, border: '3px solid #bfdbfe' }}>
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '18px', padding: '1.75rem', border: '1px solid #E4ECF8', boxShadow: '0 4px 14px rgba(30, 91, 191, 0.04)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', paddingBottom: '1.5rem', borderBottom: '1px solid #E4ECF8', marginBottom: '1.5rem' }}>
+                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'linear-gradient(135deg, #1E5BBF 0%, #2563EB 100%)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.6rem', fontWeight: 800, border: '3px solid #BFDBFE' }}>
                   {avatarInitials}
                 </div>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800, color: '#0f172a' }}>{workerName}</h2>
-                  <p style={{ margin: '3px 0 0', color: '#2563eb', fontWeight: 700, fontSize: '0.9rem' }}>{workerCategory} Technician</p>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.4rem', fontSize: '0.75rem', fontWeight: 800, color: '#10b981', backgroundColor: '#ecfdf5', padding: '0.2rem 0.65rem', borderRadius: '12px', border: '1px solid #a7f3d0' }}>
+                  <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800, color: '#1E293B' }}>{workerName}</h2>
+                  <p style={{ margin: '3px 0 0', color: '#1E5BBF', fontWeight: 700, fontSize: '0.9rem' }}>{workerCategory} Technician</p>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.4rem', fontSize: '0.75rem', fontWeight: 800, color: '#22C55E', backgroundColor: '#ECFDF5', padding: '0.2rem 0.65rem', borderRadius: '12px', border: '1px solid #A7F3D0' }}>
                     ● ACTIVE ON DUTY
                   </span>
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
-                <div style={{ backgroundColor: '#f8fafc', padding: '1.15rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                  <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>OFFICIAL WORKER EMAIL</span>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a', marginTop: '0.2rem' }}>{user?.email || 'workers@campuscare.com'}</div>
+                <div style={{ backgroundColor: '#F8FAFC', padding: '1.15rem', borderRadius: '12px', border: '1px solid #E4ECF8' }}>
+                  <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>OFFICIAL WORKER EMAIL</span>
+                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#1E293B', marginTop: '0.2rem' }}>{user?.email || 'workers@campuscare.com'}</div>
                 </div>
 
-                <div style={{ backgroundColor: '#f8fafc', padding: '1.15rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                  <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>CONTACT PHONE NUMBER</span>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a', marginTop: '0.2rem' }}>{user?.phone || '9876543210'}</div>
+                <div style={{ backgroundColor: '#F8FAFC', padding: '1.15rem', borderRadius: '12px', border: '1px solid #E4ECF8' }}>
+                  <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>CONTACT PHONE NUMBER</span>
+                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#1E293B', marginTop: '0.2rem' }}>{user?.phone || '9876543210'}</div>
                 </div>
 
-                <div style={{ backgroundColor: '#f8fafc', padding: '1.15rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                  <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>ASSIGNED MAINTENANCE STATION</span>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a', marginTop: '0.2rem' }}>Campus Central Maintenance Yard</div>
+                <div style={{ backgroundColor: '#F8FAFC', padding: '1.15rem', borderRadius: '12px', border: '1px solid #E4ECF8' }}>
+                  <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>ASSIGNED MAINTENANCE STATION</span>
+                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#1E293B', marginTop: '0.2rem' }}>Campus Central Maintenance Yard</div>
                 </div>
 
-                <div style={{ backgroundColor: '#f8fafc', padding: '1.15rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                  <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>COMPLETED REPAIR ORDERS</span>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#059669', marginTop: '0.2rem' }}>{completedCount} Tasks Resolved</div>
+                <div style={{ backgroundColor: '#F8FAFC', padding: '1.15rem', borderRadius: '12px', border: '1px solid #E4ECF8' }}>
+                  <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>COMPLETED REPAIR ORDERS</span>
+                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#059669', marginTop: '0.2rem' }}>{completedCount} Tasks Resolved</div>
                 </div>
               </div>
             </div>
@@ -1092,13 +1023,13 @@ const WorkerDashboard = ({ user, onLogout }) => {
         </main>
       </div>
 
-      {/* 3. UPLOAD PROOF & COMPLETE TASK MODAL */}
+      {/* 3. UPLOAD PROOF MODAL OVERLAY */}
       {selectedTaskModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div style={{ maxWidth: '540px', width: '92%', backgroundColor: '#ffffff', borderRadius: '18px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', border: '1px solid #e2e8f0' }}>
-            <div style={{ background: 'linear-gradient(135deg, #0f4fa8 0%, #2563eb 100%)', padding: '1.15rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#ffffff' }}>
+          <div style={{ maxWidth: '540px', width: '92%', backgroundColor: '#ffffff', borderRadius: '18px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', border: '1px solid #E4ECF8' }}>
+            <div style={{ backgroundColor: '#1E5BBF', padding: '1.15rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#ffffff' }}>
               <div>
-                <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#93c5fd', fontWeight: 700 }}>Task Resolution Report</span>
+                <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#BFDBFE', fontWeight: 700 }}>Task Resolution Report</span>
                 <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 850 }}>Submit Repair Completion</h3>
               </div>
               <button 
@@ -1117,7 +1048,7 @@ const WorkerDashboard = ({ user, onLogout }) => {
               style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.15rem' }}
             >
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.3rem' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#1E293B', marginBottom: '0.3rem' }}>
                   Resolution Summary & Action Report *
                 </label>
                 <textarea
@@ -1126,12 +1057,12 @@ const WorkerDashboard = ({ user, onLogout }) => {
                   placeholder="Explain repair actions completed (e.g. Fixed circuit breaker, replaced faucet...)"
                   value={completionNotes}
                   onChange={(e) => setCompletionNotes(e.target.value)}
-                  style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', outline: 'none', backgroundColor: '#fafafa', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                  style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', backgroundColor: '#FAFAFA', boxSizing: 'border-box', fontFamily: 'inherit' }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.3rem' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#1E293B', marginBottom: '0.3rem' }}>
                   Upload Photo / Video Proof of Completion
                 </label>
                 
@@ -1148,11 +1079,11 @@ const WorkerDashboard = ({ user, onLogout }) => {
 
                 {proofImage && (
                   <div style={{ marginTop: '0.75rem', position: 'relative', display: 'inline-block' }}>
-                    <img src={proofImage} alt="Uploaded Proof Preview" style={{ maxHeight: '130px', borderRadius: '10px', border: '1px solid #cbd5e1' }} />
+                    <img src={proofImage} alt="Uploaded Proof Preview" style={{ maxHeight: '130px', borderRadius: '10px', border: '1px solid #CBD5E1' }} />
                     <button
                       type="button"
                       onClick={() => setProofImage('')}
-                      style={{ position: 'absolute', top: '-8px', right: '-8px', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: '22px', height: '22px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 800 }}
+                      style={{ position: 'absolute', top: '-8px', right: '-8px', backgroundColor: '#EF4444', color: '#fff', border: 'none', borderRadius: '50%', width: '22px', height: '22px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 800 }}
                     >
                       ×
                     </button>
@@ -1160,18 +1091,18 @@ const WorkerDashboard = ({ user, onLogout }) => {
                 )}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid #F1F5F9' }}>
                 <button
                   type="button"
                   onClick={() => setSelectedTaskModal(null)}
-                  style={{ padding: '0.65rem 1.15rem', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#475569', fontWeight: 700, fontSize: '0.84rem', cursor: 'pointer' }}
+                  style={{ padding: '0.65rem 1.15rem', borderRadius: '10px', border: '1px solid #CBD5E1', backgroundColor: '#ffffff', color: '#475569', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="worker-btn-success"
+                  className="worker-btn-primary"
                 >
                   {actionLoading ? 'Submitting Report...' : 'Submit Completion Report'}
                 </button>
@@ -1188,7 +1119,7 @@ const WorkerDashboard = ({ user, onLogout }) => {
             <img src={zoomImage} alt="Zoomed Resolution Proof" style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: '12px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }} />
             <button 
               onClick={() => setZoomImage(null)} 
-              style={{ position: 'absolute', top: '-15px', right: '-15px', backgroundColor: '#0f172a', color: '#fff', border: '2px solid #fff', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '1.2rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ position: 'absolute', top: '-15px', right: '-15px', backgroundColor: '#1E293B', color: '#fff', border: '2px solid #fff', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '1.2rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
               ×
             </button>
