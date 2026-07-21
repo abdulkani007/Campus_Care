@@ -1,0 +1,1109 @@
+/* frontend/src/styles/theme-overrides.css */
+
+/* ==========================================================================
+   GLOBAL TYPOGRAPHY & RESET
+   ========================================================================== */
+body, h1, h2, h3, h4, h5, h6, p, span, a, button, input, select, textarea, td, th {
+  font-family: 'Poppins', 'Inter', sans-serif !important;
+}
+
+body {
+  background-color: var(--bg-light) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 79, 168, 0.02) !important;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(15, 79, 168, 0.2) !important;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 79, 168, 0.4) !important;
+}
+
+/* ==========================================================================
+   SIDEBARS (ALL DASHBOARDS)
+   ========================================================================== */
+
+/* 1. Student Sidebar */
+.student-sidebar {
+  background-color: #ffffff !important;
+  border-right: 1px solid rgba(15, 79, 168, 0.08) !important;
+  box-shadow: 2px 0 10px rgba(15, 79, 168, 0.02) !important;
+}
+.student-sidebar .sidebar-brand {
+  border-bottom: 1px solid rgba(15, 79, 168, 0.08) !important;
+  color: var(--primary-blue) !important;
+}
+.student-sidebar .brand-text {
+  color: var(--primary-blue) !important;
+  font-weight: 700 !important;
+}
+.student-sidebar .sidebar-nav-btn {
+  color: #475569 !important;
+  background: transparent !important;
+  border-radius: 8px !important;
+  margin: 0.2rem 0.75rem !important;
+  padding: 0.75rem 1rem !important;
+  font-weight: 500 !important;
+  transition: all 0.3s ease !important;
+}
+.student-sidebar .sidebar-nav-btn svg {
+  color: var(--primary-blue) !important;
+  transition: all 0.3s ease !important;
+}
+.student-sidebar .sidebar-nav-btn:hover {
+  background-color: rgba(255, 193, 7, 0.1) !important;
+  color: #b28602 !important;
+}
+.student-sidebar .sidebar-nav-btn:hover svg {
+  color: var(--accent-yellow) !important;
+}
+.student-sidebar .sidebar-nav-btn.active {
+  background-color: rgba(15, 79, 168, 0.08) !important;
+  color: var(--primary-blue) !important;
+  border-left: 4px solid var(--primary-blue) !important;
+  border-radius: 0 8px 8px 0 !important;
+  font-weight: 600 !important;
+}
+.student-sidebar .sidebar-nav-btn.active svg {
+  color: var(--primary-blue) !important;
+}
+.student-sidebar .logout-action-btn {
+  background-color: rgba(239, 68, 68, 0.08) !important;
+  color: #dc2626 !important;
+  border-radius: 8px !important;
+}
+
+/* 2. Warden Sidebar */
+.sidebar-aside {
+  background-color: #ffffff !important;
+  border-right: 1px solid rgba(15, 79, 168, 0.08) !important;
+  box-shadow: 2px 0 10px rgba(15, 79, 168, 0.02) !important;
+}
+.sidebar-aside .brand-container {
+  border-bottom: 1px solid rgba(15, 79, 168, 0.08) !important;
+}
+.sidebar-aside .brand-title {
+  color: var(--primary-blue) !important;
+  font-weight: 700 !important;
+}
+.sidebar-aside .menu-btn {
+  color: #475569 !important;
+  background: transparent !important;
+  border-radius: 8px !important;
+  margin: 0.2rem 0.75rem !important;
+  padding: 0.75rem 1rem !important;
+  font-weight: 500 !important;
+  transition: all 0.3s ease !important;
+}
+.sidebar-aside .menu-btn svg {
+  color: var(--primary-blue) !important;
+}
+.sidebar-aside .menu-btn:hover {
+  background-color: rgba(255, 193, 7, 0.1) !important;
+  color: #b28602 !important;
+}
+.sidebar-aside .menu-btn:hover svg {
+  color: var(--accent-yellow) !important;
+}
+.sidebar-aside .menu-btn.active {
+  background-color: rgba(15, 79, 168, 0.08) !important;
+  color: var(--primary-blue) !important;
+  border-left: 4px solid var(--primary-blue) !important;
+  border-radius: 0 8px 8px 0 !important;
+  font-weight: 600 !important;
+}
+.sidebar-aside .menu-btn.active svg {
+  color: var(--primary-blue) !important;
+}
+.sidebar-aside .logout-btn-wrapper button {
+  background-color: rgba(239, 68, 68, 0.08) !important;
+  color: #dc2626 !important;
+  border-radius: 8px !important;
+}
+
+/* 3. Management Sidebar */
+.management-sidebar {
+  background-color: #ffffff !important;
+  border-right: 1px solid rgba(15, 79, 168, 0.08) !important;
+  box-shadow: 2px 0 10px rgba(15, 79, 168, 0.02) !important;
+}
+.management-sidebar .sidebar-header {
+  border-bottom: 1px solid rgba(15, 79, 168, 0.08) !important;
+}
+.management-sidebar .brand-label-text {
+  color: var(--primary-blue) !important;
+  font-weight: 700 !important;
+}
+.management-sidebar .sidebar-nav-item {
+  color: #475569 !important;
+  background: transparent !important;
+  border-radius: 8px !important;
+  margin: 0.2rem 0.75rem !important;
+  padding: 0.75rem 1rem !important;
+  font-weight: 500 !important;
+  transition: all 0.3s ease !important;
+}
+.management-sidebar .sidebar-nav-item svg {
+  color: var(--primary-blue) !important;
+}
+.management-sidebar .sidebar-nav-item:hover {
+  background-color: rgba(255, 193, 7, 0.1) !important;
+  color: #b28602 !important;
+}
+.management-sidebar .sidebar-nav-item:hover svg {
+  color: var(--accent-yellow) !important;
+}
+.management-sidebar .sidebar-nav-item.active {
+  background-color: rgba(15, 79, 168, 0.08) !important;
+  color: var(--primary-blue) !important;
+  border-left: 4px solid var(--primary-blue) !important;
+  border-radius: 0 8px 8px 0 !important;
+  font-weight: 600 !important;
+}
+.management-sidebar .sidebar-nav-item.active svg {
+  color: var(--primary-blue) !important;
+}
+
+/* 4. Worker Sidebar */
+.worker-sidebar {
+  background-color: #ffffff !important;
+  border-right: 1px solid rgba(15, 79, 168, 0.08) !important;
+  box-shadow: 2px 0 10px rgba(15, 79, 168, 0.02) !important;
+}
+.worker-sidebar .sidebar-header {
+  border-bottom: 1px solid rgba(15, 79, 168, 0.08) !important;
+}
+.worker-sidebar .brand-name {
+  color: var(--primary-blue) !important;
+  font-weight: 700 !important;
+}
+.worker-sidebar .sidebar-btn {
+  color: #475569 !important;
+  background: transparent !important;
+  border-radius: 8px !important;
+  margin: 0.2rem 0.75rem !important;
+  padding: 0.75rem 1rem !important;
+  font-weight: 500 !important;
+  transition: all 0.3s ease !important;
+}
+.worker-sidebar .sidebar-btn svg {
+  color: var(--primary-blue) !important;
+}
+.worker-sidebar .sidebar-btn:hover {
+  background-color: rgba(255, 193, 7, 0.1) !important;
+  color: #b28602 !important;
+}
+.worker-sidebar .sidebar-btn:hover svg {
+  color: var(--accent-yellow) !important;
+}
+.worker-sidebar .sidebar-btn.active {
+  background-color: rgba(15, 79, 168, 0.08) !important;
+  color: var(--primary-blue) !important;
+  border-left: 4px solid var(--primary-blue) !important;
+  border-radius: 0 8px 8px 0 !important;
+  font-weight: 600 !important;
+}
+.worker-sidebar .sidebar-btn.active svg {
+  color: var(--primary-blue) !important;
+}
+
+/* ==========================================================================
+   TOP NAVBAR / HEADERS
+   ========================================================================== */
+.student-header, .warden-header, .management-header, .worker-header {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid rgba(15, 79, 168, 0.08) !important;
+  padding: 1rem 1.5rem !important;
+}
+
+.header-title, .header-title-text, .nav-title {
+  color: var(--primary-blue) !important;
+  font-weight: 700 !important;
+  font-size: 1.5rem !important;
+}
+
+.header-greeting {
+  color: #64748b !important;
+}
+
+/* Notification badges and unread counts */
+.notification-bell-badge, .unread-badge, .sidebar-badge {
+  background-color: var(--accent-yellow) !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+/* ==========================================================================
+   CARDS / WIDGETS
+   ========================================================================== */
+.grid-widget, .metric-card, .dashboard-card, .complaint-card, .stat-card, 
+.widget-card, .analytics-card, .job-card, .info-card, .card {
+  background-color: #ffffff !important;
+  border: 1px solid rgba(15, 79, 168, 0.06) !important;
+  border-radius: var(--border-radius-card) !important;
+  box-shadow: var(--card-shadow) !important;
+  padding: 1.5rem !important;
+  transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+}
+
+.grid-widget:hover, .metric-card:hover, .dashboard-card:hover, .complaint-card:hover, 
+.stat-card:hover, .widget-card:hover, .analytics-card:hover, .job-card:hover, .card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: var(--card-shadow-hover) !important;
+}
+
+/* Icons within cards */
+.widget-icon, .card-icon, .metric-icon-wrapper svg {
+  color: var(--accent-yellow) !important;
+}
+
+/* Card headings and values */
+.widget-title, .card-title, .stat-label {
+  color: #475569 !important;
+  font-weight: 500 !important;
+}
+
+.widget-value, .card-value, .stat-value {
+  color: var(--primary-blue) !important;
+  font-weight: 700 !important;
+}
+
+/* ==========================================================================
+   TABLES
+   ========================================================================== */
+.complaints-table-wrapper, .table-container, .workers-table-wrapper, .table-responsive {
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(15, 79, 168, 0.08) !important;
+  box-shadow: 0 4px 15px rgba(15, 79, 168, 0.02) !important;
+}
+
+table, .complaints-table, .management-table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  background-color: #ffffff !important;
+}
+
+thead, tr th {
+  background-color: var(--primary-blue) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  text-align: left !important;
+  padding: 1rem !important;
+  font-size: 0.9rem !important;
+}
+
+tbody tr {
+  border-bottom: 1px solid rgba(15, 79, 168, 0.06) !important;
+  transition: background-color 0.2s ease !important;
+}
+
+tbody tr:nth-child(even) {
+  background-color: rgba(15, 79, 168, 0.02) !important;
+}
+
+tbody tr:hover {
+  background-color: rgba(15, 79, 168, 0.05) !important;
+}
+
+tbody tr td {
+  padding: 1rem !important;
+  color: #334155 !important;
+  font-size: 0.875rem !important;
+}
+
+/* ==========================================================================
+   BUTTONS
+   ========================================================================== */
+
+/* 1. Primary Buttons */
+.btn-primary, .submit-btn, .action-btn-primary, .login-action-btn, 
+.cta-button, .create-campaign-btn, .action-primary-btn {
+  background-color: var(--primary-blue) !important;
+  color: #ffffff !important;
+  border: 1.5px solid var(--primary-blue) !important;
+  border-radius: var(--border-radius-btn) !important;
+  padding: 0.75rem 1.5rem !important;
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
+  cursor: pointer !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 4px 10px rgba(15, 79, 168, 0.15) !important;
+}
+
+.btn-primary:hover, .submit-btn:hover, .action-btn-primary:hover, .login-action-btn:hover, 
+.cta-button:hover, .create-campaign-btn:hover, .action-primary-btn:hover {
+  background-color: var(--accent-yellow) !important;
+  border-color: var(--accent-yellow) !important;
+  color: #0f172a !important;
+  box-shadow: 0 6px 15px rgba(255, 193, 7, 0.2) !important;
+}
+
+/* 2. Secondary Buttons */
+.btn-secondary, .cancel-btn, .action-btn-secondary, .back-home-btn, 
+.action-secondary-btn, .chat-search-toggle {
+  background-color: #ffffff !important;
+  color: var(--primary-blue) !important;
+  border: 1.5px solid var(--primary-blue) !important;
+  border-radius: var(--border-radius-btn) !important;
+  padding: 0.75rem 1.5rem !important;
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
+  cursor: pointer !important;
+  transition: all 0.3s ease !important;
+}
+
+.btn-secondary:hover, .cancel-btn:hover, .action-btn-secondary:hover, .back-home-btn:hover, 
+.action-secondary-btn:hover {
+  background-color: var(--accent-yellow) !important;
+  border-color: var(--accent-yellow) !important;
+  color: #0f172a !important;
+}
+
+/* ==========================================================================
+   FORMS & INPUTS
+   ========================================================================== */
+.form-group input, .form-group select, .form-group textarea, 
+.modal-body input, .modal-body select, .modal-body textarea,
+input[type="text"], input[type="email"], input[type="password"], select, textarea {
+  width: 100% !important;
+  padding: 0.75rem 1rem !important;
+  border: 1.5px solid rgba(15, 79, 168, 0.15) !important;
+  border-radius: var(--border-radius-btn) !important;
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+  font-size: 0.9rem !important;
+  transition: all 0.3s ease !important;
+}
+
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus, 
+.modal-body input:focus, .modal-body select:focus, .modal-body textarea:focus,
+input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, select:focus, textarea:focus {
+  outline: none !important;
+  border-color: var(--primary-blue) !important;
+  box-shadow: 0 0 0 3px rgba(15, 79, 168, 0.15) !important;
+}
+
+.form-label, label {
+  color: var(--primary-blue) !important;
+  font-weight: 600 !important;
+  font-size: 0.875rem !important;
+  margin-bottom: 0.5rem !important;
+  display: inline-block !important;
+}
+
+/* ==========================================================================
+   MESSAGE CENTER / CHAT
+   ========================================================================== */
+.messages-layout-grid, .chat-panel-container {
+  border-radius: var(--border-radius-card) !important;
+  overflow: hidden !important;
+  box-shadow: var(--card-shadow) !important;
+  border: 1px solid rgba(15, 79, 168, 0.08) !important;
+}
+
+/* Left panel contacts list */
+.students-list-sidebar, .groups-list-area {
+  background-color: #ffffff !important;
+  border-right: 1px solid rgba(15, 79, 168, 0.08) !important;
+}
+
+/* Active chat bubble */
+.chat-bubble.sent, .message-bubble.me {
+  background-color: var(--primary-blue) !important;
+  color: #ffffff !important;
+  border-radius: 12px 12px 0 12px !important;
+}
+
+.chat-bubble.received, .message-bubble.other {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-radius: 12px 12px 12px 0 !important;
+}
+
+/* ==========================================================================
+   LOGIN / REGISTER PAGE
+   ========================================================================== */
+.login-page-container {
+  background-color: #f4f7fc !important;
+}
+
+/* Update visual panel slide gradient overlay to match Royal Blue theme */
+.login-visual-panel::after {
+  background: linear-gradient(180deg, rgba(15, 79, 168, 0.85) 0%, rgba(8, 41, 87, 0.95) 100%) !important;
+}
+
+.login-form-wrapper {
+  background: #ffffff !important;
+  padding: 2.5rem !important;
+  border-radius: var(--border-radius-card) !important;
+  box-shadow: var(--card-shadow-hover) !important;
+}
+
+.login-form-title {
+  color: var(--primary-blue) !important;
+  font-weight: 800 !important;
+}
+
+/* ==========================================================================
+   LANDING PAGE ACCENTS
+   ========================================================================== */
+.hero-content h1, .section-heading h2 {
+  color: var(--primary-blue) !important;
+}
+
+.feature-card {
+  background: #ffffff !important;
+  border-radius: var(--border-radius-card) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+.feature-card:hover {
+  transform: translateY(-5px) !important;
+  box-shadow: var(--card-shadow-hover) !important;
+}
+
+.accent-bar {
+  background-color: var(--accent-yellow) !important;
+}
+
+/* ==========================================================================
+   Pills, Badges & Highlights
+   ========================================================================== */
+.status-pill {
+  border-radius: 9999px !important;
+  font-weight: 600 !important;
+}
+
+.status-pill.open, .status-pill.pending {
+  background-color: rgba(255, 193, 7, 0.15) !important;
+  color: #b28602 !important;
+  border: 1px solid rgba(255, 193, 7, 0.25) !important;
+}
+
+.status-pill.resolved, .status-pill.closed, .status-pill.completed {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+  color: #059669 !important;
+  border: 1px solid rgba(16, 185, 129, 0.2) !important;
+}
+
+.status-pill.in-progress {
+  background-color: rgba(15, 79, 168, 0.08) !important;
+  color: var(--primary-blue) !important;
+  border: 1px solid rgba(15, 79, 168, 0.15) !important;
+}
+
+/* ==========================================================================
+   DASHBOARD INDEPENDENT LAYOUT SCROLL & PERFECT FIT (GAP FIX)
+   ========================================================================== */
+/* Layout Type 1: Student & Management Dashboards (Sidebar left, Main panel right) */
+.student-dashboard-layout, .management-dashboard-layout {
+  display: flex !important;
+  flex-direction: row !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  width: 100vw !important;
+  overflow: hidden !important;
+  position: relative !important;
+  background-color: var(--bg-light) !important;
+}
+
+/* Layout Type 2: Warden & Worker Dashboards (Top Header banner, Body below with Sidebar left & Main content right) */
+.dashboard-container {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  width: 100vw !important;
+  overflow: hidden !important;
+  position: relative !important;
+  background-color: var(--bg-light) !important;
+}
+
+.dashboard-header {
+  width: 100vw !important;
+  flex-shrink: 0 !important;
+  background-color: #ffffff !important;
+  border-bottom: 1px solid rgba(15, 79, 168, 0.08) !important;
+  padding: 0.85rem 1.5rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  z-index: 30 !important;
+  box-shadow: 0 2px 10px rgba(15, 79, 168, 0.03) !important;
+}
+
+.dashboard-body {
+  display: flex !important;
+  flex-direction: row !important;
+  flex: 1 !important;
+  height: calc(100vh - 65px) !important;
+  width: 100vw !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+.student-header, .management-header, .worker-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 50 !important;
+  background-color: #ffffff !important;
+  border-radius: 16px !important;
+  padding: 1rem 1.5rem !important;
+  margin-bottom: 1.5rem !important;
+  border: 1px solid rgba(15, 79, 168, 0.06) !important;
+  box-shadow: 0 4px 20px rgba(15, 79, 168, 0.04) !important;
+}
+
+.student-sidebar, .sidebar-aside, .management-sidebar, .worker-sidebar {
+  width: 260px !important;
+  min-width: 260px !important;
+  max-width: 260px !important;
+  height: 100% !important;
+  overflow-y: auto !important;
+  flex-shrink: 0 !important;
+  position: relative !important;
+  top: 0 !important;
+  left: 0 !important;
+  margin: 0 !important;
+  border-right: 1px solid rgba(15, 79, 168, 0.08) !important;
+  z-index: 20 !important;
+  background-color: #ffffff !important;
+}
+
+.student-main-content, .warden-main-content, .management-main-content, .management-main-panel, .worker-main-content, .main-content {
+  flex: 1 !important;
+  height: 100% !important;
+  overflow-y: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  margin-left: 0 !important; /* CRITICAL: Remove legacy 260px margin-left offset across all dashboards */
+  max-width: none !important;
+  width: calc(100vw - 260px) !important;
+  padding: 1.5rem 2rem !important;
+  background-color: var(--bg-light) !important;
+}
+
+/* ==========================================================================
+   GLOBAL INPUT & SEARCH BAR PADDING FIX (ZERO OVERLAP ACROSS ALL PAGES)
+   ========================================================================== */
+
+/* Search Container Wrappers */
+.search-wrapper,
+.header-search-container,
+.header-search,
+.search-container,
+.search-box-wrapper,
+.table-search,
+.chat-search-input-wrapper,
+.search-bar-container {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  max-width: 320px !important;
+}
+
+/* Left Search Icon Alignment - Centered Vertically */
+.search-wrapper svg,
+.header-search-container svg,
+.header-search svg,
+.search-icon-svg,
+.search-icon,
+.chat-search-input-wrapper svg,
+.search-container svg,
+.table-search svg {
+  position: absolute !important;
+  left: 16px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  z-index: 10 !important;
+  color: #94a3b8 !important;
+  stroke: #94a3b8 !important;
+  pointer-events: none !important;
+  margin: 0 !important;
+  width: 18px !important;
+  height: 18px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Search Input Fields - 50px Left Padding */
+.search-wrapper input,
+.header-search-container input,
+.header-search input,
+.header-search-bar,
+.chat-search-input-wrapper input,
+.search-container input,
+.table-search input,
+.search-box input,
+input[type="search"] {
+  padding-left: 50px !important; /* Guaranteed gap so text/placeholder NEVER overlaps icon */
+  padding-right: 18px !important;
+  height: 44px !important;
+  width: 100% !important;
+  background-color: #ffffff !important;
+  border: 1.5px solid rgba(15, 79, 168, 0.15) !important;
+  border-radius: 9999px !important; /* Pill style */
+  font-size: 0.875rem !important;
+  color: #1e293b !important;
+  transition: all 0.3s ease !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02) !important;
+}
+
+.search-wrapper input:focus,
+.header-search-container input:focus,
+.header-search input:focus,
+.header-search-bar:focus,
+.chat-search-input-wrapper input:focus,
+.search-container input:focus,
+.table-search input:focus {
+  border-color: var(--primary-blue) !important;
+  box-shadow: 0 0 0 3px rgba(15, 79, 168, 0.15) !important;
+  outline: none !important;
+}
+
+.search-wrapper input::placeholder,
+.header-search-container input::placeholder,
+.header-search input::placeholder,
+.header-search-bar::placeholder,
+.chat-search-input-wrapper input::placeholder,
+.search-container input::placeholder,
+.table-search input::placeholder,
+.login-input::placeholder,
+.input-wrapper input::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+  font-size: 0.875rem !important;
+}
+
+/* ==========================================================================
+   LOGIN & REGISTER FORM SPECIFIC OVERRIDES (52px LEFT PADDING FOR ZERO OVERLAP)
+   ========================================================================== */
+.input-wrapper {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  margin-bottom: 1.25rem !important;
+}
+
+.input-icon-left {
+  position: absolute !important;
+  left: 16px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  z-index: 10 !important;
+  color: #94a3b8 !important;
+  stroke: #94a3b8 !important;
+  pointer-events: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  width: 20px !important;
+  height: 20px !important;
+}
+
+.login-input,
+.input-wrapper input,
+.input-wrapper select {
+  padding-left: 52px !important; /* 52px gap guarantees zero icon/text overlap */
+  padding-right: 44px !important;
+  height: 48px !important;
+  width: 100% !important;
+  border-radius: 12px !important;
+  border: 1.5px solid #e2e8f0 !important;
+  font-size: 0.9rem !important;
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+  transition: all 0.2s ease !important;
+}
+
+.login-input:focus,
+.input-wrapper input:focus,
+.input-wrapper select:focus {
+  border-color: var(--primary-blue) !important;
+  box-shadow: 0 0 0 3px rgba(15, 79, 168, 0.12) !important;
+  outline: none !important;
+}
+
+.remember-me-label {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  margin-bottom: 0 !important;
+  font-weight: 500 !important;
+  color: #64748b !important;
+}
+
+.remember-me-label input[type="checkbox"] {
+  width: 16px !important;
+  height: 16px !important;
+  margin: 0 !important;
+  cursor: pointer !important;
+}
+
+/* ==========================================================================
+   GLOBAL RESPONSIVENESS & MOBILE OVERRIDES
+   ========================================================================== */
+
+/* 1. Viewport Overflow & Bounds Protection */
+html, body, #root {
+  max-width: 100vw !important;
+  overflow-x: hidden !important;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box !important;
+}
+
+/* 2. Responsive Cards Auto-Wrap */
+.six-stats-grid,
+.five-stats-grid,
+.stats-grid,
+.overview-cards-grid,
+.cards-grid,
+.stat-cards-bar-card {
+  display: grid !important;
+  grid-template-columns: repeat(5, 1fr) !important;
+  gap: 1rem !important;
+}
+
+@media (max-width: 1440px) {
+  .six-stats-grid,
+  .five-stats-grid,
+  .stats-grid,
+  .overview-cards-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .six-stats-grid,
+  .five-stats-grid,
+  .stats-grid,
+  .overview-cards-grid,
+  .stat-cards-bar-card {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .six-stats-grid,
+  .five-stats-grid,
+  .stats-grid,
+  .overview-cards-grid,
+  .stat-cards-bar-card {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* 3. Global Flex Row Breakpoints */
+@media (max-width: 968px) {
+  .dashboard-grid-row-2,
+  .dashboard-grid-row-3,
+  .dashboard-grid-row-4,
+  .charts-overview-row,
+  .grid-flex-row,
+  .two-col-layout {
+    flex-direction: column !important;
+    gap: 1.25rem !important;
+  }
+
+  .col-60, .col-40, .col-50, .col-30, .col-28, .col-70, .col-20, .col-35, .col-65 {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+}
+
+/* 4. Touch Targets & Input Field Sizes */
+@media (max-width: 768px) {
+  button, input, select, textarea {
+    font-size: 16px !important; /* Prevents auto iOS zoom */
+  }
+
+  .primary-btn, .secondary-btn, .action-btn, button[type="submit"] {
+    min-height: 48px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+}
+
+/* 5. Mobile Tables to Info Cards Transformation */
+@media (max-width: 768px) {
+  .mgt-data-table,
+  .complaints-table,
+  .data-table,
+  table.responsive-table {
+    display: block !important;
+    width: 100% !important;
+    border: none !important;
+  }
+
+  .mgt-data-table thead,
+  .complaints-table thead,
+  .data-table thead,
+  table.responsive-table thead {
+    display: none !important;
+  }
+
+  .mgt-data-table tbody,
+  .complaints-table tbody,
+  .data-table tbody,
+  table.responsive-table tbody {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.85rem !important;
+    width: 100% !important;
+  }
+
+  .mgt-data-table tr,
+  .complaints-table tr,
+  .data-table tr,
+  table.responsive-table tr {
+    display: flex !important;
+    flex-direction: column !important;
+    background-color: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    padding: 1rem !important;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03) !important;
+    gap: 0.5rem !important;
+  }
+
+  .mgt-data-table td,
+  .complaints-table td,
+  .data-table td,
+  table.responsive-table td {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 0.4rem 0 !important;
+    border-bottom: 1px dashed #f1f5f9 !important;
+    font-size: 0.85rem !important;
+    text-align: right !important;
+  }
+
+  .mgt-data-table td:last-child,
+  .complaints-table td:last-child,
+  .data-table td:last-child,
+  table.responsive-table td:last-child {
+    border-bottom: none !important;
+    padding-top: 0.65rem !important;
+    justify-content: flex-end !important;
+    gap: 0.5rem !important;
+  }
+
+  .mgt-data-table td::before,
+  .complaints-table td::before,
+  .data-table td::before,
+  table.responsive-table td::before {
+    content: attr(data-label) !important;
+    font-weight: 700 !important;
+    color: #64748b !important;
+    text-align: left !important;
+    font-size: 0.8rem !important;
+    margin-right: 1rem !important;
+  }
+}
+
+/* 6. Universal Responsive Modals */
+.modal-overlay,
+.modal-backdrop,
+.mgt-modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: rgba(15, 23, 42, 0.6) !important;
+  backdrop-filter: blur(4px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 9999 !important;
+  padding: 1rem !important;
+}
+
+.modal-container,
+.modal-card,
+.modal-content-card,
+.mgt-modal-card {
+  background: #ffffff !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2) !important;
+  width: 100% !important;
+  max-width: 700px !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+@media (max-width: 968px) {
+  .modal-container,
+  .modal-card,
+  .modal-content-card,
+  .mgt-modal-card {
+    max-width: 90% !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .modal-container,
+  .modal-card,
+  .modal-content-card,
+  .mgt-modal-card {
+    max-width: 95% !important;
+    padding: 1.25rem !important;
+    margin: 0 auto !important;
+  }
+
+  .modal-actions,
+  .modal-footer {
+    flex-direction: column-reverse !important;
+    gap: 0.75rem !important;
+  }
+
+  .modal-actions button,
+  .modal-footer button {
+    width: 100% !important;
+  }
+}
+
+/* 7. Comprehensive Sidebar Drawer & Main Panel Responsiveness Rules */
+@media (max-width: 1024px) {
+  /* Force sidebars off-screen by default on mobile */
+  .management-sidebar,
+  .student-sidebar,
+  .sidebar-aside,
+  .worker-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: -340px !important;
+    width: 280px !important;
+    max-width: 85vw !important;
+    height: 100vh !important;
+    z-index: 99999 !important;
+    background-color: #ffffff !important;
+    box-shadow: 10px 0 40px rgba(15, 23, 42, 0.25) !important;
+    transition: left 0.3s cubic-bezier(0.25, 1, 0.5, 1) !important;
+    overflow-y: auto !important;
+  }
+
+  /* When open-mobile is active, slide in over screen */
+  .management-sidebar.open-mobile,
+  .student-sidebar.open-mobile,
+  .sidebar-aside.open-mobile,
+  .worker-sidebar.open-mobile {
+    left: 0 !important;
+  }
+
+  /* Mobile Backdrop Overlay */
+  .mobile-sidebar-backdrop {
+    display: block !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: rgba(15, 23, 42, 0.6) !important;
+    backdrop-filter: blur(4px) !important;
+    z-index: 99990 !important;
+  }
+
+  /* Main Panels MUST take 100% full screen width on mobile */
+  .management-main-panel,
+  .student-main-content,
+  .warden-main-content,
+  .dashboard-main-content,
+  .main-content,
+  .worker-main-content,
+  .worker-app-layout {
+    margin-left: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    min-width: 100% !important;
+    padding: 1rem 0.85rem !important;
+  }
+
+  /* Headers responsive layout */
+  .management-header,
+  .student-header,
+  .dashboard-header,
+  .worker-header {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.75rem !important;
+    width: 100% !important;
+    padding: 0.5rem 0 !important;
+    margin-bottom: 1.25rem !important;
+  }
+
+  .header-left-heading,
+  .header-left,
+  .header-meta-left {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+
+  .header-left-heading h2,
+  .header-left h2,
+  .header-meta-left h2,
+  .header-left-heading h1,
+  .header-left h1,
+  .header-meta-left h1 {
+    font-size: 1.15rem !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    margin: 0 !important;
+  }
+
+  .header-left-heading p,
+  .header-left p,
+  .header-meta-left p {
+    font-size: 0.75rem !important;
+    margin: 0 !important;
+  }
+
+  .menu-toggle-icon,
+  .hamburger-menu-btn,
+  .mobile-menu-btn,
+  .hamburger-icon-svg {
+    display: block !important;
+    cursor: pointer !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Search bar on mobile sits on row 2 (width 100%) */
+  .header-search-container,
+  .header-search,
+  .search-wrapper {
+    order: 10 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-top: 0.5rem !important;
+  }
+}

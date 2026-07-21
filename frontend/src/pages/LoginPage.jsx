@@ -15,7 +15,8 @@ import h6 from '../assets/h6.jpg';
 import h7 from '../assets/h7.jpg';
 import h8 from '../assets/h8.jpg';
 
-const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
+const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
+  const handleBackNavigation = onBackToHome || onBackToWebsite;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -139,7 +140,7 @@ const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
       <div className="login-form-panel">
         {/* Floating Back to Website Button */}
         <button
-          onClick={onBackToHome}
+          onClick={handleBackNavigation}
           className="back-home-btn"
         >
           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ transform: 'rotate(180deg)' }}>
@@ -198,6 +199,63 @@ const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
             </>
           )}
 
+          {/* TOP ROLE SELECTOR BUTTONS */}
+          {!isSignupMode && (
+            <div className="top-role-selection-wrapper" style={{ marginBottom: '1.25rem' }}>
+              <div className="role-section-title">LOGIN AS</div>
+              <div className="role-grid">
+                {/* Student button */}
+                <button
+                  type="button"
+                  className={`role-card-btn ${role === 'student' ? 'active' : ''}`}
+                  onClick={() => setRole('student')}
+                >
+                  <svg className="role-card-icon" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l9-5-9-5-9 5 9 5z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479L12 21l-6.825-3.943a12.084 12.084 0 01.665-6.48l6.16 3.423z" />
+                  </svg>
+                  <span className="role-card-label">Student</span>
+                </button>
+
+                {/* Warden button */}
+                <button
+                  type="button"
+                  className={`role-card-btn ${role === 'warden' ? 'active' : ''}`}
+                  onClick={() => setRole('warden')}
+                >
+                  <svg className="role-card-icon" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                  <span className="role-card-label">Warden</span>
+                </button>
+
+                {/* Staff / Worker button */}
+                <button
+                  type="button"
+                  className={`role-card-btn ${role === 'worker' ? 'active' : ''}`}
+                  onClick={() => setRole('worker')}
+                >
+                  <svg className="role-card-icon" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <span className="role-card-label">Worker</span>
+                </button>
+
+                {/* Management button */}
+                <button
+                  type="button"
+                  className={`role-card-btn ${role === 'management' ? 'active' : ''}`}
+                  onClick={() => setRole('management')}
+                >
+                  <svg className="role-card-icon" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span className="role-card-label">Management</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} style={{ textAlign: 'left' }}>
             {isSignupMode ? (
               /* Signup fields in responsive grid */
@@ -234,7 +292,7 @@ const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
                     placeholder="Official Mail ID"
                     required
                     className="login-input"
-                    style={{ paddingLeft: '2.1rem', paddingRight: '0.5rem' }}
+                    style={{ paddingLeft: '3.2rem', paddingRight: '0.5rem' }}
                   />
                 </div>
 
@@ -252,7 +310,7 @@ const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
                     placeholder={role === 'warden' ? "Employee ID" : role === 'management' ? "Manager ID" : "Roll No"}
                     required
                     className="login-input"
-                    style={{ paddingLeft: '2.1rem', paddingRight: '0.5rem' }}
+                    style={{ paddingLeft: '3.2rem', paddingRight: '0.5rem' }}
                   />
                 </div>
 
@@ -270,7 +328,7 @@ const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
                     placeholder="Phone Number"
                     required
                     className="login-input"
-                    style={{ paddingLeft: '2.1rem', paddingRight: '0.5rem' }}
+                    style={{ paddingLeft: '3.2rem', paddingRight: '0.5rem' }}
                   />
                 </div>
 
@@ -288,7 +346,7 @@ const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
                     placeholder={role === 'warden' || role === 'management' ? "Office Room" : "Room No"}
                     required
                     className="login-input"
-                    style={{ paddingLeft: '2.1rem', paddingRight: '0.5rem' }}
+                    style={{ paddingLeft: '3.2rem', paddingRight: '0.5rem' }}
                   />
                 </div>
 
@@ -304,7 +362,7 @@ const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
                     onChange={(e) => setBlock(e.target.value)}
                     required
                     className="login-input"
-                    style={{ paddingLeft: '2.1rem', paddingRight: '0.5rem', color: block ? '#1e293b' : '#94a3b8' }}
+                    style={{ paddingLeft: '3.2rem', paddingRight: '0.5rem', color: block ? '#1e293b' : '#94a3b8' }}
                   >
                     <option value="" disabled hidden>Hostel Block</option>
                     <option value="A">A Block</option>
@@ -330,7 +388,7 @@ const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
                     placeholder="Password"
                     required
                     className="login-input"
-                    style={{ paddingLeft: '2.1rem', paddingRight: '0.5rem' }}
+                    style={{ paddingLeft: '3.2rem', paddingRight: '0.5rem' }}
                   />
                 </div>
 
@@ -348,7 +406,7 @@ const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
                     placeholder="Confirm Pass"
                     required
                     className="login-input"
-                    style={{ paddingLeft: '2.1rem', paddingRight: '0.5rem' }}
+                    style={{ paddingLeft: '3.2rem', paddingRight: '0.5rem' }}
                   />
                 </div>
               </div>
@@ -432,70 +490,8 @@ const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
               </svg>
             </SpecularButton>
 
-            {!isSignupMode && (
-              <>
-                {/* Divider */}
-                <div className="login-divider">OR</div>
-
-                {/* Role Select Header */}
-                <div className="role-section-title">Login as</div>
-
-                {/* Role Select Grid */}
-                <div className="role-grid">
-                  {/* Student button */}
-                  <button
-                    type="button"
-                    className={`role-card-btn ${role === 'student' ? 'active' : ''}`}
-                    onClick={() => setRole('student')}
-                  >
-                    <svg className="role-card-icon" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l9-5-9-5-9 5 9 5z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479L12 21l-6.825-3.943a12.084 12.084 0 01.665-6.48l6.16 3.423z" />
-                    </svg>
-                    <span className="role-card-label">Student</span>
-                  </button>
-
-                  {/* Warden button */}
-                  <button
-                    type="button"
-                    className={`role-card-btn ${role === 'warden' ? 'active' : ''}`}
-                    onClick={() => setRole('warden')}
-                  >
-                    <svg className="role-card-icon" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
-                    <span className="role-card-label">Warden</span>
-                  </button>
-
-                  {/* Staff / Worker button */}
-                  <button
-                    type="button"
-                    className={`role-card-btn ${role === 'worker' ? 'active' : ''}`}
-                    onClick={() => setRole('worker')}
-                  >
-                    <svg className="role-card-icon" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                    <span className="role-card-label">Worker</span>
-                  </button>
-
-                  {/* Management button */}
-                  <button
-                    type="button"
-                    className={`role-card-btn ${role === 'management' ? 'active' : ''}`}
-                    onClick={() => setRole('management')}
-                  >
-                    <svg className="role-card-icon" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <span className="role-card-label">Management</span>
-                  </button>
-                </div>
-              </>
-            )}
-
             {/* Bottom Signup Toggle */}
-            <div className="signup-helper" style={{ textAlign: 'center' }}>
+            <div className="signup-helper" style={{ textAlign: 'center', marginTop: '1.75rem' }}>
               {isSignupMode ? (
                 <>
                   Already have an account?{' '}

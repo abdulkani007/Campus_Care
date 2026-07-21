@@ -4,6 +4,8 @@ import SpecularButton from '../components/SpecularButton';
 import EventBannerCard from '../components/EventBannerCard';
 import '../styles/StudentDashboard.css';
 import logo from '../assets/CC.png';
+import IncidentGroupsChat from '../components/IncidentGroupsChat';
+import { useSocket } from '../context/SocketContext';
 
 const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [activeTab, setActiveTab] = useState('Dashboard');
@@ -11,13 +13,42 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
   
   // Profile state prefilled with student details
   const [profile, setProfile] = useState({
-    name: user?.name || 'Student Resident',
+    name: user?.name || 'Student User',
     email: user?.email || 'student@gmail.com',
     rollNo: user?.rollNo || '2021CS101',
     phoneNo: user?.phoneNo || '9876543210',
     roomNo: user?.roomNo || '305',
-    block: user?.block || 'C'
+    block: user?.block || 'C',
+    role: user?.role || 'student',
+    profilePhoto: user?.profilePhoto || null
   });
+
+  const socketCtx = useSocket();
+  const socket = socketCtx?.socket;
+
+  // Real-time socket message notification listener
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleDirectMsg = (msg) => {
+      if (!msg) return;
+      if (msg.studentEmail === profile.email) {
+        setChatMessages(prev => {
+          const exists = prev.some(m => (m.id && m.id === msg.id) || (m._id && m._id === msg._id));
+          if (exists) return prev;
+          return [...prev, msg];
+        });
+      }
+    };
+
+    socket.on('receive_direct_message', handleDirectMsg);
+    socket.on('global_activity_notification', handleDirectMsg);
+
+    return () => {
+      socket.off('receive_direct_message', handleDirectMsg);
+      socket.off('global_activity_notification', handleDirectMsg);
+    };
+  }, [socket, profile.email]);
 
   useEffect(() => {
     if (user) {
@@ -56,6 +87,10 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingText, setEditingText] = useState('');
 
+  // Complaints filter states
+  const [statusFilter, setStatusFilter] = useState('All'); // 'All', 'Open', 'In Progress', 'Resolved', 'High Priority'
+  const [categoryFilter, setCategoryFilter] = useState('All'); // 'All', 'Electrical', 'Plumbing', 'Water Supply', 'Internet', 'Cleaning', 'Food', 'Others'
+
   // Stats computed from complaints list
   const [stats, setStats] = useState({
     total: 0,
@@ -87,25 +122,63 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      alert("File size must be under 2MB.");
+    if (file.size > 10 * 1024 * 1024) {
+      alert("File size must be under 10MB.");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setComplaintForm(prev => ({
-        ...prev,
-        proof: reader.result,
-        proofName: file.name
-      }));
-    };
-    reader.readAsDataURL(file);
+    if (file.type && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 1200;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          setComplaintForm(prev => ({
+            ...prev,
+            proof: compressedDataUrl,
+            proofName: file.name
+          }));
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    } else {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setComplaintForm(prev => ({
+          ...prev,
+          proof: reader.result,
+          proofName: file.name
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const fetchFeedbackCampaign = useCallback(async () => {
     try {
-      const feedbackReqRes = await fetch('/api/feedback-requests/active');
+      const studentBlockParam = encodeURIComponent(profile.block || '');
+      const feedbackReqRes = await fetch(`/api/feedback-requests/active?studentBlock=${studentBlockParam}`);
       if (feedbackReqRes.ok) {
         const activeRequests = await feedbackReqRes.json();
         if (activeRequests && activeRequests.length > 0) {
@@ -129,34 +202,26 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
     } catch (err) {
       console.error('Error fetching feedback campaign:', err);
     }
-  }, [profile.email]);
+  }, [profile.email, profile.block]);
 
-  // Fetch student data on load
+  // Fetch student data on load in parallel
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const complaintsRes = await fetch(`/api/complaints?userEmail=${encodeURIComponent(profile.email)}&userRole=student`);
-        const announcementsRes = await fetch('/api/announcements');
-        const messagesRes = await fetch(`/api/messages?studentEmail=${encodeURIComponent(profile.email)}`);
-        const bannerRes = await fetch('/api/event-banner');
-        
-        if (complaintsRes.ok) {
-          const complaintsData = await complaintsRes.json();
-          setComplaints(complaintsData);
-        }
-        if (announcementsRes.ok) {
-          const announcementsData = await announcementsRes.json();
-          setAnnouncements(announcementsData);
-        }
-        if (messagesRes.ok) {
-          const messagesData = await messagesRes.json();
-          setChatMessages(messagesData);
-        }
+        const email = encodeURIComponent(profile.email);
+        const [complaintsRes, announcementsRes, messagesRes, bannerRes] = await Promise.all([
+          fetch(`/api/complaints?userEmail=${email}&userRole=student`),
+          fetch('/api/announcements'),
+          fetch(`/api/messages?studentEmail=${email}`),
+          fetch('/api/event-banner')
+        ]);
+
+        if (complaintsRes.ok) setComplaints(await complaintsRes.json());
+        if (announcementsRes.ok) setAnnouncements(await announcementsRes.json());
+        if (messagesRes.ok) setChatMessages(await messagesRes.json());
         if (bannerRes.ok) {
           const bannerData = await bannerRes.json();
-          if (bannerData) {
-            setEventBanner(bannerData);
-          }
+          if (bannerData) setEventBanner(bannerData);
         }
 
         fetchFeedbackCampaign();
@@ -213,6 +278,7 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
           feedbackRequestId: reqId,
           studentEmail: profile.email,
           studentName: profile.name,
+          studentBlock: profile.block,
           rating: feedbackRating,
           comments: feedbackComments
         })
@@ -445,12 +511,35 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
     }
   };
 
-  // Filter complaints based on Search query
-  const filteredComplaints = complaints.filter(c => 
-    c.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    c.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.status.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter complaints based on Search query, Status filter, and Category filter
+  const filteredComplaints = complaints.filter(c => {
+    const query = searchQuery.toLowerCase().trim();
+    const titleMatch = (c.title || '').toLowerCase().includes(query);
+    const locationMatch = (c.location || '').toLowerCase().includes(query);
+    const statusMatchText = (c.status || '').toLowerCase().includes(query);
+    const categoryMatchText = (c.category || '').toLowerCase().includes(query);
+    const priorityMatchText = (c.priority || '').toLowerCase().includes(query);
+    const descMatchText = (c.description || '').toLowerCase().includes(query);
+
+    const matchesSearch = !query || titleMatch || locationMatch || statusMatchText || categoryMatchText || priorityMatchText || descMatchText;
+
+    // Status Filter Match
+    let matchesStatus = true;
+    if (statusFilter !== 'All') {
+      if (statusFilter === 'Open') matchesStatus = c.status === 'Open';
+      else if (statusFilter === 'In Progress') matchesStatus = c.status === 'In Progress';
+      else if (statusFilter === 'Resolved') matchesStatus = c.status === 'Resolved';
+      else if (statusFilter === 'High Priority') matchesStatus = c.status === 'High Priority' || c.priority === 'High';
+    }
+
+    // Category Filter Match
+    let matchesCategory = true;
+    if (categoryFilter !== 'All') {
+      matchesCategory = (c.category || '').toLowerCase() === categoryFilter.toLowerCase();
+    }
+
+    return matchesSearch && matchesStatus && matchesCategory;
+  });
 
   return (
     <div className="student-dashboard-layout">
@@ -497,6 +586,11 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             ), badge: chatMessages.filter(m => m.sender === 'warden').length > 0 ? chatMessages.filter(m => m.sender === 'warden').length : null },
+            { id: 'Incident Groups', label: 'Incident Groups', icon: (
+              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            )},
             { id: 'Feedback', label: 'Feedback', icon: (
               <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.907c.969 0 1.371 1.24.588 1.81l-3.97 2.883a1 1 0 00-.364 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.971-2.883a1 1 0 00-1.178 0l-3.97 2.883c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.364-1.118l-3.97-2.883c-.783-.57-.38-1.81.588-1.81h4.906a1 1 0 00.95-.69l1.519-4.674z" />
@@ -712,7 +806,12 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
               <div className="stat-cards-bar-card">
                 
                 {/* 1. Total Complaints */}
-                <div className="bar-stat-column">
+                <div 
+                  className="bar-stat-column" 
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => { setStatusFilter('All'); setActiveTab('My Complaints'); }}
+                  title="Filter all complaints"
+                >
                   <div className="stat-icon bg-blue-tint text-blue">
                     <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
@@ -725,7 +824,12 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 </div>
 
                 {/* 2. In Progress */}
-                <div className="bar-stat-column">
+                <div 
+                  className="bar-stat-column" 
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => { setStatusFilter('In Progress'); setActiveTab('My Complaints'); }}
+                  title="Filter In Progress complaints"
+                >
                   <div className="stat-icon bg-orange-tint text-orange">
                     <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -738,7 +842,12 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 </div>
 
                 {/* 3. Resolved */}
-                <div className="bar-stat-column">
+                <div 
+                  className="bar-stat-column" 
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => { setStatusFilter('Resolved'); setActiveTab('My Complaints'); }}
+                  title="Filter Resolved complaints"
+                >
                   <div className="stat-icon bg-green-tint text-green">
                     <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -751,7 +860,12 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 </div>
 
                 {/* 4. Open */}
-                <div className="bar-stat-column">
+                <div 
+                  className="bar-stat-column" 
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => { setStatusFilter('Open'); setActiveTab('My Complaints'); }}
+                  title="Filter Open complaints"
+                >
                   <div className="stat-icon bg-red-tint text-red">
                     <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
@@ -941,14 +1055,117 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
               </div>
 
               <div className="grid-widget" style={{ padding: '1.5rem', width: '100%' }}>
-                <div style={{ marginBottom: '1.5rem', maxWidth: '350px' }}>
-                  <input
-                    type="text"
-                    className="standard-input-field"
-                    placeholder="Search your complaints..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+                {/* COMPLAINTS FILTER & SEARCH CONTROL BAR */}
+                <div className="complaints-filter-bar-container" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem', backgroundColor: '#f8fafc', padding: '1rem 1.25rem', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+                  
+                  {/* Top Row: Search Input & Category Filter Dropdown */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', justifyContent: 'space-between' }}>
+                    {/* Search Input */}
+                    <div className="search-wrapper" style={{ flex: 1, minWidth: '240px', position: 'relative' }}>
+                      <svg className="search-icon-svg" width="16" height="16" fill="none" stroke="#94a3b8" strokeWidth="2.5" viewBox="0 0 24 24" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      <input
+                        type="text"
+                        className="standard-input-field"
+                        placeholder="Search complaints by title, location, category..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        style={{ width: '100%', paddingLeft: '2.4rem', paddingRight: searchQuery ? '2.4rem' : '0.85rem', height: '40px' }}
+                      />
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchQuery('')}
+                          style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', lineHeight: 1 }}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Category Dropdown Filter */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' }}>Category:</span>
+                      <select
+                        className="standard-input-field"
+                        value={categoryFilter}
+                        onChange={(e) => setCategoryFilter(e.target.value)}
+                        style={{ padding: '0.5rem 0.85rem', fontSize: '0.85rem', fontWeight: 600, color: '#0f172a', borderRadius: '8px', cursor: 'pointer', height: '40px' }}
+                      >
+                        <option value="All">All Categories</option>
+                        <option value="Electrical">⚡ Electrical</option>
+                        <option value="Plumbing">🔧 Plumbing</option>
+                        <option value="Water Supply">💧 Water Supply</option>
+                        <option value="Internet">📶 Internet</option>
+                        <option value="Cleaning">🧹 Cleaning</option>
+                        <option value="Food">🍎 Food</option>
+                        <option value="Others">⚙️ Others</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Bottom Row: Status Filter Pills (All, Open, In Progress, Resolved, High Priority) */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#64748b', marginRight: '0.25rem', whiteSpace: 'nowrap' }}>Status:</span>
+                    {[
+                      { id: 'All', label: 'All', count: complaints.length, badgeBg: '#e2e8f0', badgeColor: '#334155' },
+                      { id: 'Open', label: 'Open', count: complaints.filter(c => c.status === 'Open').length, badgeBg: '#eff6ff', badgeColor: '#2563eb' },
+                      { id: 'In Progress', label: 'In Progress', count: complaints.filter(c => c.status === 'In Progress').length, badgeBg: '#fff7ed', badgeColor: '#f97316' },
+                      { id: 'Resolved', label: 'Resolved', count: complaints.filter(c => c.status === 'Resolved').length, badgeBg: '#f0fdf4', badgeColor: '#10b981' },
+                      { id: 'High Priority', label: 'High Priority', count: complaints.filter(c => c.status === 'High Priority' || c.priority === 'High').length, badgeBg: '#fef2f2', badgeColor: '#ef4444' }
+                    ].map(item => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setStatusFilter(item.id)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.4rem',
+                          padding: '0.4rem 0.85rem',
+                          borderRadius: '9999px',
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          border: statusFilter === item.id ? '2px solid #2563eb' : '1px solid #cbd5e1',
+                          backgroundColor: statusFilter === item.id ? '#eff6ff' : '#ffffff',
+                          color: statusFilter === item.id ? '#1d4ed8' : '#475569',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          boxShadow: statusFilter === item.id ? '0 2px 8px rgba(37, 99, 235, 0.15)' : 'none'
+                        }}
+                      >
+                        <span>{item.label}</span>
+                        <span style={{ backgroundColor: item.badgeBg, color: item.badgeColor, padding: '0.1rem 0.45rem', borderRadius: '50px', fontSize: '0.72rem' }}>
+                          {item.count}
+                        </span>
+                      </button>
+                    ))}
+
+                    {(statusFilter !== 'All' || categoryFilter !== 'All' || searchQuery) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStatusFilter('All');
+                          setCategoryFilter('All');
+                          setSearchQuery('');
+                        }}
+                        style={{
+                          marginLeft: 'auto',
+                          background: 'none',
+                          border: 'none',
+                          color: '#ef4444',
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          textDecoration: 'underline'
+                        }}
+                      >
+                        Reset Filters
+                      </button>
+                    )}
+                  </div>
+
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.25rem', marginTop: '1rem' }}>
@@ -1115,9 +1332,42 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
           {/* TAB 4: MESSAGES */}
           {activeTab === 'Messages' && (
             <div className="tab-detailed-view">
-              <div className="detailed-view-header">
-                <h2>Message Center</h2>
-                <p style={{ color: '#64748b' }}>Secure chat with Warden Console</p>
+              <div className="detailed-view-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h2>Message Center</h2>
+                  <p style={{ color: '#64748b' }}>Secure chat with Warden Console</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!window.confirm("Are you sure you want to clear your entire chat conversation with Warden?")) return;
+                    try {
+                      const res = await fetch(`/api/messages/conversation?studentEmail=${encodeURIComponent(user?.email || profile.email)}`, {
+                        method: 'DELETE'
+                      });
+                      if (res.ok) {
+                        setChatMessages([]);
+                      } else {
+                        alert('Failed to clear chat.');
+                      }
+                    } catch (err) {
+                      console.error('Error clearing chat:', err);
+                      alert('Error clearing chat.');
+                    }
+                  }}
+                  style={{
+                    backgroundColor: '#fff1f2',
+                    color: '#e11d48',
+                    border: '1px solid #fecdd3',
+                    borderRadius: '8px',
+                    padding: '0.45rem 0.85rem',
+                    fontSize: '0.8rem',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                  title="Clear conversation history"
+                >
+                  🗑️ Clear Chat
+                </button>
               </div>
 
               <div className="grid-widget messages-chat-box" style={{ width: '100%' }}>
@@ -1201,6 +1451,17 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
                   </SpecularButton>
                 </form>
               </div>
+            </div>
+          )}
+
+          {/* TAB: INCIDENT GROUPS */}
+          {activeTab === 'Incident Groups' && (
+            <div className="tab-detailed-view">
+              <div className="detailed-view-header">
+                <h2>📢 Incident Discussion Groups</h2>
+                <p style={{ color: '#64748b' }}>Discuss block issues with other residents.</p>
+              </div>
+              <IncidentGroupsChat user={{ ...profile, role: 'student' }} />
             </div>
           )}
 

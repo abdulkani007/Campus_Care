@@ -1287,53 +1287,137 @@ body {
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .student-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.75rem !important;
+    margin-bottom: 1.25rem !important;
+    width: 100% !important;
   }
 
   .header-meta-left {
-    width: 100%;
-    justify-content: space-between;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+
+  .header-meta-left .header-title {
+    font-size: 1.25rem !important;
+    line-height: 1.2 !important;
+    margin: 0 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .header-meta-left .header-greeting {
+    font-size: 0.75rem !important;
+    margin: 0 !important;
   }
 
   .header-meta-right {
-    width: 100%;
-    justify-content: space-between;
-    gap: 0.75rem;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    justify-content: flex-end !important;
+    width: auto !important;
   }
 
-  .search-wrapper {
-    flex: 1;
-    width: 100%;
+  /* Search bar on mobile sits on its own row (width 100%) */
+  .student-header .search-wrapper {
+    order: 10 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-top: 0.35rem !important;
+    flex: 1 1 100% !important;
   }
 
-  .header-search-bar {
-    width: 100%;
+  .student-header .header-search-bar {
+    width: 100% !important;
   }
 
   .student-avatar-card .avatar-meta {
-    display: none;
+    display: none !important;
   }
 
+  /* Stat Cards Bar (4 Metrics) in clean 2x2 modular grid */
   .stat-cards-bar-card {
-    grid-template-columns: repeat(2, 1fr);
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.85rem !important;
+    padding: 0.25rem !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .bar-stat-column {
+    background-color: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 14px !important;
+    padding: 1rem 0.85rem !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03) !important;
+    border-right: 1px solid #e2e8f0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 0.75rem !important;
+    flex-direction: row !important;
+  }
+
+  .bar-stat-column:not(:last-child) {
+    border-right: 1px solid #e2e8f0 !important;
+  }
+
+  .bar-stat-column .stat-number {
+    font-size: 1.35rem !important;
+    font-weight: 700 !important;
+  }
+
+  .bar-stat-column .stat-label {
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    color: #64748b !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.02em !important;
+    margin-top: 0.15rem !important;
+  }
+
+  /* My Complaints & Submit Ticket Cards */
+  .complaint-row-item {
+    padding: 0.85rem !important;
+    border-radius: 12px !important;
+  }
+
+  .submit-ad-card {
+    padding: 1.25rem !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 1rem !important;
+  }
+
+  .submit-ad-card .submit-ad-btn {
+    width: 100% !important;
+    justify-content: center !important;
   }
 
   .modal-content-card {
-    max-width: 95vw;
-    margin: 0 0.5rem;
-    border-radius: 14px;
+    max-width: 95vw !important;
+    margin: 0 0.5rem !important;
+    border-radius: 14px !important;
   }
 
   .messages-chat-box {
-    height: calc(100vh - 220px);
-    min-height: 400px;
+    height: calc(100vh - 220px) !important;
+    min-height: 400px !important;
   }
 
   .chat-bubble {
-    max-width: 85%;
+    max-width: 85% !important;
   }
 }

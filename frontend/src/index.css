@@ -1,12 +1,26 @@
 /* src/index.css */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --primary-blue: #0F4FA8;      /* Royal Blue */
+  --primary-hover: #0b3c80;
+  --accent-yellow: #FFC107;     /* Golden Yellow */
+  --accent-yellow-hover: #e0a800; /* Darker Golden Yellow */
+  --bg-light: #f4f7fc;          /* Light Blue/White background */
+  --card-shadow: 0 4px 20px rgba(15, 79, 168, 0.05);
+  --card-shadow-hover: 0 10px 25px rgba(15, 79, 168, 0.12);
+  --border-radius-card: 16px;
+  --border-radius-btn: 12px;
+}
+
 html, body {
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100%;
   overflow-x: hidden;
-  background-color: #0f172a; /* Fallback slate color */
-  font-family: 'Arvo', 'Roboto Slab', serif;
+  background-color: var(--bg-light);
+  font-family: 'Poppins', 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -20,4 +34,8 @@ html, body {
 
 * {
   box-sizing: border-box;
+}
+
+button, input, select, textarea {
+  font-family: 'Poppins', 'Inter', sans-serif !important;
 }

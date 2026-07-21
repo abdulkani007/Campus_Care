@@ -4,6 +4,8 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,9 +18,17 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/campus
 const PORT = process.env.PORT || 5000;
 
 const app = express();
+const server = http.createServer(app);
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
+});
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Set global JSON conversion transform to map _id -> id for 100% React compatibility
 mongoose.set('toJSON', {
@@ -208,6 +218,8 @@ const FeedbackRequestSchema = new mongoose.Schema({
   active: { type: Boolean, default: true },
   postedBy: { type: String, default: 'Warden' },
   authorName: { type: String, default: 'Hostel Administration' },
+  authorEmail: { type: String, default: '' },
+  targetBlock: { type: String, default: 'All' },
   createdAt: { type: Date, default: Date.now }
 });
 const FeedbackRequest = mongoose.model('FeedbackRequest', FeedbackRequestSchema);
@@ -216,11 +228,55 @@ const FeedbackResponseSchema = new mongoose.Schema({
   feedbackRequestId: { type: mongoose.Schema.Types.ObjectId, ref: 'FeedbackRequest', required: true },
   studentEmail: { type: String, required: true },
   studentName: { type: String, required: true },
+  studentBlock: { type: String, default: '' },
   rating: { type: Number, required: true, min: 1, max: 5 },
   comments: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now }
 });
 const FeedbackResponse = mongoose.model('FeedbackResponse', FeedbackResponseSchema);
+
+// Helper to extract clean array of block letters (e.g. "A, B, C", "D Block", "Block E" -> ["A", "B", "C"], ["D"], ["E"])
+const extractBlockLetters = (blockStr) => {
+  if (!blockStr) return [];
+  const clean = blockStr.toString().toUpperCase().replace(/BLOCK/g, '');
+  const letters = clean.match(/[A-Z0-9]+/g) || [];
+  return letters.filter(l => l !== 'ALL');
+};
+
+// Helper to check if targetBlock matches userBlock/studentBlock
+const matchesBlock = (targetBlock, userBlock) => {
+  if (!targetBlock || targetBlock === 'All' || targetBlock === 'ALL') return true;
+  if (!userBlock || userBlock === 'All' || userBlock === 'ALL') return true;
+  
+  const targetLetters = extractBlockLetters(targetBlock);
+  const userLetters = extractBlockLetters(userBlock);
+  
+  if (targetLetters.length === 0 || userLetters.length === 0) return true;
+  return userLetters.some(ul => targetLetters.includes(ul));
+};
+
+const IncidentGroupMessageSchema = new mongoose.Schema({
+  blockGroup: { type: String, required: true }, // 'ABC', 'D', 'E', 'F'
+  senderName: { type: String, required: true },
+  senderEmail: { type: String, required: true },
+  senderRole: { type: String, required: true },
+  senderRoomNo: { type: String }, // optional for student
+  text: { type: String, required: true },
+  timestamp: { type: Date, default: Date.now }
+});
+const IncidentGroupMessage = mongoose.model('IncidentGroupMessage', IncidentGroupMessageSchema);
+
+const GroupInsightSchema = new mongoose.Schema({
+  blockGroup: { type: String, required: true, unique: true }, // 'ABC', 'D', 'E', 'F'
+  summary: { type: String, required: true },
+  mostDiscussedTopic: { type: String },
+  mostMentionedCategory: { type: String },
+  lastUpdated: { type: Date, default: Date.now },
+  messageCount: { type: Number, default: 0 },
+  activeStudentsCount: { type: Number, default: 0 }
+});
+const GroupInsight = mongoose.model('GroupInsight', GroupInsightSchema);
+
 
 // Dynamic Block Warden Assignment helper
 const getAssignedWardenForBlock = async (studentBlock) => {
@@ -399,24 +455,91 @@ const seedDefaults = async () => {
       }
     }
 
-    const defaultStudent = {
-      name: 'Arun Kumar',
-      email: 'student@gmail.com',
-      rollNo: '2021CS101',
-      phoneNo: '9876543210',
-      roomNo: '305',
-      block: 'C',
-      password: 'student123'
-    };
+    const defaultStudents = [
+      {
+        name: 'Veera',
+        email: 'veera@gmail.com',
+        rollNo: '24IT001',
+        phoneNo: '9876543210',
+        roomNo: '302',
+        block: 'A',
+        password: 'student123'
+      },
+      {
+        name: 'Rahul Sharma',
+        email: 'rahul@gmail.com',
+        rollNo: '24CS005',
+        phoneNo: '9876543219',
+        roomNo: '204',
+        block: 'B',
+        password: 'student123'
+      },
+      {
+        name: 'Arun Kumar',
+        email: 'student@gmail.com',
+        rollNo: '2021CS101',
+        phoneNo: '9876543210',
+        roomNo: '305',
+        block: 'C',
+        password: 'student123'
+      },
+      {
+        name: 'Abbu',
+        email: 'abdulkani.b2024it@sece.ac.in',
+        rollNo: '24IT002',
+        phoneNo: '8072924468',
+        roomNo: '402-B',
+        block: 'D2',
+        password: 'abbu007'
+      },
+      {
+        name: 'Haris',
+        email: 'haris@gmail.com',
+        rollNo: '24ME012',
+        phoneNo: '9876543218',
+        roomNo: '105',
+        block: 'E',
+        password: 'student123'
+      },
+      {
+        name: 'Vikas',
+        email: 'vikas@gmail.com',
+        rollNo: '24EC030',
+        phoneNo: '9876543217',
+        roomNo: '401',
+        block: 'F',
+        password: 'student123'
+      }
+    ];
 
-    const existingStudent = await Student.findOne({ email: defaultStudent.email.toLowerCase() });
-    if (!existingStudent) {
-      await Student.create(defaultStudent);
-      console.log('Seeded default Student.');
+    for (const st of defaultStudents) {
+      const existingStudent = await Student.findOne({ email: st.email.toLowerCase() });
+      if (!existingStudent) {
+        await Student.create(st);
+      } else {
+        existingStudent.block = st.block;
+        await existingStudent.save();
+      }
     }
+    console.log('Seeded default students for all blocks.');
 
     // Clean out default system-seeded workers so only warden-added workers appear
     await Worker.deleteMany({ createdBy: 'System' });
+
+    // Clean up default mock messages if they exist in the database
+    await IncidentGroupMessage.deleteMany({
+      text: {
+        $in: [
+          'Hi everyone, is the water working on the 4th floor of D block?',
+          'It is working here on 3rd floor but the pressure is very low.',
+          'Warden here. I have informed the maintenance team. Plumber will check the pumps in 10 minutes.',
+          'Thanks for the quick response, sir!',
+          'Hey guys, the Wi-Fi speed in C block is extremely slow today. Anyone face this internet issue?',
+          'Yes, same in Block A as well. Can barely load study materials.',
+          'Warden here. The internet provider is performing line maintenance today. It should be resolved by evening.'
+        ]
+      }
+    });
   } catch (err) {
     console.error('Error seeding default data:', err);
   }
@@ -1377,6 +1500,11 @@ app.post('/api/messages', async (req, res) => {
       studentName: studentName || 'Student',
       studentBlock: studentBlock || 'N/A'
     });
+
+    const msgObj = newMessage.toJSON();
+    io.emit('receive_direct_message', msgObj);
+    io.emit('global_activity_notification', msgObj);
+
     res.status(201).json({ success: true, message: newMessage });
   } catch (err) {
     console.error(err);
@@ -1407,7 +1535,24 @@ app.put('/api/messages/:id', async (req, res) => {
   }
 });
 
-// Delete Message
+// Clear Entire Direct Message Conversation (Must be before /:id route)
+app.delete('/api/messages/conversation', async (req, res) => {
+  const { studentEmail } = req.query;
+  if (!studentEmail) {
+    return res.status(400).json({ error: 'studentEmail query param is required' });
+  }
+  try {
+    const cleanEmail = studentEmail.trim().toLowerCase();
+    const regex = new RegExp(`^${cleanEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i');
+    await Message.deleteMany({ studentEmail: regex });
+    res.json({ success: true, message: 'Conversation cleared successfully' });
+  } catch (err) {
+    console.error('Error clearing conversation:', err);
+    res.status(500).json({ error: 'Database write error' });
+  }
+});
+
+// Delete Single Message
 app.delete('/api/messages/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -1424,15 +1569,14 @@ app.delete('/api/messages/:id', async (req, res) => {
 
 // Mark Messages as Read
 app.put('/api/messages/read', async (req, res) => {
-  const { studentEmail, sender } = req.body;
-  if (!studentEmail || !sender) {
-    return res.status(400).json({ error: 'studentEmail and sender are required' });
+  const { studentEmail, sender } = req.body || {};
+  if (!studentEmail) {
+    return res.status(400).json({ error: 'studentEmail is required' });
   }
   try {
-    await Message.updateMany(
-      { studentEmail: studentEmail.toLowerCase(), sender },
-      { read: true }
-    );
+    const filter = { studentEmail: studentEmail.toLowerCase() };
+    if (sender) filter.sender = sender;
+    await Message.updateMany(filter, { read: true });
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -1457,25 +1601,34 @@ app.get('/api/students', async (req, res) => {
         if (assignment.role === 'headwarden' || (assignment.blocks && assignment.blocks.length >= 6)) {
           filter = {}; // Head warden can view all residents across all blocks
         } else if (assignment.blocks && assignment.blocks.length > 0) {
-          // Block warden sees ONLY residents belonging to their assigned blocks (e.g. D Block for D Warden)
-          const blockRegexes = assignment.blocks.map(b => new RegExp(`^(${b}|${b}\\s*Block|Block\\s*${b})$`, 'i'));
-          filter = {
-            $or: [
-              { block: { $in: assignment.blocks } },
-              { block: { $in: blockRegexes } }
-            ]
-          };
+          // Block warden sees ONLY residents belonging to their assigned blocks (e.g. A, B, C for ABC Warden)
+          const conditions = [];
+          assignment.blocks.forEach(b => {
+            const cleanB = b.trim();
+            conditions.push({ block: new RegExp(`^(${cleanB}|${cleanB}\\s*Block|Block\\s*${cleanB}|${cleanB}.*)$`, 'i') });
+            conditions.push({ block: cleanB });
+          });
+
+          // If assigned blocks contain A, B, C or ABC, match A, B, C, ABC
+          const hasABC = assignment.blocks.some(b => ['A', 'B', 'C', 'ABC'].includes(b.toUpperCase()));
+          if (hasABC) {
+            conditions.push(
+              { block: { $regex: '^(ABC|A|B|C)', $options: 'i' } },
+              { block: 'A' }, { block: 'B' }, { block: 'C' }, { block: 'ABC' }
+            );
+          }
+
+          filter = { $or: conditions };
         }
       } else {
         // Fallback if no BlockAssignment record: match by user's profile block if present
         const userDoc = await User.findOne({ email: effectiveEmail });
         if (userDoc && userDoc.block && userDoc.block !== 'All') {
-          const b = userDoc.block;
-          const blockRegex = new RegExp(`^(${b}|${b}\\s*Block|Block\\s*${b})$`, 'i');
+          const b = userDoc.block.trim();
           filter = {
             $or: [
               { block: b },
-              { block: blockRegex }
+              { block: new RegExp(`^(${b}|${b}\\s*Block|Block\\s*${b}|${b}.*)$`, 'i') }
             ]
           };
         }
@@ -1516,22 +1669,37 @@ app.get('/api/wardens', async (req, res) => {
 
 // Create a new feedback request (Warden or Management)
 app.post('/api/feedback-requests', async (req, res) => {
-  const { title, description, postedBy, authorName } = req.body;
+  const { title, description, postedBy, authorName, targetBlock, authorEmail } = req.body;
   if (!title || !description) {
     return res.status(400).json({ error: 'Title and description are required' });
   }
   try {
-    // Automatically deactivate other active feedback requests so only one is active at a time
-    await FeedbackRequest.updateMany({}, { active: false });
+    const cleanTarget = targetBlock || 'All';
+
+    // Deactivate previous active feedback requests for matching target block
+    const allActive = await FeedbackRequest.find({ active: true });
+    for (const reqItem of allActive) {
+      if (matchesBlock(reqItem.targetBlock, cleanTarget) || cleanTarget === 'All') {
+        reqItem.active = false;
+        await reqItem.save();
+      }
+    }
 
     const newRequest = new FeedbackRequest({
       title,
       description,
       active: true,
       postedBy: postedBy || 'Warden',
-      authorName: authorName || 'Hostel Administration'
+      authorName: authorName || 'Hostel Administration',
+      authorEmail: authorEmail || '',
+      targetBlock: cleanTarget
     });
     await newRequest.save();
+
+    if (io) {
+      io.emit('new_feedback_campaign', newRequest.toJSON());
+    }
+
     res.status(201).json(newRequest);
   } catch (err) {
     console.error(err);
@@ -1539,10 +1707,17 @@ app.post('/api/feedback-requests', async (req, res) => {
   }
 });
 
-// Get all feedback requests (Warden)
+// Get all feedback requests (Warden / Management)
 app.get('/api/feedback-requests', async (req, res) => {
+  const { targetBlock, wardenBlock } = req.query;
+  const blockToFilter = targetBlock || wardenBlock;
   try {
-    const requests = await FeedbackRequest.find().sort({ createdAt: -1 });
+    let requests = await FeedbackRequest.find().sort({ createdAt: -1 });
+
+    if (blockToFilter && blockToFilter !== 'All' && blockToFilter !== 'ALL') {
+      requests = requests.filter(r => matchesBlock(r.targetBlock, blockToFilter));
+    }
+
     res.json(requests);
   } catch (err) {
     console.error(err);
@@ -1552,9 +1727,17 @@ app.get('/api/feedback-requests', async (req, res) => {
 
 // Get active feedback request(s) (Student)
 app.get('/api/feedback-requests/active', async (req, res) => {
+  const { studentBlock } = req.query;
   try {
     const activeRequests = await FeedbackRequest.find({ active: true });
-    res.json(activeRequests);
+
+    if (!studentBlock) {
+      return res.json(activeRequests);
+    }
+
+    const matching = activeRequests.filter(reqItem => matchesBlock(reqItem.targetBlock, studentBlock));
+
+    res.json(matching);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Database read error' });
@@ -1599,7 +1782,7 @@ app.delete('/api/feedback-requests/:id', async (req, res) => {
 
 // Submit a feedback response (Student)
 app.post('/api/feedback-responses', async (req, res) => {
-  const { feedbackRequestId, studentEmail, studentName, rating, comments } = req.body;
+  const { feedbackRequestId, studentEmail, studentName, rating, comments, studentBlock } = req.body;
   if (!feedbackRequestId) {
     return res.status(400).json({ error: 'feedbackRequestId is required' });
   }
@@ -1613,10 +1796,17 @@ app.post('/api/feedback-responses', async (req, res) => {
     return res.status(400).json({ error: 'rating is required' });
   }
   try {
+    let resolvedBlock = studentBlock || '';
+    if (!resolvedBlock && studentEmail) {
+      const student = await Student.findOne({ email: studentEmail.toLowerCase() });
+      if (student) resolvedBlock = student.block;
+    }
+
     const response = new FeedbackResponse({
       feedbackRequestId,
-      studentEmail,
+      studentEmail: studentEmail.toLowerCase(),
       studentName,
+      studentBlock: resolvedBlock,
       rating,
       comments: comments || ''
     });
@@ -1630,7 +1820,8 @@ app.post('/api/feedback-responses', async (req, res) => {
 
 // Get all responses for a feedback request (Warden)
 app.get('/api/feedback-responses', async (req, res) => {
-  const { feedbackRequestId, studentEmail } = req.query;
+  const { feedbackRequestId, studentEmail, targetBlock, wardenBlock } = req.query;
+  const blockToFilter = targetBlock || wardenBlock;
   try {
     let query = {};
     if (feedbackRequestId) {
@@ -1641,7 +1832,24 @@ app.get('/api/feedback-responses', async (req, res) => {
       }
     }
     if (studentEmail) query.studentEmail = studentEmail.toLowerCase();
-    const responses = await FeedbackResponse.find(query).sort({ createdAt: -1 });
+    let responses = await FeedbackResponse.find(query).sort({ createdAt: -1 });
+
+    if (blockToFilter && blockToFilter !== 'All' && blockToFilter !== 'ALL') {
+      const requests = await FeedbackRequest.find();
+      const requestMap = new Map(requests.map(r => [r._id.toString(), r]));
+
+      responses = responses.filter(resp => {
+        if (resp.studentBlock && matchesBlock(blockToFilter, resp.studentBlock)) {
+          return true;
+        }
+        const parentReq = requestMap.get(resp.feedbackRequestId?.toString());
+        if (parentReq && matchesBlock(parentReq.targetBlock, blockToFilter)) {
+          return true;
+        }
+        return false;
+      });
+    }
+
     res.json(responses);
   } catch (err) {
     console.error(err);
@@ -1649,6 +1857,619 @@ app.get('/api/feedback-responses', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running dynamically on port ${PORT}`);
+// AI Analysis & Categorization of Feedback Responses using Google Gemini API
+app.post('/api/feedback-requests/:id/analyze', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid feedbackRequestId' });
+    }
+
+    const responses = await FeedbackResponse.find({ feedbackRequestId: id });
+    if (responses.length === 0) {
+      return res.json({ positive: [], negative: [], common: [] });
+    }
+
+    const groqApiKey = process.env.GROQ_API_KEY;
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+
+    if (groqApiKey) {
+      try {
+        const formattedSubmissions = responses.map(r => ({
+          studentName: r.studentName,
+          rating: r.rating,
+          comments: r.comments
+        }));
+
+        const prompt = `Analyze the following list of student feedback submissions.
+Submissions:
+${JSON.stringify(formattedSubmissions, null, 2)}
+
+Group and categorize them into:
+1. Positive Feedbacks (list of studentName, rating, and comments)
+2. Negative Feedbacks (list of studentName, rating, and comments)
+3. Common / Duplicate Feedbacks (grouped by common complaints/issues, showing the common summary/issue description, a list of student names affected by it, and the count of students). For example, if two students complain "chapati is too hard" and "chappati is not perfect", group them under one common issue like "chappati is not perfect" showing 2 students affected.
+
+Return the response STRICTLY as a valid JSON object matching the following structure:
+{
+  "positive": [
+    { "studentName": "...", "comments": "...", "rating": 5 }
+  ],
+  "negative": [
+    { "studentName": "...", "comments": "...", "rating": 2 }
+  ],
+  "common": [
+    { "issue": "chappati is not perfect", "count": 2, "students": ["Rahul", "Vikas"] }
+  ]
+}`;
+
+        const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${groqApiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: [
+              {
+                role: 'user',
+                content: prompt
+              }
+            ],
+            response_format: { type: 'json_object' },
+            temperature: 0.2
+          })
+        });
+
+        if (groqResponse.ok) {
+          const groqData = await groqResponse.json();
+          const content = groqData.choices[0].message.content.trim();
+          const analysis = JSON.parse(content);
+          return res.json(analysis);
+        } else {
+          const errText = await groqResponse.text();
+          console.error('Groq API returned error:', errText);
+        }
+      } catch (groqErr) {
+        console.error('Groq API call failed, falling back:', groqErr);
+      }
+    }
+
+    if (geminiApiKey) {
+      try {
+        const { GoogleGenerativeAI } = require("@google/generative-ai");
+        const genAI = new GoogleGenerativeAI(geminiApiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        const formattedSubmissions = responses.map(r => ({
+          studentName: r.studentName,
+          rating: r.rating,
+          comments: r.comments
+        }));
+
+        const prompt = `Analyze the following list of student feedback submissions.
+Submissions:
+${JSON.stringify(formattedSubmissions, null, 2)}
+
+Group and categorize them into:
+1. Positive Feedbacks (list of studentName, rating, and comments)
+2. Negative Feedbacks (list of studentName, rating, and comments)
+3. Common / Duplicate Feedbacks (grouped by common complaints/issues, showing the common summary/issue description, a list of student names affected by it, and the count of students). For example, if two students complain "chapati is too hard" and "chappati is not perfect", group them under one common issue like "chappati is not perfect" showing 2 students affected.
+
+Return the response STRICTLY as a valid JSON object matching the following structure (no markdown, no backticks, no wrap, just clean JSON):
+{
+  "positive": [
+    { "studentName": "...", "comments": "...", "rating": 5 }
+  ],
+  "negative": [
+    { "studentName": "...", "comments": "...", "rating": 2 }
+  ],
+  "common": [
+    { "issue": "chappati is not perfect", "count": 2, "students": ["Rahul", "Vikas"] }
+  ]
+}`;
+
+        const result = await model.generateContent(prompt);
+        const text = result.response.text().trim();
+        const jsonText = text.replace(/```json/i, '').replace(/```/g, '').trim();
+        const analysis = JSON.parse(jsonText);
+        return res.json(analysis);
+      } catch (geminiErr) {
+        console.error('Gemini API call failed, falling back:', geminiErr);
+      }
+    }
+
+    // Local Fallback analysis if API key is missing or failed
+    const positive = [];
+    const negative = [];
+    const commonMap = {};
+
+    responses.forEach(resp => {
+      const text = (resp.comments || '').trim();
+      if (!text) return;
+
+      const rating = resp.rating || 3;
+      const item = { studentName: resp.studentName || 'Student', comments: text, rating };
+
+      // Sentiment classification
+      if (rating >= 4 || /good|perfect|great|nice|love|excellent|delicious|best/i.test(text)) {
+        positive.push(item);
+      } else {
+        negative.push(item);
+      }
+
+      // Basic keyword clustering
+      const cleanText = text.toLowerCase();
+      let matchedKey = null;
+      const keywords = ['chapati', 'chappati', 'wifi', 'internet', 'water', 'food', 'cleaning', 'electricity', 'power', 'bathroom'];
+      
+      for (const kw of keywords) {
+        if (cleanText.includes(kw)) {
+          matchedKey = kw;
+          break;
+        }
+      }
+
+      const key = matchedKey || cleanText.split(' ').slice(0, 3).join(' ');
+      if (key.length > 2) {
+        if (!commonMap[key]) {
+          commonMap[key] = {
+            issue: matchedKey ? `${matchedKey.charAt(0).toUpperCase() + matchedKey.slice(1)} issues` : text,
+            students: [],
+            count: 0
+          };
+        }
+        commonMap[key].students.push(resp.studentName || 'Student');
+        commonMap[key].count++;
+      }
+    });
+
+    const common = Object.values(commonMap)
+      .sort((a, b) => b.count - a.count);
+
+    res.json({ positive, negative, common });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Feedback analysis failed' });
+  }
+});
+
+// ==================== INCIDENT GROUPS MODULE ====================
+
+const getUserBlockGroup = (block) => {
+  if (!block) return 'ABC';
+  const b = block.trim().toUpperCase();
+  if (b === 'ABC' || b === 'A' || b === 'B' || b === 'C') return 'ABC';
+  if (b.startsWith('D')) return 'D';
+  if (b.startsWith('E')) return 'E';
+  if (b.startsWith('F')) return 'F';
+  return 'ABC'; // fallback
+};
+
+// 1. Get accessible Incident Groups for user
+app.get('/api/incident-groups', async (req, res) => {
+  const { userEmail, userRole, userBlock } = req.query;
+  try {
+    const role = (userRole || '').toLowerCase().trim();
+    const email = (userEmail || '').toLowerCase().trim();
+    const block = (userBlock || '').trim().toUpperCase();
+
+    const allGroups = [
+      { id: 'ABC', name: 'ABC Block Group', description: 'Discussion group for ABC Block residents' },
+      { id: 'D', name: 'D Block Group', description: 'Discussion group for D Block residents' },
+      { id: 'E', name: 'E Block Group', description: 'Discussion group for E Block residents' },
+      { id: 'F', name: 'F Block Group', description: 'Discussion group for F Block residents' }
+    ];
+
+    let accessibleGroups = [];
+
+    if (role === 'management' || role === 'headwarden') {
+      accessibleGroups = allGroups;
+    } else if (role === 'student') {
+      const studentGroup = getUserBlockGroup(block);
+      if (studentGroup) {
+        accessibleGroups = allGroups.filter(g => g.id === studentGroup);
+      }
+    } else if (role === 'warden') {
+      const assignment = await BlockAssignment.findOne({ wardenEmail: email });
+      if (assignment) {
+        if (assignment.role === 'headwarden' || assignment.blocks.length >= 6) {
+          accessibleGroups = allGroups;
+        } else {
+          const wardenGroups = new Set();
+          assignment.blocks.forEach(b => {
+            const grp = getUserBlockGroup(b);
+            if (grp) wardenGroups.add(grp);
+          });
+          accessibleGroups = allGroups.filter(g => wardenGroups.has(g.id));
+        }
+      } else {
+        const wardenGroup = getUserBlockGroup(block);
+        if (wardenGroup) {
+          accessibleGroups = allGroups.filter(g => g.id === wardenGroup);
+        }
+      }
+    }
+
+    const result = [];
+    for (const group of accessibleGroups) {
+      // Member count
+      let memberCount = 0;
+      if (group.id === 'ABC') {
+        memberCount = await Student.countDocuments({
+          block: { $in: ['ABC', 'A', 'B', 'C', 'abc', 'a', 'b', 'c'] }
+        });
+      } else {
+        const regex = new RegExp(`^${group.id}`, 'i');
+        memberCount = await Student.countDocuments({ block: regex });
+      }
+
+      // Last message
+      const lastMsg = await IncidentGroupMessage.findOne({ blockGroup: group.id })
+        .sort({ timestamp: -1 });
+
+      // Message count
+      const totalMessages = await IncidentGroupMessage.countDocuments({ blockGroup: group.id });
+
+      result.push({
+        ...group,
+        memberCount,
+        lastMessage: lastMsg ? {
+          text: lastMsg.text,
+          senderName: lastMsg.senderName,
+          timestamp: lastMsg.timestamp
+        } : null,
+        messageCount: totalMessages
+      });
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error('Error fetching incident groups:', err);
+    res.status(500).json({ error: 'Failed to fetch incident groups' });
+  }
+});
+
+// 2. Get messages for a specific group
+app.get('/api/incident-groups/messages', async (req, res) => {
+  const { blockGroup, search } = req.query;
+  try {
+    if (!blockGroup) {
+      return res.status(400).json({ error: 'blockGroup is required' });
+    }
+
+    const query = { blockGroup };
+    if (search) {
+      const cleanSearch = search.trim();
+      if (cleanSearch) {
+        query.$or = [
+          { text: { $regex: cleanSearch, $options: 'i' } },
+          { senderName: { $regex: cleanSearch, $options: 'i' } }
+        ];
+      }
+    }
+
+    const messages = await IncidentGroupMessage.find(query).sort({ timestamp: 1 });
+    res.json(messages);
+  } catch (err) {
+    console.error('Error fetching messages:', err);
+    res.status(500).json({ error: 'Failed to fetch messages' });
+  }
+});
+
+// 3. Post a message to a group
+app.post('/api/incident-groups/messages', async (req, res) => {
+  const { blockGroup, senderName, senderEmail, senderRole, senderRoomNo, text } = req.body;
+  try {
+    if (!blockGroup || !senderName || !senderEmail || !senderRole || !text) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const newMessage = await IncidentGroupMessage.create({
+      blockGroup,
+      senderName,
+      senderEmail,
+      senderRole,
+      senderRoomNo,
+      text,
+      timestamp: new Date()
+    });
+
+    const msgObj = newMessage.toJSON();
+    io.to(`group_${blockGroup}`).emit('receive_group_message', msgObj);
+    io.emit('global_activity_notification', msgObj);
+
+    res.status(201).json(newMessage);
+  } catch (err) {
+    console.error('Error posting message:', err);
+    res.status(500).json({ error: 'Failed to post message' });
+  }
+});
+
+// Clear all messages for an incident group
+app.delete('/api/incident-groups/messages/clear', async (req, res) => {
+  const { blockGroup } = req.query;
+  if (!blockGroup) {
+    return res.status(400).json({ error: 'blockGroup is required' });
+  }
+  try {
+    await IncidentGroupMessage.deleteMany({ blockGroup });
+    io.to(`group_${blockGroup}`).emit('clear_group_messages', { blockGroup });
+    res.json({ success: true, message: 'Group chat cleared successfully' });
+  } catch (err) {
+    console.error('Error clearing group chat:', err);
+    res.status(500).json({ error: 'Failed to clear group chat' });
+  }
+});
+
+// 4. Summarize messages for a group using Groq API
+app.post('/api/incident-groups/summarize', async (req, res) => {
+  const { blockGroup } = req.body;
+  try {
+    if (!blockGroup) {
+      return res.status(400).json({ error: 'blockGroup is required' });
+    }
+
+    const messages = await IncidentGroupMessage.find({ blockGroup }).sort({ timestamp: 1 });
+    const messageCount = messages.length;
+    const activeStudents = [...new Set(messages.filter(m => m.senderRole === 'student').map(m => m.senderEmail))];
+    const activeStudentsCount = activeStudents.length;
+
+    let summaryText = "No discussions today.";
+    let mostDiscussedTopic = "None";
+    let mostMentionedCategory = "General";
+
+    if (messageCount > 0) {
+      const groqApiKey = process.env.GROQ_API_KEY;
+      if (groqApiKey) {
+        try {
+          const formattedMessages = messages.map(m => ({
+            sender: `${m.senderName} (${m.senderRole}${m.senderRoomNo ? `, Room ${m.senderRoomNo}` : ''})`,
+            text: m.text,
+            time: m.timestamp
+          }));
+
+          const prompt = `Analyze the following hostel block group chat messages from the "${blockGroup} Block Group".
+Messages:
+${JSON.stringify(formattedMessages, null, 2)}
+
+Provide:
+1. A concise, professional, bullet-point summary of today's discussions (what issues were reported, what was resolved, what remains pending, etc.).
+2. The most discussed topic (2-4 words, e.g. "Low Water Pressure" or "Wi-Fi Connectivity").
+3. The most mentioned complaint category (exactly one of: Water, Electricity, Mess Food, Internet, Cleaning, Lift, Plumbing, or General).
+
+Return the response STRICTLY as a valid JSON object matching the following structure:
+{
+  "summary": "Today's Discussion Summary\\n\\n• Issue 1 description\\n• Issue 2 description...",
+  "mostDiscussedTopic": "...",
+  "mostMentionedCategory": "..."
+}`;
+
+          const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${groqApiKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: 'llama-3.3-70b-versatile',
+              messages: [
+                {
+                  role: 'user',
+                  content: prompt
+                }
+              ],
+              response_format: { type: 'json_object' },
+              temperature: 0.3
+            })
+          });
+
+          if (groqResponse.ok) {
+            const groqData = await groqResponse.json();
+            const analysis = JSON.parse(groqData.choices[0].message.content.trim());
+            summaryText = analysis.summary;
+            mostDiscussedTopic = analysis.mostDiscussedTopic;
+            mostMentionedCategory = analysis.mostMentionedCategory;
+          } else {
+            const errText = await groqResponse.text();
+            console.error('Groq API error during incident summary:', errText);
+            throw new Error('Groq API error');
+          }
+        } catch (groqErr) {
+          console.error('Groq summarization failed, running fallback:', groqErr);
+          const counts = { Water: 0, Electricity: 0, Food: 0, Internet: 0, Cleaning: 0, Lift: 0, Plumbing: 0, General: 0 };
+          messages.forEach(m => {
+            const txt = m.text.toLowerCase();
+            if (txt.includes('water')) counts.Water++;
+            if (txt.includes('electricity') || txt.includes('light') || txt.includes('power')) counts.Electricity++;
+            if (txt.includes('food') || txt.includes('mess')) counts.Food++;
+            if (txt.includes('internet') || txt.includes('wifi') || txt.includes('net')) counts.Internet++;
+            if (txt.includes('clean') || txt.includes('sweep') || txt.includes('washroom')) counts.Cleaning++;
+            if (txt.includes('lift') || txt.includes('elevator')) counts.Lift++;
+            if (txt.includes('plumb') || txt.includes('leak') || txt.includes('tap')) counts.Plumbing++;
+          });
+
+          let maxCat = 'General';
+          let maxVal = 0;
+          Object.entries(counts).forEach(([cat, val]) => {
+            if (val > maxVal) {
+              maxVal = val;
+              maxCat = cat;
+            }
+          });
+
+          mostMentionedCategory = maxCat;
+          mostDiscussedTopic = maxCat !== 'General' ? `${maxCat} issues` : 'General queries';
+          summaryText = `Today's Discussion Summary (Local Fallback)\n\n• Total of ${messageCount} messages exchanged.\n• Senders talked about various block matters.\n• Most mentioned category was ${maxCat}.\n• Active participation from ${activeStudentsCount} students.`;
+        }
+      } else {
+        const counts = { Water: 0, Electricity: 0, Food: 0, Internet: 0, Cleaning: 0, Lift: 0, Plumbing: 0, General: 0 };
+        messages.forEach(m => {
+          const txt = m.text.toLowerCase();
+          if (txt.includes('water')) counts.Water++;
+          if (txt.includes('electricity') || txt.includes('light') || txt.includes('power')) counts.Electricity++;
+          if (txt.includes('food') || txt.includes('mess')) counts.Food++;
+          if (txt.includes('internet') || txt.includes('wifi') || txt.includes('net')) counts.Internet++;
+          if (txt.includes('clean') || txt.includes('sweep') || txt.includes('washroom')) counts.Cleaning++;
+          if (txt.includes('lift') || txt.includes('elevator')) counts.Lift++;
+          if (txt.includes('plumb') || txt.includes('leak') || txt.includes('tap')) counts.Plumbing++;
+        });
+
+        let maxCat = 'General';
+        let maxVal = 0;
+        Object.entries(counts).forEach(([cat, val]) => {
+          if (val > maxVal) {
+            maxVal = val;
+            maxCat = cat;
+          }
+        });
+
+        mostMentionedCategory = maxCat;
+        mostDiscussedTopic = maxCat !== 'General' ? `${maxCat} issues` : 'General queries';
+        summaryText = `Today's Discussion Summary (Local Fallback)\n\n• Total of ${messageCount} messages exchanged.\n• Senders talked about various block matters.\n• Most mentioned category was ${maxCat}.\n• Active participation from ${activeStudentsCount} students.`;
+      }
+    }
+
+    const insight = await GroupInsight.findOneAndUpdate(
+      { blockGroup },
+      {
+        summary: summaryText,
+        mostDiscussedTopic,
+        mostMentionedCategory,
+        messageCount,
+        activeStudentsCount,
+        lastUpdated: new Date()
+      },
+      { new: true, upsert: true }
+    );
+
+    res.json(insight);
+  } catch (err) {
+    console.error('Error generating summary:', err);
+    res.status(500).json({ error: 'Failed to generate summary' });
+  }
+});
+
+// 5. Get insights and summaries for all groups
+app.get('/api/incident-groups/insights', async (req, res) => {
+  try {
+    const allGroups = ['ABC', 'D', 'E', 'F'];
+    const result = [];
+
+    for (const group of allGroups) {
+      let insight = await GroupInsight.findOne({ blockGroup: group });
+      
+      const messages = await IncidentGroupMessage.find({ blockGroup: group });
+      const messageCount = messages.length;
+      const activeStudentsCount = [...new Set(messages.filter(m => m.senderRole === 'student').map(m => m.senderEmail))].length;
+
+      if (!insight) {
+        insight = new GroupInsight({
+          blockGroup: group,
+          summary: 'No summary generated yet. Click "Summarize Conversation" inside the group chat to generate one.',
+          mostDiscussedTopic: 'None',
+          mostMentionedCategory: 'None',
+          messageCount,
+          activeStudentsCount,
+          lastUpdated: null
+        });
+      } else {
+        insight.messageCount = messageCount;
+        insight.activeStudentsCount = activeStudentsCount;
+        await insight.save();
+      }
+
+      result.push(insight);
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error('Error fetching insights:', err);
+    res.status(500).json({ error: 'Failed to fetch insights' });
+  }
+});
+
+// ==========================================================================
+// REAL-TIME WEBSOCKET AGGREGATOR (SOCKET.IO)
+// ==========================================================================
+const activeOnlineUsers = new Map(); // email -> socketId
+
+io.on('connection', (socket) => {
+  let currentUserEmail = null;
+
+  // 1. User Registration / Presence
+  socket.on('register_user', ({ email, role }) => {
+    if (!email) return;
+    currentUserEmail = email.toLowerCase().trim();
+    activeOnlineUsers.set(currentUserEmail, socket.id);
+    
+    // Join personal user room for direct messaging & notifications
+    socket.join(`user:${currentUserEmail}`);
+
+    // Broadcast updated online users list
+    io.emit('online_users_list', Array.from(activeOnlineUsers.keys()));
+  });
+
+  // 2. Room Joining (Incident Groups)
+  socket.on('join_room', (roomName) => {
+    if (roomName) {
+      socket.join(roomName);
+    }
+  });
+
+  socket.on('leave_room', (roomName) => {
+    if (roomName) {
+      socket.leave(roomName);
+    }
+  });
+
+  // 3. Typing Indicators ("Abdul is typing...")
+  socket.on('typing_start', ({ room, recipientEmail, userName }) => {
+    const payload = { userName, userEmail: currentUserEmail, room, recipientEmail };
+    if (room) {
+      socket.to(room).emit('user_typing', payload);
+    } else if (recipientEmail) {
+      socket.to(`user:${recipientEmail.toLowerCase()}`).emit('user_typing', payload);
+    }
+  });
+
+  socket.on('typing_stop', ({ room, recipientEmail }) => {
+    const payload = { userEmail: currentUserEmail, room, recipientEmail };
+    if (room) {
+      socket.to(room).emit('user_stopped_typing', payload);
+    } else if (recipientEmail) {
+      socket.to(`user:${recipientEmail.toLowerCase()}`).emit('user_stopped_typing', payload);
+    }
+  });
+
+  // 4. Real-Time Messages Push
+  socket.on('send_realtime_message', (msgData) => {
+    if (msgData.blockGroup) {
+      io.to(`group_${msgData.blockGroup}`).emit('receive_group_message', msgData);
+    } else {
+      io.emit('receive_direct_message', msgData);
+    }
+    io.emit('global_activity_notification', msgData);
+  });
+
+  // 5. Read Receipts (✓✓ Blue Ticks)
+  socket.on('mark_messages_read', ({ studentEmail, sender }) => {
+    if (studentEmail) {
+      io.to(`user:${studentEmail.toLowerCase()}`).emit('messages_marked_read', { studentEmail, sender });
+    }
+  });
+
+  // 6. Disconnect Handler
+  socket.on('disconnect', () => {
+    if (currentUserEmail) {
+      activeOnlineUsers.delete(currentUserEmail);
+      io.emit('online_users_list', Array.from(activeOnlineUsers.keys()));
+    }
+  });
+});
+
+server.listen(PORT, () => {
+  console.log(`Server running dynamically on port ${PORT} with WebSockets enabled.`);
 });

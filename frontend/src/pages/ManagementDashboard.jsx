@@ -1,9 +1,12 @@
-// src/pages/ManagementDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import EventBannerCard from '../components/EventBannerCard';
-import { DynamicTrendsChart, DynamicDonutChart } from '../components/DynamicComplaintCharts';
+import { DynamicDonutChart, FeedbackBarChart } from '../components/DynamicComplaintCharts';
 import '../styles/ManagementDashboard.css';
 import logo from '../assets/CC.png';
+import IncidentGroupsChat from '../components/IncidentGroupsChat';
+import GroupInsightsDashboard from '../components/GroupInsightsDashboard';
+import { useSocket } from '../context/SocketContext';
+
 
 const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [activeTab, setActiveTab] = useState('Dashboard');
@@ -49,6 +52,9 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [wardensList, setWardensList] = useState([]);
   const [feedbackRequests, setFeedbackRequests] = useState([]);
   const [feedbackResponses, setFeedbackResponses] = useState([]);
+  const [mgtAiAnalysis, setMgtAiAnalysis] = useState(null);
+  const [isMgtAnalyzing, setIsMgtAnalyzing] = useState(false);
+  const [mgtAnalysisTab, setMgtAnalysisTab] = useState('raw'); // 'raw' | 'ai'
 
   // Modal / Conversation States
   const [selectedWardenChat, setSelectedWardenChat] = useState(null);
@@ -62,6 +68,24 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [newFb, setNewFb] = useState({ title: '', description: '' });
+  const [selectedMgtCampaignModal, setSelectedMgtCampaignModal] = useState(null);
+  const [showMgtCampaignResponsesModal, setShowMgtCampaignResponsesModal] = useState(false);
+
+  const handleDeleteManagementFeedback = async (id) => {
+    if (!id) return;
+    try {
+      const res = await fetch(`/api/feedback-requests/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setFeedbackRequests(prev => prev.filter(f => (f._id !== id && f.id !== id)));
+        if (selectedMgtCampaignModal && (selectedMgtCampaignModal._id === id || selectedMgtCampaignModal.id === id)) {
+          setShowMgtCampaignResponsesModal(false);
+          setSelectedMgtCampaignModal(null);
+        }
+      }
+    } catch (err) {
+      console.error('Error deleting feedback campaign:', err);
+    }
+  };
 
   // Stats State
   const [stats, setStats] = useState({
@@ -133,6 +157,55 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
     fetchData();
   }, [activeTab, user?.email]);
 
+  const handleMgtAnalyzeFeedback = async (requestId) => {
+    setIsMgtAnalyzing(true);
+    setMgtAiAnalysis(null);
+    try {
+      const res = await fetch(`/api/feedback-requests/${requestId}/analyze`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMgtAiAnalysis(data);
+        setMgtAnalysisTab('ai');
+      } else {
+        console.error('Failed to analyze feedback');
+      }
+    } catch (err) {
+      console.error('Analysis request failed:', err);
+    } finally {
+      setIsMgtAnalyzing(false);
+    }
+  };
+
+  const socketCtx = useSocket();
+  const socket = socketCtx?.socket;
+  const sendRealtimeMessage = socketCtx?.sendRealtimeMessage;
+
+  // Real-time socket message listener for Management
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleDirectMsg = (msg) => {
+      if (!msg) return;
+      if (selectedWardenChat && msg.studentEmail && msg.studentEmail.toLowerCase() === selectedWardenChat.email.toLowerCase()) {
+        setWardenMessages(prev => {
+          const exists = prev.some(m => (m.id && m.id === msg.id) || (m._id && m._id === msg._id));
+          if (exists) return prev;
+          return [...prev, msg];
+        });
+      }
+    };
+
+    socket.on('receive_direct_message', handleDirectMsg);
+    socket.on('global_activity_notification', handleDirectMsg);
+
+    return () => {
+      socket.off('receive_direct_message', handleDirectMsg);
+      socket.off('global_activity_notification', handleDirectMsg);
+    };
+  }, [socket, selectedWardenChat]);
+
   // Fetch direct messages when a warden chat modal opens
   useEffect(() => {
     if (selectedWardenChat) {
@@ -171,7 +244,15 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
 
       if (res.ok) {
         const data = await res.json();
-        setWardenMessages(prev => [...prev, data.message || data]);
+        const createdMsg = data.message || data;
+        if (sendRealtimeMessage) {
+          sendRealtimeMessage(createdMsg);
+        }
+        setWardenMessages(prev => {
+          const exists = prev.some(m => (m.id && m.id === createdMsg.id) || (m._id && m._id === createdMsg._id));
+          if (exists) return prev;
+          return [...prev, createdMsg];
+        });
         setWardenMsgText('');
       }
     } catch (err) {
@@ -209,6 +290,37 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
     }
   };
 
+  // Calculate Recent Feedback Activity (grouped by submission date, latest 7 days)
+  const recentFeedbackActivity = (() => {
+    const groups = {};
+    feedbackResponses.forEach(r => {
+      if (!r.createdAt) return;
+      const date = new Date(r.createdAt);
+      const dateString = date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+      
+      if (!groups[dateString]) {
+        groups[dateString] = {
+          dateString,
+          timestamp: date.getTime(),
+          total: 0,
+          positive: 0,
+          negative: 0
+        };
+      }
+      
+      groups[dateString].total += 1;
+      if (r.rating >= 3) {
+        groups[dateString].positive += 1;
+      } else {
+        groups[dateString].negative += 1;
+      }
+    });
+
+    return Object.values(groups)
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 7);
+  })();
+
   // Create Management Feedback Survey
   const handleCreateManagementFeedback = async (e) => {
     e.preventDefault();
@@ -221,6 +333,7 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
         body: JSON.stringify({
           title: newFb.title,
           description: newFb.description,
+          targetBlock: newFb.targetBlock || 'All',
           postedBy: 'Management',
           authorName: profile.name || 'Management Executive'
         })
@@ -230,7 +343,7 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
         const data = await res.json();
         setFeedbackRequests(prev => [data, ...prev.map(f => ({ ...f, active: false }))]);
         setShowFeedbackModal(false);
-        setNewFb({ title: '', description: '' });
+        setNewFb({ title: '', description: '', targetBlock: 'All' });
       }
     } catch (err) {
       console.error('Error creating feedback survey:', err);
@@ -403,6 +516,16 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
             { id: 'Block Management', label: 'Block Management', icon: (
               <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1" />
+              </svg>
+            )},
+            { id: 'Incident Groups', label: 'Incident Groups', icon: (
+              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            )},
+            { id: 'Group Insights', label: 'Group Insights', icon: (
+              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14" />
               </svg>
             )},
             { id: 'Feedback', label: 'Feedback', icon: (
@@ -644,22 +767,95 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
             {/* ROW 3: GRAPHS & BLOCK STATUS */}
             <div className="charts-overview-row">
               
-              {/* Curve Graph */}
-              <div className="overview-chart-card col-40" style={{ padding: '1.25rem' }}>
+              {/* 1. Recent Feedback Activity Timeline */}
+              <div className="overview-chart-card col-40" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column' }}>
+                <div className="chart-card-header" style={{ padding: '0 0 1rem 0', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span className="card-title" style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Recent Feedback Activity</span>
+                    <span className="card-subtitle" style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                      Feedback activity grouped by date (latest 7 days)
+                    </span>
+                  </div>
+                  <button 
+                    className="view-all-link" 
+                    onClick={() => setActiveTab('Feedback')} 
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      color: '#2563eb', 
+                      fontWeight: 700, 
+                      fontSize: '0.8rem', 
+                      cursor: 'pointer',
+                      padding: 0
+                    }}
+                  >
+                    View All
+                  </button>
+                </div>
+                
+                <div className="chart-wrapper" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.65rem', padding: '0.25rem 0', maxHeight: '280px' }}>
+                  {recentFeedbackActivity.length === 0 ? (
+                    <p style={{ color: '#64748b', fontSize: '0.82rem', fontStyle: 'italic', textAlign: 'center', margin: 'auto' }}>
+                      No recent feedback submissions.
+                    </p>
+                  ) : (
+                    recentFeedbackActivity.map((day, idx) => {
+                      const isMostlyPositive = day.positive >= day.negative;
+                      return (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 0.85rem', border: '1px solid #f1f5f9', borderRadius: '10px', backgroundColor: '#f8fafc', gap: '0.5rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                            <span 
+                              style={{ 
+                                width: '9px', 
+                                height: '9px', 
+                                borderRadius: '50%', 
+                                backgroundColor: isMostlyPositive ? '#10b981' : '#ef4444', 
+                                display: 'inline-block',
+                                boxShadow: isMostlyPositive ? '0 0 8px rgba(16, 185, 129, 0.4)' : '0 0 8px rgba(239, 68, 68, 0.4)'
+                              }} 
+                            />
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <strong style={{ fontSize: '0.82rem', color: '#1e293b' }}>{day.dateString}</strong>
+                              <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 650 }}>{day.total} Feedback Response{day.total > 1 ? 's' : ''}</span>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.72rem', fontWeight: 700 }}>
+                            <span style={{ backgroundColor: '#dcfce7', color: '#15803d', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
+                              {day.positive} Positive
+                            </span>
+                            <span style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
+                              {day.negative} Negative
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* 2. Feedback Ratings Overview Graph */}
+              <div className="overview-chart-card col-30" style={{ padding: '1.25rem' }}>
                 <div className="chart-card-header" style={{ marginBottom: '0.75rem' }}>
                   <div>
-                    <span className="title" style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Complaint Trends</span>
-                    <span className="subtitle" style={{ fontSize: '0.8rem', color: '#64748b' }}>Real-time active and resolved ticket logs</span>
+                    <span className="title" style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Feedback Ratings</span>
+                    <span className="subtitle" style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                      Rating distribution across surveys
+                    </span>
                   </div>
                   <span className="chart-filter" style={{ backgroundColor: '#eff6ff', color: '#2563eb', padding: '0.25rem 0.65rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>Live Data</span>
                 </div>
 
                 <div className="mgt-chart-area" style={{ padding: '0.5rem 0' }}>
-                  <DynamicTrendsChart complaints={complaints} />
+                  <FeedbackBarChart feedbackResponses={
+                    feedbackRequests.find(r => r.active)
+                      ? feedbackResponses.filter(r => r.feedbackRequestId === feedbackRequests.find(r => r.active)._id)
+                      : feedbackResponses
+                  } />
                 </div>
               </div>
 
-              {/* Donut Chart */}
+              {/* 3. Donut Chart */}
               <div className="overview-chart-card col-30" style={{ padding: '1.25rem' }}>
                 <div className="chart-card-header" style={{ marginBottom: '0.75rem' }}>
                   <span className="title" style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Complaints by Category</span>
@@ -723,11 +919,11 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                     <tbody>
                       {complaints.slice(0, 5).map(c => (
                         <tr key={c.id || c._id}>
-                          <td className="font-semibold">{c.title}</td>
-                          <td>{c.category}</td>
-                          <td>{c.location}</td>
-                          <td>{c.studentName || 'Student'}</td>
-                          <td>
+                          <td data-label="Title" className="font-semibold">{c.title}</td>
+                          <td data-label="Category">{c.category}</td>
+                          <td data-label="Location">{c.location}</td>
+                          <td data-label="Student">{c.studentName || 'Student'}</td>
+                          <td data-label="Status">
                             <span className={`status-pill ${
                               c.status === 'Resolved' ? 'resolved' :
                               c.status === 'In Progress' ? 'in-progress' :
@@ -736,7 +932,7 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                               {c.status}
                             </span>
                           </td>
-                          <td>
+                          <td data-label="Action">
                             <button className="table-action-btn" onClick={() => setSelectedComplaint(c)}>Details</button>
                           </td>
                         </tr>
@@ -1051,87 +1247,188 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
           </div>
         )}
 
+        {/* INCIDENT GROUPS TAB */}
+        {activeTab === 'Incident Groups' && (
+          <div className="fallback-tab-panel">
+            <div className="section-header" style={{ marginBottom: '1.5rem' }}>
+              <h2>📢 Incident Discussion Groups</h2>
+              <p style={{ color: '#64748b' }}>Discuss maintenance issues and collaborate with block residents.</p>
+            </div>
+            <IncidentGroupsChat user={{ ...profile, role: 'management' }} />
+          </div>
+        )}
+
+        {/* GROUP INSIGHTS TAB */}
+        {activeTab === 'Group Insights' && (
+          <div className="fallback-tab-panel">
+            <div className="section-header" style={{ marginBottom: '1.5rem' }}>
+              <h2>📊 Block Group Insights</h2>
+              <p style={{ color: '#64748b' }}>View AI-generated discussion summaries and analytics for each hostel block.</p>
+            </div>
+            <GroupInsightsDashboard />
+          </div>
+        )}
+
         {/* FEEDBACK MANAGEMENT TAB */}
         {activeTab === 'Feedback' && (
           <div className="fallback-tab-panel">
             <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <div>
-                <h2>Campus Feedback Management</h2>
-                <p style={{ color: '#64748b' }}>Publish student surveys & analyze rating feedback across hostel blocks</p>
-              </div>
-              <button 
-                onClick={() => setShowFeedbackModal(true)}
-                style={{
-                  backgroundColor: '#0f172a',
-                  color: '#fff',
-                  border: 'none',
-                  padding: '0.65rem 1.25rem',
-                  borderRadius: '8px',
-                  fontWeight: 650,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem'
-                }}
-              >
-                + Publish Survey Campaign
-              </button>
-            </div>
-
-            {/* Metric Summary */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
-              <div className="mgt-stat-card" style={{ padding: '1.25rem', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Total Responses</span>
-                <h3 style={{ fontSize: '1.75rem', margin: '0.35rem 0 0', color: '#0f172a', fontWeight: 800 }}>{feedbackResponses.length}</h3>
-              </div>
-
-              <div className="mgt-stat-card" style={{ padding: '1.25rem', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Campus Avg Rating</span>
-                <h3 style={{ fontSize: '1.75rem', margin: '0.35rem 0 0', color: '#eab308', fontWeight: 800 }}>
-                  {feedbackResponses.length > 0
-                    ? (feedbackResponses.reduce((acc, r) => acc + (r.rating || 0), 0) / feedbackResponses.length).toFixed(1) + ' / 5.0 ⭐'
-                    : 'N/A'}
-                </h3>
-              </div>
-
-              <div className="mgt-stat-card" style={{ padding: '1.25rem', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Active Campaign</span>
-                <h3 style={{ fontSize: '1rem', margin: '0.35rem 0 0', color: '#2563eb', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {feedbackRequests.find(f => f.active)?.title || 'No active survey'}
-                </h3>
+                <h2>Feedback Campaigns</h2>
+                <p style={{ color: '#64748b' }}>Create, publish and manage feedback forms for hostel students</p>
               </div>
             </div>
 
-            {/* Submissions List */}
-            <div className="mgt-widget-card" style={{ padding: '1.5rem', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-              <h3 style={{ margin: '0 0 1rem', fontSize: '1.1rem', color: '#0f172a' }}>Student Submissions</h3>
+            {/* 2-COLUMN SIDE-BY-SIDE CARDS */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
+              
+              {/* LEFT CARD: Publish Feedback Form */}
+              <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.75rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: '0 0 1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ color: '#2563eb' }}>📝</span> Publish Feedback Form
+                </h3>
+                <form onSubmit={handleCreateManagementFeedback} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.35rem' }}>
+                      Title / Subject
+                    </label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. Mess Food Quality - October" 
+                      value={newFb.title}
+                      onChange={(e) => setNewFb(prev => ({ ...prev, title: e.target.value }))}
+                      required
+                      style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', backgroundColor: '#fafafa' }}
+                    />
+                  </div>
 
-              {feedbackResponses.length === 0 ? (
-                <p style={{ color: '#64748b', textAlign: 'center', padding: '2rem 0' }}>No feedback submissions recorded yet.</p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {feedbackResponses.map((fb, idx) => (
-                    <div key={fb._id || idx} style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                          <strong style={{ color: '#0f172a', fontSize: '0.95rem' }}>{fb.studentName}</strong>
-                          <span style={{ fontSize: '0.8rem', color: '#64748b' }}>({fb.studentEmail})</span>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.35rem' }}>
+                      Description / Inquiries
+                    </label>
+                    <textarea 
+                      placeholder="Explain what aspects the students should rate or suggestions they should provide..."
+                      value={newFb.description}
+                      onChange={(e) => setNewFb(prev => ({ ...prev, description: e.target.value }))}
+                      rows={4}
+                      required
+                      style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', resize: 'vertical', backgroundColor: '#fafafa' }}
+                    />
+                  </div>
+
+                  <button 
+                    type="submit"
+                    style={{
+                      backgroundColor: '#2563eb',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '0.8rem 1.5rem',
+                      borderRadius: '10px',
+                      fontWeight: 700,
+                      fontSize: '0.95rem',
+                      cursor: 'pointer',
+                      marginTop: '0.5rem',
+                      boxShadow: '0 2px 4px rgba(37,99,235,0.2)',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    Ask Feedback
+                  </button>
+                </form>
+              </div>
+
+              {/* RIGHT CARD: Campaign History */}
+              <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.75rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: '0 0 1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ color: '#16a34a' }}>📄</span> Campaign History
+                </h3>
+
+                {feedbackRequests.length === 0 ? (
+                  <div style={{ padding: '2.5rem', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+                    <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>No feedback campaigns published yet.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {feedbackRequests.map((req) => (
+                      <div 
+                        key={req._id || req.id}
+                        style={{
+                          padding: '1.25rem',
+                          borderRadius: '12px',
+                          backgroundColor: '#f8fafc',
+                          border: '1px solid #e2e8f0',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.75rem'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                          <div>
+                            <h4 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
+                              {req.title}
+                            </h4>
+                            <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
+                              {req.description}
+                            </p>
+                          </div>
+
+                          <span style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            padding: '0.25rem 0.65rem',
+                            borderRadius: '12px',
+                            backgroundColor: req.active ? '#dcfce7' : '#f1f5f9',
+                            color: req.active ? '#15803d' : '#64748b',
+                            textTransform: 'capitalize',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {req.active ? 'Active' : 'Closed'}
+                          </span>
                         </div>
-                        <p style={{ margin: 0, fontSize: '0.9rem', color: '#334155' }}>{fb.comments || 'No comments provided.'}</p>
-                      </div>
 
-                      <div style={{ textAlign: 'right' }}>
-                        <span style={{ color: '#eab308', fontWeight: 800, fontSize: '1.1rem' }}>
-                          {'★'.repeat(fb.rating || 5)}{'☆'.repeat(5 - (fb.rating || 5))}
-                        </span>
-                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
-                          {fb.createdAt ? new Date(fb.createdAt).toLocaleDateString() : ''}
-                        </span>
+                        {/* Action buttons */}
+                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                          <button
+                            onClick={() => {
+                              setSelectedMgtCampaignModal(req);
+                              setShowMgtCampaignResponsesModal(true);
+                            }}
+                            style={{
+                              backgroundColor: '#2563eb',
+                              color: '#ffffff',
+                              border: 'none',
+                              padding: '0.45rem 1rem',
+                              borderRadius: '8px',
+                              fontSize: '0.82rem',
+                              fontWeight: 700,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            View Responses
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteManagementFeedback(req._id || req.id)}
+                            style={{
+                              backgroundColor: '#fee2e2',
+                              color: '#991b1b',
+                              border: 'none',
+                              padding: '0.45rem 1rem',
+                              borderRadius: '8px',
+                              fontSize: '0.82rem',
+                              fontWeight: 700,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
+
             </div>
           </div>
         )}
@@ -1664,20 +1961,20 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                   value={newFb.title} 
                   onChange={(e) => setNewFb({ ...newFb, title: e.target.value })} 
                   required 
-                  style={{ width: '100%', padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px' }} 
+                  style={{ width: '100%', padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: '6px' }} 
                 />
               </div>
 
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>Survey Description / Instructions</label>
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>Description / Inquiries</label>
                 <textarea 
                   rows="4" 
                   className="standard-input-field" 
-                  placeholder="Please rate your experience with food quality and cleanliness..." 
+                  placeholder="Explain what feedback is required from students..." 
                   value={newFb.description} 
                   onChange={(e) => setNewFb({ ...newFb, description: e.target.value })} 
                   required 
-                  style={{ width: '100%', padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                  style={{ width: '100%', padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: '6px', resize: 'vertical' }}
                 ></textarea>
               </div>
 
@@ -1686,6 +1983,197 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 <button type="submit" style={{ padding: '0.65rem 1.5rem', border: 'none', borderRadius: '6px', backgroundColor: '#0f172a', color: '#fff', fontWeight: 650, cursor: 'pointer' }}>Publish Survey</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW RESPONSES MODAL POPUP FOR MANAGEMENT */}
+      {showMgtCampaignResponsesModal && selectedMgtCampaignModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1.5rem'
+          }}
+          onClick={() => setShowMgtCampaignResponsesModal(false)}
+        >
+          <div 
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '800px',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+              overflow: 'hidden'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#0f172a', fontWeight: 800 }}>
+                  Responses - {selectedMgtCampaignModal.title}
+                </h3>
+                <p style={{ margin: '0.2rem 0 0', fontSize: '0.82rem', color: '#64748b' }}>
+                  {selectedMgtCampaignModal.description}
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowMgtCampaignResponsesModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: '1.5rem', color: '#64748b', cursor: 'pointer', lineHeight: 1 }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              
+              {/* Summary Stats */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
+                <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                  <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>Total Submissions</span>
+                  <h4 style={{ margin: '0.25rem 0 0', fontSize: '1.4rem', color: '#0f172a', fontWeight: 800 }}>{feedbackResponses.length}</h4>
+                </div>
+                <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                  <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>Average Rating</span>
+                  <h4 style={{ margin: '0.25rem 0 0', fontSize: '1.4rem', color: '#eab308', fontWeight: 800 }}>
+                    {feedbackResponses.length > 0
+                      ? (feedbackResponses.reduce((acc, r) => acc + (r.rating || 0), 0) / feedbackResponses.length).toFixed(1) + ' / 5.0 ⭐'
+                      : 'N/A'}
+                  </h4>
+                </div>
+              </div>
+
+              {/* Navigation Tabs */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.25rem', backgroundColor: '#f1f5f9', padding: '0.25rem', borderRadius: '8px' }}>
+                  <button
+                    onClick={() => setMgtAnalysisTab('raw')}
+                    style={{
+                      padding: '0.45rem 1rem',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: mgtAnalysisTab === 'raw' ? '#ffffff' : 'transparent',
+                      color: mgtAnalysisTab === 'raw' ? '#0f172a' : '#64748b',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Raw Submissions ({feedbackResponses.length})
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (mgtAiAnalysis) {
+                        setMgtAnalysisTab('ai');
+                      } else {
+                        handleMgtAnalyzeFeedback(selectedMgtCampaignModal._id || selectedMgtCampaignModal.id);
+                      }
+                    }}
+                    style={{
+                      padding: '0.45rem 1rem',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: mgtAnalysisTab === 'ai' ? '#ffffff' : 'transparent',
+                      color: mgtAnalysisTab === 'ai' ? '#2563eb' : '#64748b',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ✨ AI Analysis
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => handleMgtAnalyzeFeedback(selectedMgtCampaignModal._id || selectedMgtCampaignModal.id)}
+                  disabled={isMgtAnalyzing}
+                  style={{
+                    backgroundColor: '#2563eb',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '0.45rem 0.9rem',
+                    borderRadius: '6px',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    opacity: isMgtAnalyzing ? 0.7 : 1
+                  }}
+                >
+                  {isMgtAnalyzing ? '⏳ Categorizing...' : '✨ Categorize Feedback'}
+                </button>
+              </div>
+
+              {/* Content List */}
+              {mgtAnalysisTab === 'raw' ? (
+                feedbackResponses.length === 0 ? (
+                  <p style={{ color: '#64748b', textAlign: 'center', padding: '2rem 0' }}>No responses recorded yet.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {feedbackResponses.map((fb, idx) => (
+                      <div key={fb._id || idx} style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                            <strong style={{ color: '#0f172a', fontSize: '0.92rem' }}>{fb.studentName}</strong>
+                            <span style={{ fontSize: '0.8rem', color: '#64748b' }}>({fb.studentEmail})</span>
+                          </div>
+                          <p style={{ margin: 0, fontSize: '0.88rem', color: '#334155' }}>{fb.comments || 'No comments provided.'}</p>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ color: '#eab308', fontWeight: 800, fontSize: '1rem' }}>
+                            {'★'.repeat(fb.rating || 5)}{'☆'.repeat(5 - (fb.rating || 5))}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : isMgtAnalyzing ? (
+                <div style={{ textAlign: 'center', padding: '3rem 0', color: '#475569' }}>
+                  <p style={{ fontWeight: 650 }}>Analyzing feedback remarks with Gemini AI...</p>
+                </div>
+              ) : mgtAiAnalysis ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div>
+                    <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.92rem', fontWeight: 700, color: '#e11d48' }}>
+                      🚨 Common Repeating Feedback
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {(!mgtAiAnalysis.common || mgtAiAnalysis.common.length === 0) ? (
+                        <p style={{ color: '#64748b', fontSize: '0.82rem', fontStyle: 'italic' }}>No repeating issues found.</p>
+                      ) : (
+                        mgtAiAnalysis.common.map((item, idx) => (
+                          <div key={idx} style={{ padding: '0.75rem', border: '1px solid #fda4af', borderRadius: '8px', backgroundColor: '#fff5f5' }}>
+                            <strong style={{ color: '#9f1239', fontSize: '0.85rem' }}>"{item.issue}"</strong>
+                            <span style={{ fontSize: '0.78rem', color: '#be123c', display: 'block', marginTop: '0.2rem' }}>
+                              Affected: {item.count} students ({item.students?.join(', ')})
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '2rem 0', color: '#64748b' }}>
+                  <p>Click "Categorize Feedback" to run AI clustering.</p>
+                </div>
+              )}
+
+            </div>
           </div>
         </div>
       )}
