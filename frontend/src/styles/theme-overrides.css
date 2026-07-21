@@ -1105,5 +1105,92 @@ html, body, #root {
     width: 100% !important;
     max-width: 100% !important;
     margin-top: 0.5rem !important;
+    flex: 1 1 100% !important;
+  }
+
+  .header-search input,
+  .search-wrapper input,
+  .header-search-bar {
+    width: 100% !important;
+  }
+
+  .header-right,
+  .header-right-actions,
+  .header-actions-right,
+  .header-meta-right {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 0.5rem !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Grid layout responsive collapses */
+  .grid-flex-row,
+  .grid-widget,
+  .fallback-tab-panel > div {
+    flex-direction: column !important;
+  }
+
+  .col-60, .col-40, .col-50, .col-30, .col-70 {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+
+  /* Form & Card Mobile Wrappers */
+  .mgt-widget-card,
+  .report-card,
+  .feedback-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Chat Box Mobile Optimizations */
+  .active-chat-box,
+  .messages-chat-box,
+  .warden-chat-container,
+  .incident-chat-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: calc(100vh - 200px) !important;
+    min-height: 420px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
+  }
+
+  .chat-footer-input-form,
+  .chat-input-row,
+  .chat-input-area {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    padding: 0.65rem !important;
+    background-color: #ffffff !important;
+    border-top: 1px solid #e2e8f0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .chat-footer-input-form input,
+  .chat-input-row input,
+  .chat-input-area input {
+    flex: 1 !important;
+    min-width: 0 !important;
+    height: 42px !important;
+    padding: 0.5rem 0.85rem !important;
+    font-size: 0.85rem !important;
+    box-sizing: border-box !important;
+  }
+
+  .chat-footer-input-form button,
+  .chat-input-row button,
+  .chat-input-area button {
+    white-space: nowrap !important;
+    height: 42px !important;
+    padding: 0 1rem !important;
+    flex-shrink: 0 !important;
   }
 }
