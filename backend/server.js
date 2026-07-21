@@ -1871,8 +1871,8 @@ app.post('/api/feedback-requests/:id/analyze', async (req, res) => {
       return res.json({ positive: [], negative: [], common: [] });
     }
 
-    const groqApiKey = process.env.GROQ_API_KEY;
-    const geminiApiKey = process.env.GEMINI_API_KEY;
+    const groqApiKey = (process.env.GROQ_API_KEY || '').trim();
+    const geminiApiKey = (process.env.GEMINI_API_KEY || '').trim();
 
     if (groqApiKey) {
       try {
@@ -1904,7 +1904,7 @@ Return the response STRICTLY as a valid JSON object matching the following struc
   ]
 }`;
 
-        const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        let groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${groqApiKey}`,
@@ -1912,16 +1912,28 @@ Return the response STRICTLY as a valid JSON object matching the following struc
           },
           body: JSON.stringify({
             model: 'llama-3.3-70b-versatile',
-            messages: [
-              {
-                role: 'user',
-                content: prompt
-              }
-            ],
+            messages: [{ role: 'user', content: prompt }],
             response_format: { type: 'json_object' },
             temperature: 0.2
           })
         });
+
+        // Fallback model if primary model is unavailable
+        if (!groqResponse.ok) {
+          groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${groqApiKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: 'llama-3.1-8b-instant',
+              messages: [{ role: 'user', content: prompt }],
+              response_format: { type: 'json_object' },
+              temperature: 0.2
+            })
+          });
+        }
 
         if (groqResponse.ok) {
           const groqData = await groqResponse.json();
@@ -1930,11 +1942,13 @@ Return the response STRICTLY as a valid JSON object matching the following struc
           return res.json(analysis);
         } else {
           const errText = await groqResponse.text();
-          console.error('Groq API returned error:', errText);
+          console.error('[Groq AI Error]:', errText);
         }
       } catch (groqErr) {
-        console.error('Groq API call failed, falling back:', groqErr);
+        console.error('[Groq AI Call Failed]:', groqErr);
       }
+    } else {
+      console.log('[Groq AI Warning]: GROQ_API_KEY is not defined in process.env. Add GROQ_API_KEY to Render Environment Variables.');
     }
 
     if (geminiApiKey) {
@@ -2222,7 +2236,7 @@ app.post('/api/incident-groups/summarize', async (req, res) => {
     let mostMentionedCategory = "General";
 
     if (messageCount > 0) {
-      const groqApiKey = process.env.GROQ_API_KEY;
+      const groqApiKey = (process.env.GROQ_API_KEY || '').trim();
       if (groqApiKey) {
         try {
           const formattedMessages = messages.map(m => ({
@@ -2247,7 +2261,7 @@ Return the response STRICTLY as a valid JSON object matching the following struc
   "mostMentionedCategory": "..."
 }`;
 
-          const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          let groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${groqApiKey}`,
@@ -2255,16 +2269,27 @@ Return the response STRICTLY as a valid JSON object matching the following struc
             },
             body: JSON.stringify({
               model: 'llama-3.3-70b-versatile',
-              messages: [
-                {
-                  role: 'user',
-                  content: prompt
-                }
-              ],
+              messages: [{ role: 'user', content: prompt }],
               response_format: { type: 'json_object' },
               temperature: 0.3
             })
           });
+
+          if (!groqResponse.ok) {
+            groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${groqApiKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                model: 'llama-3.1-8b-instant',
+                messages: [{ role: 'user', content: prompt }],
+                response_format: { type: 'json_object' },
+                temperature: 0.3
+              })
+            });
+          }
 
           if (groqResponse.ok) {
             const groqData = await groqResponse.json();
@@ -2274,11 +2299,11 @@ Return the response STRICTLY as a valid JSON object matching the following struc
             mostMentionedCategory = analysis.mostMentionedCategory;
           } else {
             const errText = await groqResponse.text();
-            console.error('Groq API error during incident summary:', errText);
+            console.error('[Groq AI Summary Error]:', errText);
             throw new Error('Groq API error');
           }
         } catch (groqErr) {
-          console.error('Groq summarization failed, running fallback:', groqErr);
+          console.error('[Groq Summarization Failed, Fallback Active]:', groqErr);
           const counts = { Water: 0, Electricity: 0, Food: 0, Internet: 0, Cleaning: 0, Lift: 0, Plumbing: 0, General: 0 };
           messages.forEach(m => {
             const txt = m.text.toLowerCase();
