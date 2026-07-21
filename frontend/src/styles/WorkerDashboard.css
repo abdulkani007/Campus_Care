@@ -160,14 +160,15 @@
 /* Dashboard Body Wrapper */
 .worker-body-wrapper {
   display: flex;
+  align-items: stretch;
   min-height: calc(100vh - 68px);
   width: 100%;
 }
 
-/* Fixed Full-Height Sidebar (280px) */
+/* Fixed Full-Height Sidebar (280px - Top to Bottom 100vh) */
 .worker-sidebar {
   width: 280px;
-  background-color: var(--card-bg);
+  background-color: #ffffff !important;
   border-right: 1px solid var(--border-color);
   color: var(--text-sub);
   padding: 1.75rem 1rem;
@@ -177,7 +178,9 @@
   flex-shrink: 0;
   position: sticky;
   top: 68px;
-  height: calc(100vh - 68px);
+  height: calc(100vh - 68px) !important;
+  min-height: calc(100vh - 68px) !important;
+  align-self: stretch;
   box-sizing: border-box;
   z-index: 50;
 }
