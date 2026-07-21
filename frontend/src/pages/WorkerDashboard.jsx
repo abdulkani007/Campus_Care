@@ -245,18 +245,6 @@ const WorkerDashboard = ({ user, onLogout }) => {
         {/* Main Content Area */}
         <main className="worker-main-content">
           
-          {/* WELCOME HERO BANNER */}
-          <div className="worker-hero-banner">
-            <div>
-              <h2 className="worker-hero-title">Welcome back, {workerName}! 👋</h2>
-              <p className="worker-hero-sub">Enterprise Maintenance & Repair Orders Console • Category: <strong>{workerCategory}</strong></p>
-            </div>
-            <div className="worker-status-badge-live">
-              <span className="status-dot-pulse"></span>
-              <span>LIVE ON DUTY</span>
-            </div>
-          </div>
-
           {/* KPI STATS CARDS */}
           <div className="worker-kpi-grid">
             <div className="worker-kpi-card">
