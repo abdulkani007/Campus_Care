@@ -341,7 +341,7 @@ export const DynamicDonutChart = ({ complaints = [] }) => {
         </div>
       </div>
 
-      {/* Dynamic Interactive Legend */}
+        {/* Dynamic Interactive Legend */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem 0.85rem', justifyContent: 'center', fontSize: '0.75rem' }}>
         {Object.keys(CATEGORY_COLORS).map(catName => {
           const count = complaints.filter(c => (c.category || '').toLowerCase() === catName.toLowerCase()).length;
@@ -353,6 +353,100 @@ export const DynamicDonutChart = ({ complaints = [] }) => {
           );
         })}
       </div>
+    </div>
+  );
+};
+
+/**
+ * 4. DYNAMIC FEEDBACK RATING BAR CHART
+ */
+export const FeedbackBarChart = ({ feedbackResponses = [] }) => {
+  // Count frequency of ratings 1 to 5
+  const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  feedbackResponses.forEach(resp => {
+    const r = Math.round(resp.rating);
+    if (r >= 1 && r <= 5) {
+      counts[r]++;
+    }
+  });
+
+  const maxCount = Math.max(...Object.values(counts), 1);
+
+  // SVG dimensions
+  const width = 380;
+  const height = 150;
+  const paddingLeft = 30;
+  const paddingRight = 10;
+  const paddingTop = 20;
+  const paddingBottom = 25;
+
+  const chartW = width - paddingLeft - paddingRight;
+  const chartH = height - paddingTop - paddingBottom;
+
+  const ratingLabels = ['1 ★', '2 ★', '3 ★', '4 ★', '5 ★'];
+
+  return (
+    <div style={{ width: '100%' }}>
+      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: 'auto', overflow: 'visible' }}>
+        {/* Y Grid Lines & Labels */}
+        {[0, 0.5, 1].map((ratio, idx) => {
+          const y = paddingTop + ratio * chartH;
+          const val = Math.round(maxCount * (1 - ratio));
+          return (
+            <g key={idx}>
+              <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="#f1f5f9" strokeWidth="1.2" />
+              <text x={paddingLeft - 8} y={y + 3} fontSize="9" fill="#94a3b8" textAnchor="end" fontWeight="500">
+                {val}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Bars */}
+        {[1, 2, 3, 4, 5].map((star, idx) => {
+          const count = counts[star];
+          const barHeight = (count / maxCount) * chartH;
+          const barWidth = 36;
+          const x = paddingLeft + (idx / 5) * chartW + (chartW / 10) - (barWidth / 2);
+          const y = paddingTop + chartH - barHeight;
+
+          // Color coding for ratings
+          const barColors = {
+            1: '#f87171', // Red
+            2: '#fb923c', // Orange
+            3: '#facc15', // Yellow
+            4: '#a3e635', // Light Green
+            5: '#4ade80'  // Green
+          };
+
+          return (
+            <g key={star}>
+              {/* Animated/Rendered Bar */}
+              <rect
+                x={x}
+                y={y}
+                width={barWidth}
+                height={Math.max(barHeight, 3)}
+                rx="6"
+                fill={barColors[star]}
+                style={{ transition: 'all 0.5s ease' }}
+              />
+              
+              {/* Count label above bar */}
+              {count > 0 && (
+                <text x={x + barWidth / 2} y={y - 5} fontSize="9.5" fill="#475569" fontWeight="700" textAnchor="middle">
+                  {count}
+                </text>
+              )}
+
+              {/* X Axis Label */}
+              <text x={x + barWidth / 2} y={height - 5} fontSize="10" fill="#64748b" fontWeight="700" textAnchor="middle">
+                {ratingLabels[idx]}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 };

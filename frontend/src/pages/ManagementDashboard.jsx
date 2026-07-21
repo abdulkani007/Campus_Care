@@ -1,9 +1,12 @@
 // src/pages/ManagementDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import EventBannerCard from '../components/EventBannerCard';
-import { DynamicTrendsChart, DynamicDonutChart } from '../components/DynamicComplaintCharts';
+import { DynamicDonutChart, FeedbackBarChart } from '../components/DynamicComplaintCharts';
 import '../styles/ManagementDashboard.css';
 import logo from '../assets/CC.png';
+import IncidentGroupsChat from '../components/IncidentGroupsChat';
+import GroupInsightsDashboard from '../components/GroupInsightsDashboard';
+
 
 const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [activeTab, setActiveTab] = useState('Dashboard');
@@ -49,6 +52,9 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [wardensList, setWardensList] = useState([]);
   const [feedbackRequests, setFeedbackRequests] = useState([]);
   const [feedbackResponses, setFeedbackResponses] = useState([]);
+  const [mgtAiAnalysis, setMgtAiAnalysis] = useState(null);
+  const [isMgtAnalyzing, setIsMgtAnalyzing] = useState(false);
+  const [mgtAnalysisTab, setMgtAnalysisTab] = useState('raw'); // 'raw' | 'ai'
 
   // Modal / Conversation States
   const [selectedWardenChat, setSelectedWardenChat] = useState(null);
@@ -132,6 +138,27 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
     
     fetchData();
   }, [activeTab, user?.email]);
+
+  const handleMgtAnalyzeFeedback = async (requestId) => {
+    setIsMgtAnalyzing(true);
+    setMgtAiAnalysis(null);
+    try {
+      const res = await fetch(`/api/feedback-requests/${requestId}/analyze`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMgtAiAnalysis(data);
+        setMgtAnalysisTab('ai');
+      } else {
+        console.error('Failed to analyze feedback');
+      }
+    } catch (err) {
+      console.error('Analysis request failed:', err);
+    } finally {
+      setIsMgtAnalyzing(false);
+    }
+  };
 
   // Fetch direct messages when a warden chat modal opens
   useEffect(() => {
@@ -405,6 +432,16 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1" />
               </svg>
             )},
+            { id: 'Incident Groups', label: 'Incident Groups', icon: (
+              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            )},
+            { id: 'Group Insights', label: 'Group Insights', icon: (
+              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14" />
+              </svg>
+            )},
             { id: 'Feedback', label: 'Feedback', icon: (
               <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
@@ -644,18 +681,24 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
             {/* ROW 3: GRAPHS & BLOCK STATUS */}
             <div className="charts-overview-row">
               
-              {/* Curve Graph */}
+              {/* Feedback Ratings Overview Graph */}
               <div className="overview-chart-card col-40" style={{ padding: '1.25rem' }}>
                 <div className="chart-card-header" style={{ marginBottom: '0.75rem' }}>
                   <div>
-                    <span className="title" style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Complaint Trends</span>
-                    <span className="subtitle" style={{ fontSize: '0.8rem', color: '#64748b' }}>Real-time active and resolved ticket logs</span>
+                    <span className="title" style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Feedback Ratings</span>
+                    <span className="subtitle" style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                      Rating distribution for active survey: {feedbackRequests.find(r => r.active)?.title || 'No Active Survey'}
+                    </span>
                   </div>
                   <span className="chart-filter" style={{ backgroundColor: '#eff6ff', color: '#2563eb', padding: '0.25rem 0.65rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>Live Data</span>
                 </div>
 
                 <div className="mgt-chart-area" style={{ padding: '0.5rem 0' }}>
-                  <DynamicTrendsChart complaints={complaints} />
+                  <FeedbackBarChart feedbackResponses={
+                    feedbackRequests.find(r => r.active)
+                      ? feedbackResponses.filter(r => r.feedbackRequestId === feedbackRequests.find(r => r.active)._id)
+                      : feedbackResponses
+                  } />
                 </div>
               </div>
 
@@ -1051,6 +1094,28 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
           </div>
         )}
 
+        {/* INCIDENT GROUPS TAB */}
+        {activeTab === 'Incident Groups' && (
+          <div className="fallback-tab-panel">
+            <div className="section-header" style={{ marginBottom: '1.5rem' }}>
+              <h2>📢 Incident Discussion Groups</h2>
+              <p style={{ color: '#64748b' }}>Discuss maintenance issues and collaborate with block residents.</p>
+            </div>
+            <IncidentGroupsChat user={{ ...profile, role: 'management' }} />
+          </div>
+        )}
+
+        {/* GROUP INSIGHTS TAB */}
+        {activeTab === 'Group Insights' && (
+          <div className="fallback-tab-panel">
+            <div className="section-header" style={{ marginBottom: '1.5rem' }}>
+              <h2>📊 Block Group Insights</h2>
+              <p style={{ color: '#64748b' }}>View AI-generated discussion summaries and analytics for each hostel block.</p>
+            </div>
+            <GroupInsightsDashboard />
+          </div>
+        )}
+
         {/* FEEDBACK MANAGEMENT TAB */}
         {activeTab === 'Feedback' && (
           <div className="fallback-tab-panel">
@@ -1104,32 +1169,203 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
 
             {/* Submissions List */}
             <div className="mgt-widget-card" style={{ padding: '1.5rem', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-              <h3 style={{ margin: '0 0 1rem', fontSize: '1.1rem', color: '#0f172a' }}>Student Submissions</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', gap: '0.25rem', backgroundColor: '#f1f5f9', padding: '0.25rem', borderRadius: '8px' }}>
+                  <button
+                    onClick={() => setMgtAnalysisTab('raw')}
+                    style={{
+                      padding: '0.45rem 1rem',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: mgtAnalysisTab === 'raw' ? '#ffffff' : 'transparent',
+                      color: mgtAnalysisTab === 'raw' ? '#0f172a' : '#64748b',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      boxShadow: mgtAnalysisTab === 'raw' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                    }}
+                  >
+                    Raw Submissions ({feedbackResponses.length})
+                  </button>
+                  <button
+                    onClick={() => {
+                      const act = feedbackRequests.find(f => f.active);
+                      if (act) {
+                        if (mgtAiAnalysis) {
+                          setMgtAnalysisTab('ai');
+                        } else {
+                          handleMgtAnalyzeFeedback(act._id || act.id);
+                        }
+                      }
+                    }}
+                    style={{
+                      padding: '0.45rem 1rem',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: mgtAnalysisTab === 'ai' ? '#ffffff' : 'transparent',
+                      color: mgtAnalysisTab === 'ai' ? '#2563eb' : '#64748b',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      boxShadow: mgtAnalysisTab === 'ai' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                    }}
+                  >
+                    ✨ AI Analysis
+                  </button>
+                </div>
 
-              {feedbackResponses.length === 0 ? (
-                <p style={{ color: '#64748b', textAlign: 'center', padding: '2rem 0' }}>No feedback submissions recorded yet.</p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {feedbackResponses.map((fb, idx) => (
-                    <div key={fb._id || idx} style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                          <strong style={{ color: '#0f172a', fontSize: '0.95rem' }}>{fb.studentName}</strong>
-                          <span style={{ fontSize: '0.8rem', color: '#64748b' }}>({fb.studentEmail})</span>
+                {feedbackRequests.find(f => f.active) && (
+                  <button
+                    onClick={() => handleMgtAnalyzeFeedback(feedbackRequests.find(f => f.active)?._id || feedbackRequests.find(f => f.active)?.id)}
+                    disabled={isMgtAnalyzing}
+                    style={{
+                      backgroundColor: '#2563eb',
+                      color: '#fff',
+                      border: 'none',
+                      padding: '0.5rem 1rem',
+                      borderRadius: '6px',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      opacity: isMgtAnalyzing ? 0.7 : 1
+                    }}
+                  >
+                    {isMgtAnalyzing ? (
+                      <>⏳ Analyzing...</>
+                    ) : (
+                      <>✨ Categorize Feedback</>
+                    )}
+                  </button>
+                )}
+              </div>
+
+              {mgtAnalysisTab === 'raw' ? (
+                feedbackResponses.length === 0 ? (
+                  <p style={{ color: '#64748b', textAlign: 'center', padding: '2rem 0' }}>No feedback submissions recorded yet.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {feedbackResponses.map((fb, idx) => (
+                      <div key={fb._id || idx} style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                            <strong style={{ color: '#0f172a', fontSize: '0.95rem' }}>{fb.studentName}</strong>
+                            <span style={{ fontSize: '0.8rem', color: '#64748b' }}>({fb.studentEmail})</span>
+                          </div>
+                          <p style={{ margin: 0, fontSize: '0.9rem', color: '#334155' }}>{fb.comments || 'No comments provided.'}</p>
                         </div>
-                        <p style={{ margin: 0, fontSize: '0.9rem', color: '#334155' }}>{fb.comments || 'No comments provided.'}</p>
-                      </div>
 
-                      <div style={{ textAlign: 'right' }}>
-                        <span style={{ color: '#eab308', fontWeight: 800, fontSize: '1.1rem' }}>
-                          {'★'.repeat(fb.rating || 5)}{'☆'.repeat(5 - (fb.rating || 5))}
-                        </span>
-                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
-                          {fb.createdAt ? new Date(fb.createdAt).toLocaleDateString() : ''}
-                        </span>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ color: '#eab308', fontWeight: 800, fontSize: '1.1rem' }}>
+                            {'★'.repeat(fb.rating || 5)}{'☆'.repeat(5 - (fb.rating || 5))}
+                          </span>
+                          <span style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
+                            {fb.createdAt ? new Date(fb.createdAt).toLocaleDateString() : ''}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : isMgtAnalyzing ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 0', gap: '1rem' }}>
+                  <div className="analyzing-spinner" style={{ width: '40px', height: '40px', border: '3px solid #f3f3f3', borderTop: '3px solid #2563eb', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                  <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+                  <p style={{ color: '#475569', fontSize: '0.9rem', fontWeight: 650, margin: 0 }}>Gemini is clustering and categorizing student feedbacks...</p>
+                </div>
+              ) : mgtAiAnalysis ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  {/* Common Duplicate Feedback */}
+                  <div>
+                    <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem', fontWeight: 700, color: '#e11d48', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      🚨 Common Repeating Feedback
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {(!mgtAiAnalysis.common || mgtAiAnalysis.common.length === 0) ? (
+                        <p style={{ color: '#64748b', fontSize: '0.82rem', fontStyle: 'italic', margin: 0 }}>No matching clusters or repeat concerns found.</p>
+                      ) : (
+                        mgtAiAnalysis.common.map((item, idx) => (
+                          <div key={idx} style={{ padding: '0.85rem 1rem', border: '1px solid #fda4af', borderRadius: '8px', backgroundColor: '#fff5f5', borderLeft: '4px solid #f43f5e' }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#9f1239', display: 'block' }}>"{item.issue}"</span>
+                            <span style={{ fontSize: '0.78rem', color: '#be123c', marginTop: '0.25rem', display: 'block' }}>
+                              Affected by <strong>{item.count}</strong> students: {item.students?.join(', ') || 'Anonymous'}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <hr style={{ border: 'none', borderBottom: '1px solid #f1f5f9', margin: '0.25rem 0' }} />
+
+                  {/* Positive vs Negative Splits */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
+                    {/* Negative feedbacks list */}
+                    <div>
+                      <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.92rem', fontWeight: 700, color: '#dc2626', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        👎 Negative Sentiment ({mgtAiAnalysis.negative?.length || 0})
+                      </h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {(!mgtAiAnalysis.negative || mgtAiAnalysis.negative.length === 0) ? (
+                          <p style={{ color: '#64748b', fontSize: '0.82rem', fontStyle: 'italic', margin: 0 }}>No negative remarks found.</p>
+                        ) : (
+                          mgtAiAnalysis.negative.map((item, idx) => (
+                            <div key={idx} style={{ padding: '0.65rem 0.85rem', border: '1px solid #fecaca', borderRadius: '8px', backgroundColor: '#fef2f2' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#991b1b', fontWeight: 700, marginBottom: '0.2rem' }}>
+                                <span>{item.studentName}</span>
+                                <span>{item.rating}★</span>
+                              </div>
+                              <p style={{ margin: 0, fontSize: '0.8rem', color: '#7f1d1d', fontStyle: 'italic' }}>"{item.comments}"</p>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
-                  ))}
+
+                    {/* Positive feedbacks list */}
+                    <div>
+                      <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.92rem', fontWeight: 700, color: '#16a34a', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        👍 Positive Sentiment ({mgtAiAnalysis.positive?.length || 0})
+                      </h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {(!mgtAiAnalysis.positive || mgtAiAnalysis.positive.length === 0) ? (
+                          <p style={{ color: '#64748b', fontSize: '0.82rem', fontStyle: 'italic', margin: 0 }}>No positive remarks found.</p>
+                        ) : (
+                          mgtAiAnalysis.positive.map((item, idx) => (
+                            <div key={idx} style={{ padding: '0.65rem 0.85rem', border: '1px solid #bbf7d0', borderRadius: '8px', backgroundColor: '#f0fdf4' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#166534', fontWeight: 700, marginBottom: '0.2rem' }}>
+                                <span>{item.studentName}</span>
+                                <span>{item.rating}★</span>
+                              </div>
+                              <p style={{ margin: 0, fontSize: '0.8rem', color: '#14532d', fontStyle: 'italic' }}>"{item.comments}"</p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '2rem 0', color: '#64748b' }}>
+                  <p style={{ fontSize: '0.9rem', margin: '0 0 0.75rem' }}>AI feedback categorization has not been run yet.</p>
+                  {feedbackRequests.find(f => f.active) && (
+                    <button
+                      onClick={() => handleMgtAnalyzeFeedback(feedbackRequests.find(f => f.active)?._id || feedbackRequests.find(f => f.active)?.id)}
+                      style={{
+                        backgroundColor: '#2563eb',
+                        color: '#fff',
+                        border: 'none',
+                        padding: '0.5rem 1.25rem',
+                        borderRadius: '8px',
+                        fontWeight: 650,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      ✨ Categorize Feedback Now
+                    </button>
+                  )}
                 </div>
               )}
             </div>

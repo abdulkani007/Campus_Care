@@ -1,14 +1,24 @@
 // src/pages/WardenDashboard.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import SpecularButton from '../components/SpecularButton';
 import EventBannerCard from '../components/EventBannerCard';
-import { DynamicTrendsChart, DynamicCategoryBars } from '../components/DynamicComplaintCharts';
+import { DynamicCategoryBars } from '../components/DynamicComplaintCharts';
 import '../styles/WardenDashboard.css';
 import logo from '../assets/CC.png';
+import IncidentGroupsChat from '../components/IncidentGroupsChat';
+import GroupInsightsDashboard from '../components/GroupInsightsDashboard';
+import { useSocket } from '../context/SocketContext';
+
 
 const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [searchQuery, setSearchQuery] = useState('');
+  const [mobileChatView, setMobileChatView] = useState('list');
+  const [chatBlockFilter, setChatBlockFilter] = useState('All');
+  const [dashboardFeedbackResponses, setDashboardFeedbackResponses] = useState([]);
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisTab, setAnalysisTab] = useState('raw'); // 'raw' | 'ai'
   
   // Profile state prefilled with Warden details
   const [profile, setProfile] = useState({
@@ -34,6 +44,12 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
       });
     }
   }, [user]);
+
+  useEffect(() => {
+    if (profile && profile.block && profile.block !== 'All' && user?.role !== 'headwarden' && profile.block.length < 5) {
+      setChatBlockFilter(profile.block);
+    }
+  }, [profile, user]);
 
   // Dropdown states
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -66,45 +82,75 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [residentSortBy, setResidentSortBy] = useState('name');
 
   const isHeadWarden = user?.role === 'headwarden' || profile.block === 'All';
-  const wardenAssignedBlocks = isHeadWarden 
-    ? ['All', 'A', 'B', 'C', 'D', 'E', 'F'] 
-    : (profile.blocks && profile.blocks.length > 0 ? profile.blocks : [profile.block || 'D']);
 
-  // Filtered residents list with strict role and block isolation
-  const filteredResidents = residents.filter(res => {
-    // 1. Strict Warden Block Enforce: If regular block warden (e.g. D Warden), ONLY show residents belonging to assigned block (D)
-    if (!isHeadWarden) {
-      const resBlockClean = (res.block || profile.block || '').replace(/block/i, '').trim().toUpperCase();
-      const isAssigned = wardenAssignedBlocks.some(b => b.toUpperCase() === resBlockClean);
-      if (!isAssigned) return false;
+  // Extract all assigned blocks for the current warden
+  const parsedWardenBlocks = useMemo(() => {
+    if (isHeadWarden) return ['ALL', 'A', 'B', 'C', 'D', 'E', 'F'];
+    const raw = (profile.blocks && profile.blocks.length > 0)
+      ? profile.blocks
+      : (profile.block ? profile.block.split(',') : ['D']);
+
+    const set = new Set();
+    raw.forEach(b => {
+      const clean = b.replace(/block/i, '').trim().toUpperCase();
+      if (clean) set.add(clean);
+    });
+
+    // Handle compound block names like 'ABC' or 'A, B, C'
+    if (set.has('ABC') || set.has('A, B, C') || (set.has('A') && set.has('B'))) {
+      set.add('A');
+      set.add('B');
+      set.add('C');
+      set.add('ABC');
     }
+    return Array.from(set);
+  }, [isHeadWarden, profile.blocks, profile.block]);
 
-    // 2. Search Query Filter
-    const query = residentSearchQuery.toLowerCase().trim();
-    const matchesSearch = !query || (
-      (res.name && res.name.toLowerCase().includes(query)) ||
-      (res.email && res.email.toLowerCase().includes(query)) ||
-      (res.roomNo && String(res.roomNo).toLowerCase().includes(query)) ||
-      (res.rollNo && String(res.rollNo).toLowerCase().includes(query)) ||
-      (res.block && res.block.toLowerCase().includes(query))
-    );
+  // Filtered residents list with proper block matching
+  const filteredResidents = useMemo(() => {
+    return residents.filter(res => {
+      // 1. Strict Warden Block Enforce
+      if (!isHeadWarden) {
+        const resBlockClean = (res.block || '').replace(/block/i, '').trim().toUpperCase();
+        const isAssigned = parsedWardenBlocks.some(b => {
+          return b === resBlockClean || resBlockClean.startsWith(b) || b.startsWith(resBlockClean);
+        });
+        if (!isAssigned) return false;
+      }
 
-    // 3. Block Dropdown/Pill Filter
-    const matchesBlock = residentBlockFilter === 'All' || (
-      res.block && res.block.toUpperCase().includes(residentBlockFilter.toUpperCase())
-    );
+      // 2. Search Query Filter
+      const query = residentSearchQuery.toLowerCase().trim();
+      const matchesSearch = !query || (
+        (res.name && res.name.toLowerCase().includes(query)) ||
+        (res.email && res.email.toLowerCase().includes(query)) ||
+        (res.roomNo && String(res.roomNo).toLowerCase().includes(query)) ||
+        (res.rollNo && String(res.rollNo).toLowerCase().includes(query)) ||
+        (res.block && res.block.toLowerCase().includes(query))
+      );
 
-    return matchesSearch && matchesBlock;
-  }).sort((a, b) => {
-    if (residentSortBy === 'room') {
-      return String(a.roomNo || '').localeCompare(String(b.roomNo || ''), undefined, { numeric: true });
-    }
-    if (residentSortBy === 'roll') {
-      return String(a.rollNo || '').localeCompare(String(b.rollNo || ''), undefined, { numeric: true });
-    }
-    // Default: Sort by Name (A-Z)
-    return String(a.name || '').localeCompare(String(b.name || ''));
-  });
+      // 3. Block Dropdown/Pill Filter
+      const filterClean = residentBlockFilter.trim().toUpperCase();
+      const resBlockClean = (res.block || '').trim().toUpperCase();
+      
+      const matchesBlock = 
+        residentBlockFilter === 'All' || 
+        filterClean.includes('ASSIGNED') ||
+        filterClean.includes('A, B, C') ||
+        filterClean.includes('ABC') ||
+        resBlockClean.includes(filterClean) ||
+        filterClean.includes(resBlockClean);
+
+      return matchesSearch && matchesBlock;
+    }).sort((a, b) => {
+      if (residentSortBy === 'room') {
+        return String(a.roomNo || '').localeCompare(String(b.roomNo || ''), undefined, { numeric: true });
+      }
+      if (residentSortBy === 'roll') {
+        return String(a.rollNo || '').localeCompare(String(b.rollNo || ''), undefined, { numeric: true });
+      }
+      return String(a.name || '').localeCompare(String(b.name || ''));
+    });
+  }, [residents, isHeadWarden, parsedWardenBlocks, residentSearchQuery, residentBlockFilter, residentSortBy]);
 
   // Workers on Duty
   const [workers, setWorkers] = useState([]);
@@ -156,59 +202,83 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [wardenMsgText, setWardenMsgText] = useState('');
   const [searchWardenQuery, setSearchWardenQuery] = useState('');
 
-  // Fetch all data from API on mount
+  const socketCtx = useSocket();
+  const socket = socketCtx?.socket;
+
+  // Real-time socket message notification listener
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleDirectMsg = (msg) => {
+      if (!msg) return;
+      if (msg.sender === 'student') {
+        setChatMessages(prev => {
+          const exists = prev.some(m => (m.id && m.id === msg.id) || (m._id && m._id === msg._id));
+          if (exists) return prev;
+          return [...prev, msg];
+        });
+      } else if (msg.sender === 'management') {
+        setManagementMessages(prev => {
+          const exists = prev.some(m => (m.id && m.id === msg.id) || (m._id && m._id === msg._id));
+          if (exists) return prev;
+          return [...prev, msg];
+        });
+      }
+    };
+
+    socket.on('receive_direct_message', handleDirectMsg);
+    socket.on('global_activity_notification', handleDirectMsg);
+
+    return () => {
+      socket.off('receive_direct_message', handleDirectMsg);
+      socket.off('global_activity_notification', handleDirectMsg);
+    };
+  }, [socket]);
+
+  // Fetch all data from API in parallel on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const complaintsRes = await fetch(`/api/complaints?userEmail=${encodeURIComponent(user?.email || profile.email)}&userRole=${encodeURIComponent(user?.role || 'warden')}`);
-        const announcementsRes = await fetch('/api/announcements');
-        const workersRes = await fetch('/api/workers');
-        const messagesRes = await fetch(`/api/messages?userEmail=${encodeURIComponent(user?.email || profile.email)}&userRole=${encodeURIComponent(user?.role || 'warden')}`);
-        const residentsRes = await fetch(`/api/students?userEmail=${encodeURIComponent(user?.email || profile.email)}&userRole=${encodeURIComponent(user?.role || 'warden')}`);
-        const bannerRes = await fetch('/api/event-banner');
-        const mgtMessagesRes = await fetch(`/api/messages?studentEmail=${encodeURIComponent(user?.email || profile.email)}`);
-        const wardensRes = await fetch('/api/wardens');
-        
-        if (complaintsRes.ok) {
-          const complaintsData = await complaintsRes.json();
-          setComplaints(complaintsData);
-        }
-        if (wardensRes.ok) {
-          const wardensData = await wardensRes.json();
-          setWardensList(wardensData);
-        }
-        if (announcementsRes.ok) {
-          const announcementsData = await announcementsRes.json();
-          setAnnouncements(announcementsData);
-        }
-        if (workersRes.ok) {
-          const workersData = await workersRes.json();
-          setWorkers(workersData);
-        }
-        if (messagesRes.ok) {
-          const messagesData = await messagesRes.json();
-          setChatMessages(messagesData);
-        }
-        if (residentsRes.ok) {
-          const residentsData = await residentsRes.json();
-          setResidents(residentsData);
-        }
+        const email = encodeURIComponent(user?.email || profile.email);
+        const role = encodeURIComponent(user?.role || 'warden');
+
+        const [
+          complaintsRes,
+          announcementsRes,
+          workersRes,
+          messagesRes,
+          residentsRes,
+          bannerRes,
+          mgtMessagesRes,
+          wardensRes,
+          feedbackReqRes,
+          feedbackRespRes
+        ] = await Promise.all([
+          fetch(`/api/complaints?userEmail=${email}&userRole=${role}`),
+          fetch('/api/announcements'),
+          fetch('/api/workers'),
+          fetch(`/api/messages?userEmail=${email}&userRole=${role}`),
+          fetch(`/api/students?userEmail=${email}&userRole=${role}`),
+          fetch('/api/event-banner'),
+          fetch(`/api/messages?studentEmail=${email}`),
+          fetch('/api/wardens'),
+          fetch('/api/feedback-requests'),
+          fetch('/api/feedback-responses')
+        ]);
+
+        if (complaintsRes.ok) setComplaints(await complaintsRes.json());
+        if (wardensRes.ok) setWardensList(await wardensRes.json());
+        if (announcementsRes.ok) setAnnouncements(await announcementsRes.json());
+        if (workersRes.ok) setWorkers(await workersRes.json());
+        if (messagesRes.ok) setChatMessages(await messagesRes.json());
+        if (residentsRes.ok) setResidents(await residentsRes.json());
         if (bannerRes.ok) {
           const bannerData = await bannerRes.json();
-          if (bannerData) {
-            setEventBanner(bannerData);
-          }
+          if (bannerData) setEventBanner(bannerData);
         }
-        if (mgtMessagesRes.ok) {
-          const mgtData = await mgtMessagesRes.json();
-          setManagementMessages(mgtData);
-        }
-
-        const feedbackReqRes = await fetch('/api/feedback-requests');
-        if (feedbackReqRes.ok) {
-          const feedbackData = await feedbackReqRes.json();
-          setFeedbackRequests(feedbackData);
-        }
+        if (mgtMessagesRes.ok) setManagementMessages(await mgtMessagesRes.json());
+        if (feedbackReqRes.ok) setFeedbackRequests(await feedbackReqRes.json());
+        if (feedbackRespRes.ok) setDashboardFeedbackResponses(await feedbackRespRes.json());
       } catch (err) {
         console.error('Error fetching Warden dashboard data:', err);
       }
@@ -216,6 +286,27 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
     
     fetchData();
   }, [user?.email, user?.role, profile.email]);
+
+  const handleAnalyzeFeedback = async (requestId) => {
+    setIsAnalyzing(true);
+    setAiAnalysis(null);
+    try {
+      const res = await fetch(`/api/feedback-requests/${requestId}/analyze`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAiAnalysis(data);
+        setAnalysisTab('ai');
+      } else {
+        console.error('Failed to analyze feedback');
+      }
+    } catch (err) {
+      console.error('Analysis request failed:', err);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   const handleSendManagementReply = async (e) => {
     e.preventDefault();
@@ -313,9 +404,9 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
       inProgress,
       resolved,
       highPriority,
-      residents: residents.length
+      residents: filteredResidents.length
     }));
-  }, [complaints, residents]);
+  }, [complaints, filteredResidents]);
 
   // File Complaint form state
   const [complaintForm, setComplaintForm] = useState({
@@ -1021,6 +1112,37 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
     );
   });
 
+  // Calculate Recent Feedback Activity (grouped by submission date, latest 7 days)
+  const recentFeedbackActivity = (() => {
+    const groups = {};
+    dashboardFeedbackResponses.forEach(r => {
+      if (!r.createdAt) return;
+      const date = new Date(r.createdAt);
+      const dateString = date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+      
+      if (!groups[dateString]) {
+        groups[dateString] = {
+          dateString,
+          timestamp: date.getTime(),
+          total: 0,
+          positive: 0,
+          negative: 0
+        };
+      }
+      
+      groups[dateString].total += 1;
+      if (r.rating >= 3) {
+        groups[dateString].positive += 1;
+      } else {
+        groups[dateString].negative += 1;
+      }
+    });
+
+    return Object.values(groups)
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 7);
+  })();
+
   return (
     <div className="dashboard-container">
       
@@ -1248,6 +1370,18 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1" />
                 </svg>
               ), badge: managementMessages.filter(m => m.sender === 'management').length > 0 ? managementMessages.filter(m => m.sender === 'management').length : null },
+              { name: 'Incident Groups', icon: (
+                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              )},
+              ...( (user?.role === 'headwarden' || profile?.role === 'headwarden' || profile?.block === 'All') ? [
+                { name: 'Group Insights', icon: (
+                  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14" />
+                  </svg>
+                )}
+              ] : [] ),
               { name: 'Feedback', icon: (
                 <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -1396,18 +1530,70 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
               {/* ROW 2: GRAPH, CATEGORY PROGRESS, ANNOUNCEMENTS */}
               <div className="dashboard-grid-row-2">
                 
-                {/* 1. Complaints Overview Graph */}
-                <div className="grid-card col-45 relative" style={{ padding: '1.25rem' }}>
-                  <div className="card-header" style={{ padding: '0 0 1rem 0', marginBottom: '0.5rem' }}>
+                {/* 1. Recent Feedback Activity Timeline */}
+                <div className="grid-card col-45 relative" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column' }}>
+                  <div className="card-header" style={{ padding: '0 0 1rem 0', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span className="card-title" style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Complaints Overview</span>
-                      <span className="card-subtitle" style={{ fontSize: '0.8rem', color: '#64748b' }}>Real-time active and resolved ticket trends</span>
+                      <span className="card-title" style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Recent Feedback Activity</span>
+                      <span className="card-subtitle" style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                        Feedback activity grouped by date (latest 7 days)
+                      </span>
                     </div>
-                    <span className="card-badge-header" style={{ backgroundColor: '#eff6ff', color: '#2563eb', padding: '0.25rem 0.65rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>Live Data</span>
+                    <button 
+                      className="view-all-link" 
+                      onClick={() => setActiveTab('Feedback')} 
+                      style={{ 
+                        background: 'none', 
+                        border: 'none', 
+                        color: '#2563eb', 
+                        fontWeight: 700, 
+                        fontSize: '0.8rem', 
+                        cursor: 'pointer',
+                        padding: 0
+                      }}
+                    >
+                      View All
+                    </button>
                   </div>
                   
-                  <div className="chart-wrapper" style={{ padding: '0.5rem 0' }}>
-                    <DynamicTrendsChart complaints={complaints} />
+                  <div className="chart-wrapper" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.65rem', padding: '0.25rem 0' }}>
+                    {recentFeedbackActivity.length === 0 ? (
+                      <p style={{ color: '#64748b', fontSize: '0.82rem', fontStyle: 'italic', textAlign: 'center', margin: 'auto' }}>
+                        No recent feedback submissions.
+                      </p>
+                    ) : (
+                      recentFeedbackActivity.map((day, idx) => {
+                        const isMostlyPositive = day.positive >= day.negative;
+                        return (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 0.85rem', border: '1px solid #f1f5f9', borderRadius: '10px', backgroundColor: '#f8fafc', gap: '0.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                              <span 
+                                style={{ 
+                                  width: '9px', 
+                                  height: '9px', 
+                                  borderRadius: '50%', 
+                                  backgroundColor: isMostlyPositive ? '#10b981' : '#ef4444', 
+                                  display: 'inline-block',
+                                  boxShadow: isMostlyPositive ? '0 0 8px rgba(16, 185, 129, 0.4)' : '0 0 8px rgba(239, 68, 68, 0.4)'
+                                }} 
+                              />
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <strong style={{ fontSize: '0.82rem', color: '#1e293b' }}>{day.dateString}</strong>
+                                <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 650 }}>{day.total} Feedback Response{day.total > 1 ? 's' : ''}</span>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.72rem', fontWeight: 700 }}>
+                              <span style={{ backgroundColor: '#dcfce7', color: '#15803d', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
+                                {day.positive} Positive
+                              </span>
+                              <span style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
+                                {day.negative} Negative
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
 
@@ -1853,7 +2039,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                           <option value="F">F Block</option>
                         </>
                       ) : (
-                        wardenAssignedBlocks.map(blk => (
+                        parsedWardenBlocks.map(blk => (
                           <option key={blk} value={blk}>{blk} Block (Assigned)</option>
                         ))
                       )}
@@ -1888,7 +2074,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
 
                 {/* Quick Block Filter Pills */}
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9' }}>
-                  {(isHeadWarden ? ['All', 'A', 'B', 'C', 'D', 'E', 'F'] : wardenAssignedBlocks).map((blk) => (
+                  {(isHeadWarden ? ['All', 'A', 'B', 'C', 'D', 'E', 'F'] : parsedWardenBlocks).map((blk) => (
                     <button
                       key={blk}
                       onClick={() => setResidentBlockFilter(blk)}
@@ -2398,15 +2584,54 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
               <div className="message-center-layout" style={{ display: 'flex', flex: 1, width: '100%', backgroundColor: '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0' }}>
                 
                 {/* 1. LEFT SIDEBAR: CHAT SESSIONS */}
-                <div className={`chats-sidebar ${selectedResidentEmail ? 'mobile-hidden' : ''}`} style={{ width: '320px', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
-                  <div style={{ padding: '1rem', borderBottom: '1px solid #e2e8f0', backgroundColor: '#fff' }}>
+                <div className={`chats-sidebar ${mobileChatView === 'chat' ? 'mobile-hidden' : ''}`} style={{ width: '320px', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
+                  <div style={{ padding: '1rem 1rem 0.5rem', backgroundColor: '#fff' }}>
                     <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Chats</h3>
                   </div>
+
+                  {/* Block Selection Filter Bar */}
+                  <div style={{ padding: '0.5rem 1rem', borderBottom: '1px solid #e2e8f0', backgroundColor: '#fff', display: 'flex', gap: '0.4rem', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                    {['All', ...(profile.block && profile.block !== 'All' && user?.role !== 'headwarden' && profile.block.length < 5 ? [profile.block] : ['A', 'B', 'C', 'D', 'E', 'F'])].map(blk => (
+                      <button
+                        key={blk}
+                        onClick={() => setChatBlockFilter(blk)}
+                        style={{
+                          padding: '0.35rem 0.6rem',
+                          borderRadius: '6px',
+                          border: chatBlockFilter === blk ? '1px solid #2563eb' : '1px solid #cbd5e1',
+                          backgroundColor: chatBlockFilter === blk ? '#eff6ff' : '#ffffff',
+                          color: chatBlockFilter === blk ? '#2563eb' : '#475569',
+                          fontSize: '0.75rem',
+                          fontWeight: '650',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0
+                        }}
+                      >
+                        {blk === 'All' ? 'All Blocks' : `${blk} Block`}
+                      </button>
+                    ))}
+                  </div>
+
                   <div style={{ flex: 1, overflowY: 'auto' }}>
-                    {residents.length === 0 ? (
-                      <p style={{ color: '#64748b', fontSize: '0.85rem', textAlign: 'center', padding: '1.5rem' }}>No residents found.</p>
-                    ) : (
-                      residents.map(res => {
+                    {(() => {
+                      const filteredChatResidents = residents.filter(res => {
+                        if (chatBlockFilter !== 'All') {
+                          const resBlockClean = (res.block || '').replace(/block/i, '').trim().toUpperCase();
+                          return resBlockClean === chatBlockFilter.toUpperCase();
+                        }
+                        return true;
+                      });
+
+                      if (filteredChatResidents.length === 0) {
+                        return (
+                          <p style={{ color: '#64748b', fontSize: '0.85rem', textAlign: 'center', padding: '1.5rem' }}>
+                            No residents found for block {chatBlockFilter}.
+                          </p>
+                        );
+                      }
+
+                      return filteredChatResidents.map(res => {
                         const isSelected = selectedResidentEmail === res.email;
                         const studentMessages = chatMessages.filter(m => m.studentEmail?.toLowerCase() === res.email.toLowerCase());
                         const lastMsg = studentMessages[studentMessages.length - 1];
@@ -2421,6 +2646,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                             onClick={() => {
                               setSelectedResidentEmail(res.email);
                               setEditingMessageId(null);
+                              setMobileChatView('chat');
                             }}
                             style={{
                               display: 'flex',
@@ -2452,13 +2678,13 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                             </div>
                           </div>
                         );
-                      })
-                    )}
+                      });
+                    })()}
                   </div>
                 </div>
 
                 {/* 2. RIGHT CONTENT: ACTIVE CONVERSATION BOX */}
-                <div className={`active-chat-box ${!selectedResidentEmail ? 'mobile-hidden' : ''}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#efeae2' }}>
+                <div className={`active-chat-box ${mobileChatView === 'list' ? 'mobile-hidden' : ''}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#efeae2' }}>
                   {(() => {
                     const activeResident = residents.find(r => r.email === selectedResidentEmail);
                     if (!activeResident) {
@@ -2481,8 +2707,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                           <button 
                             className="chat-back-to-list-btn"
                             onClick={() => {
-                              setSelectedResidentEmail(null);
-                              setEditingMessageId(null);
+                              setMobileChatView('list');
                             }}
                             style={{
                               display: 'none',
@@ -2901,6 +3126,28 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                   ))
                 )}
               </div>
+            </div>
+          )}
+
+          {/* TAB: INCIDENT GROUPS */}
+          {activeTab === 'Incident Groups' && (
+            <div className="tab-focused-view">
+              <div className="section-header" style={{ marginBottom: '1.5rem' }}>
+                <h2>📢 Incident Discussion Groups</h2>
+                <p style={{ color: '#64748b' }}>Discuss maintenance issues and collaborate with block residents.</p>
+              </div>
+              <IncidentGroupsChat user={{ ...profile, role: isHeadWarden ? 'headwarden' : 'warden' }} />
+            </div>
+          )}
+
+          {/* TAB: GROUP INSIGHTS */}
+          {activeTab === 'Group Insights' && (
+            <div className="tab-focused-view">
+              <div className="section-header" style={{ marginBottom: '1.5rem' }}>
+                <h2>📊 Block Group Insights</h2>
+                <p style={{ color: '#64748b' }}>View AI-generated discussion summaries and analytics for each hostel block.</p>
+              </div>
+              <GroupInsightsDashboard />
             </div>
           )}
 
@@ -3650,17 +3897,19 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
       {/* FEEDBACK RESPONSES MODAL */}
       {showResponsesModal && selectedFeedbackRequest && (
         <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: '700px', width: '90%', borderRadius: '12px', padding: '2rem', backgroundColor: '#fff', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+          <div className="modal-content" style={{ maxWidth: '750px', width: '95%', borderRadius: '12px', padding: '2rem', backgroundColor: '#fff', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem', marginBottom: '1rem' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a', fontWeight: 700 }}>{selectedFeedbackRequest.title}</h3>
-                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Responses Summary</span>
+                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Responses Summary & AI Categorization</span>
               </div>
               <button 
                 onClick={() => {
                   setShowResponsesModal(false);
                   setSelectedFeedbackRequest(null);
                   setSelectedFeedbackResponses([]);
+                  setAiAnalysis(null);
+                  setAnalysisTab('raw');
                 }}
                 style={{ background: 'none', border: 'none', fontSize: '2rem', color: '#94a3b8', cursor: 'pointer', lineHeight: '0.5' }}
               >
@@ -3684,29 +3933,185 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
               </div>
             </div>
 
-            <div style={{ maxHeight: '50vh', overflowY: 'auto', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {selectedFeedbackResponses.length === 0 ? (
-                <p style={{ color: '#64748b', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>No responses submitted yet.</p>
-              ) : (
-                selectedFeedbackResponses.map((resp, idx) => (
-                  <div key={resp._id || idx} style={{ padding: '0.85rem 1rem', border: '1px solid #e2e8f0', borderRadius: '8px', backgroundColor: '#fff' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                      <div>
-                        <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#1e293b' }}>{resp.studentName}</span>
-                        <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '0.5rem' }}>({resp.studentEmail})</span>
+            {/* AI Control and Tab Bar */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', gap: '0.25rem', backgroundColor: '#f1f5f9', padding: '0.25rem', borderRadius: '8px' }}>
+                <button
+                  onClick={() => setAnalysisTab('raw')}
+                  style={{
+                    padding: '0.45rem 1rem',
+                    borderRadius: '6px',
+                    border: 'none',
+                    backgroundColor: analysisTab === 'raw' ? '#ffffff' : 'transparent',
+                    color: analysisTab === 'raw' ? '#0f172a' : '#64748b',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: analysisTab === 'raw' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >
+                  Raw Comments ({selectedFeedbackResponses.length})
+                </button>
+                <button
+                  onClick={() => {
+                    if (aiAnalysis) {
+                      setAnalysisTab('ai');
+                    } else {
+                      handleAnalyzeFeedback(selectedFeedbackRequest._id || selectedFeedbackRequest.id);
+                    }
+                  }}
+                  style={{
+                    padding: '0.45rem 1rem',
+                    borderRadius: '6px',
+                    border: 'none',
+                    backgroundColor: analysisTab === 'ai' ? '#ffffff' : 'transparent',
+                    color: analysisTab === 'ai' ? '#2563eb' : '#64748b',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: analysisTab === 'ai' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >
+                  ✨ AI Analysis
+                </button>
+              </div>
+
+              <button
+                onClick={() => handleAnalyzeFeedback(selectedFeedbackRequest._id || selectedFeedbackRequest.id)}
+                disabled={isAnalyzing}
+                style={{
+                  backgroundColor: '#2563eb',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  opacity: isAnalyzing ? 0.7 : 1
+                }}
+              >
+                {isAnalyzing ? (
+                  <>⏳ Analyzing...</>
+                ) : (
+                  <>✨ Categorize Feedback</>
+                )}
+              </button>
+            </div>
+
+            <div style={{ maxHeight: '48vh', overflowY: 'auto', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '0.75rem', paddingRight: '0.25rem' }}>
+              {analysisTab === 'raw' ? (
+                selectedFeedbackResponses.length === 0 ? (
+                  <p style={{ color: '#64748b', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>No responses submitted yet.</p>
+                ) : (
+                  selectedFeedbackResponses.map((resp, idx) => (
+                    <div key={resp._id || idx} style={{ padding: '0.85rem 1rem', border: '1px solid #e2e8f0', borderRadius: '8px', backgroundColor: '#fff' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                        <div>
+                          <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#1e293b' }}>{resp.studentName}</span>
+                          <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '0.5rem' }}>({resp.studentEmail})</span>
+                        </div>
+                        <span style={{ color: '#eab308', fontWeight: 700, fontSize: '0.85rem' }}>
+                          {'★'.repeat(resp.rating) + '☆'.repeat(5 - resp.rating)} ({resp.rating}/5)
+                        </span>
                       </div>
-                      <span style={{ color: '#eab308', fontWeight: 700, fontSize: '0.85rem' }}>
-                        {'★'.repeat(resp.rating) + '☆'.repeat(5 - resp.rating)} ({resp.rating}/5)
+                      <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569', lineHeight: '1.4', fontStyle: 'italic' }}>
+                        "{resp.comments || 'No comments left.'}"
+                      </p>
+                      <span style={{ display: 'block', fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.25rem', textAlign: 'right' }}>
+                        {new Date(resp.createdAt).toLocaleString()}
                       </span>
                     </div>
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569', lineHeight: '1.4', fontStyle: 'italic' }}>
-                      "{resp.comments || 'No comments left.'}"
-                    </p>
-                    <span style={{ display: 'block', fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.25rem', textAlign: 'right' }}>
-                      {new Date(resp.createdAt).toLocaleString()}
-                    </span>
+                  ))
+                )
+              ) : isAnalyzing ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 0', gap: '1rem' }}>
+                  <div className="analyzing-spinner" style={{ width: '40px', height: '40px', border: '3px solid #f3f3f3', borderTop: '3px solid #2563eb', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                  <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+                  <p style={{ color: '#475569', fontSize: '0.9rem', fontWeight: 600, margin: 0 }}>Gemini is clustering and categorizing student feedbacks...</p>
+                </div>
+              ) : aiAnalysis ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {/* Common Duplicate Feedback */}
+                  <div>
+                    <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem', fontWeight: 700, color: '#e11d48', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      🚨 Common Repeating Feedback
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {(!aiAnalysis.common || aiAnalysis.common.length === 0) ? (
+                        <p style={{ color: '#64748b', fontSize: '0.82rem', fontStyle: 'italic', margin: 0 }}>No matching clusters or repeat concerns found.</p>
+                      ) : (
+                        aiAnalysis.common.map((item, idx) => (
+                          <div key={idx} style={{ padding: '0.85rem 1rem', border: '1px solid #fda4af', borderRadius: '8px', backgroundColor: '#fff5f5', borderLeft: '4px solid #f43f5e' }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#9f1239', display: 'block' }}>"{item.issue}"</span>
+                            <span style={{ fontSize: '0.78rem', color: '#be123c', marginTop: '0.25rem', display: 'block' }}>
+                              Affected by <strong>{item.count}</strong> students: {item.students?.join(', ') || 'Anonymous'}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
-                ))
+
+                  <hr style={{ border: 'none', borderBottom: '1px solid #f1f5f9', margin: '0.25rem 0' }} />
+
+                  {/* Positive vs Negative Splits */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
+                    {/* Negative feedbacks list */}
+                    <div>
+                      <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.92rem', fontWeight: 700, color: '#dc2626', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        👎 Negative Sentiment ({aiAnalysis.negative?.length || 0})
+                      </h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {(!aiAnalysis.negative || aiAnalysis.negative.length === 0) ? (
+                          <p style={{ color: '#64748b', fontSize: '0.82rem', fontStyle: 'italic', margin: 0 }}>No negative remarks found.</p>
+                        ) : (
+                          aiAnalysis.negative.map((item, idx) => (
+                            <div key={idx} style={{ padding: '0.65rem 0.85rem', border: '1px solid #fecaca', borderRadius: '8px', backgroundColor: '#fef2f2' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#991b1b', fontWeight: 700, marginBottom: '0.2rem' }}>
+                                <span>{item.studentName}</span>
+                                <span>{item.rating}★</span>
+                              </div>
+                              <p style={{ margin: 0, fontSize: '0.8rem', color: '#7f1d1d', fontStyle: 'italic' }}>"{item.comments}"</p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Positive feedbacks list */}
+                    <div>
+                      <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.92rem', fontWeight: 700, color: '#16a34a', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        👍 Positive Sentiment ({aiAnalysis.positive?.length || 0})
+                      </h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {(!aiAnalysis.positive || aiAnalysis.positive.length === 0) ? (
+                          <p style={{ color: '#64748b', fontSize: '0.82rem', fontStyle: 'italic', margin: 0 }}>No positive remarks found.</p>
+                        ) : (
+                          aiAnalysis.positive.map((item, idx) => (
+                            <div key={idx} style={{ padding: '0.65rem 0.85rem', border: '1px solid #bbf7d0', borderRadius: '8px', backgroundColor: '#f0fdf4' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#166534', fontWeight: 700, marginBottom: '0.2rem' }}>
+                                <span>{item.studentName}</span>
+                                <span>{item.rating}★</span>
+                              </div>
+                              <p style={{ margin: 0, fontSize: '0.8rem', color: '#14532d', fontStyle: 'italic' }}>"{item.comments}"</p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '2rem 0', color: '#64748b' }}>
+                  <p style={{ fontSize: '0.9rem', margin: '0 0 0.75rem' }}>AI feedback categorization has not been run yet.</p>
+                  <SpecularButton onClick={() => handleAnalyzeFeedback(selectedFeedbackRequest._id || selectedFeedbackRequest.id)}>
+                    ✨ Categorize Feedback Now
+                  </SpecularButton>
+                </div>
               )}
             </div>
           </div>

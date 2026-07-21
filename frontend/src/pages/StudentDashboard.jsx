@@ -4,6 +4,8 @@ import SpecularButton from '../components/SpecularButton';
 import EventBannerCard from '../components/EventBannerCard';
 import '../styles/StudentDashboard.css';
 import logo from '../assets/CC.png';
+import IncidentGroupsChat from '../components/IncidentGroupsChat';
+import { useSocket } from '../context/SocketContext';
 
 const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [activeTab, setActiveTab] = useState('Dashboard');
@@ -11,13 +13,42 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
   
   // Profile state prefilled with student details
   const [profile, setProfile] = useState({
-    name: user?.name || 'Student Resident',
+    name: user?.name || 'Student User',
     email: user?.email || 'student@gmail.com',
     rollNo: user?.rollNo || '2021CS101',
     phoneNo: user?.phoneNo || '9876543210',
     roomNo: user?.roomNo || '305',
-    block: user?.block || 'C'
+    block: user?.block || 'C',
+    role: user?.role || 'student',
+    profilePhoto: user?.profilePhoto || null
   });
+
+  const socketCtx = useSocket();
+  const socket = socketCtx?.socket;
+
+  // Real-time socket message notification listener
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleDirectMsg = (msg) => {
+      if (!msg) return;
+      if (msg.studentEmail === profile.email) {
+        setChatMessages(prev => {
+          const exists = prev.some(m => (m.id && m.id === msg.id) || (m._id && m._id === msg._id));
+          if (exists) return prev;
+          return [...prev, msg];
+        });
+      }
+    };
+
+    socket.on('receive_direct_message', handleDirectMsg);
+    socket.on('global_activity_notification', handleDirectMsg);
+
+    return () => {
+      socket.off('receive_direct_message', handleDirectMsg);
+      socket.off('global_activity_notification', handleDirectMsg);
+    };
+  }, [socket, profile.email]);
 
   useEffect(() => {
     if (user) {
@@ -131,32 +162,24 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
     }
   }, [profile.email]);
 
-  // Fetch student data on load
+  // Fetch student data on load in parallel
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const complaintsRes = await fetch(`/api/complaints?userEmail=${encodeURIComponent(profile.email)}&userRole=student`);
-        const announcementsRes = await fetch('/api/announcements');
-        const messagesRes = await fetch(`/api/messages?studentEmail=${encodeURIComponent(profile.email)}`);
-        const bannerRes = await fetch('/api/event-banner');
-        
-        if (complaintsRes.ok) {
-          const complaintsData = await complaintsRes.json();
-          setComplaints(complaintsData);
-        }
-        if (announcementsRes.ok) {
-          const announcementsData = await announcementsRes.json();
-          setAnnouncements(announcementsData);
-        }
-        if (messagesRes.ok) {
-          const messagesData = await messagesRes.json();
-          setChatMessages(messagesData);
-        }
+        const email = encodeURIComponent(profile.email);
+        const [complaintsRes, announcementsRes, messagesRes, bannerRes] = await Promise.all([
+          fetch(`/api/complaints?userEmail=${email}&userRole=student`),
+          fetch('/api/announcements'),
+          fetch(`/api/messages?studentEmail=${email}`),
+          fetch('/api/event-banner')
+        ]);
+
+        if (complaintsRes.ok) setComplaints(await complaintsRes.json());
+        if (announcementsRes.ok) setAnnouncements(await announcementsRes.json());
+        if (messagesRes.ok) setChatMessages(await messagesRes.json());
         if (bannerRes.ok) {
           const bannerData = await bannerRes.json();
-          if (bannerData) {
-            setEventBanner(bannerData);
-          }
+          if (bannerData) setEventBanner(bannerData);
         }
 
         fetchFeedbackCampaign();
@@ -497,6 +520,11 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             ), badge: chatMessages.filter(m => m.sender === 'warden').length > 0 ? chatMessages.filter(m => m.sender === 'warden').length : null },
+            { id: 'Incident Groups', label: 'Incident Groups', icon: (
+              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            )},
             { id: 'Feedback', label: 'Feedback', icon: (
               <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.907c.969 0 1.371 1.24.588 1.81l-3.97 2.883a1 1 0 00-.364 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.971-2.883a1 1 0 00-1.178 0l-3.97 2.883c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.364-1.118l-3.97-2.883c-.783-.57-.38-1.81.588-1.81h4.906a1 1 0 00.95-.69l1.519-4.674z" />
@@ -1201,6 +1229,17 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
                   </SpecularButton>
                 </form>
               </div>
+            </div>
+          )}
+
+          {/* TAB: INCIDENT GROUPS */}
+          {activeTab === 'Incident Groups' && (
+            <div className="tab-detailed-view">
+              <div className="detailed-view-header">
+                <h2>📢 Incident Discussion Groups</h2>
+                <p style={{ color: '#64748b' }}>Discuss block issues with other residents.</p>
+              </div>
+              <IncidentGroupsChat user={{ ...profile, role: 'student' }} />
             </div>
           )}
 

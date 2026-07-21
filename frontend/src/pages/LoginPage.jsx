@@ -234,7 +234,7 @@ const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
                     placeholder="Official Mail ID"
                     required
                     className="login-input"
-                    style={{ paddingLeft: '2.1rem', paddingRight: '0.5rem' }}
+                    style={{ paddingLeft: '3.2rem', paddingRight: '0.5rem' }}
                   />
                 </div>
 
@@ -252,7 +252,7 @@ const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
                     placeholder={role === 'warden' ? "Employee ID" : role === 'management' ? "Manager ID" : "Roll No"}
                     required
                     className="login-input"
-                    style={{ paddingLeft: '2.1rem', paddingRight: '0.5rem' }}
+                    style={{ paddingLeft: '3.2rem', paddingRight: '0.5rem' }}
                   />
                 </div>
 
@@ -270,7 +270,7 @@ const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
                     placeholder="Phone Number"
                     required
                     className="login-input"
-                    style={{ paddingLeft: '2.1rem', paddingRight: '0.5rem' }}
+                    style={{ paddingLeft: '3.2rem', paddingRight: '0.5rem' }}
                   />
                 </div>
 
@@ -288,7 +288,7 @@ const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
                     placeholder={role === 'warden' || role === 'management' ? "Office Room" : "Room No"}
                     required
                     className="login-input"
-                    style={{ paddingLeft: '2.1rem', paddingRight: '0.5rem' }}
+                    style={{ paddingLeft: '3.2rem', paddingRight: '0.5rem' }}
                   />
                 </div>
 
@@ -304,7 +304,7 @@ const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
                     onChange={(e) => setBlock(e.target.value)}
                     required
                     className="login-input"
-                    style={{ paddingLeft: '2.1rem', paddingRight: '0.5rem', color: block ? '#1e293b' : '#94a3b8' }}
+                    style={{ paddingLeft: '3.2rem', paddingRight: '0.5rem', color: block ? '#1e293b' : '#94a3b8' }}
                   >
                     <option value="" disabled hidden>Hostel Block</option>
                     <option value="A">A Block</option>
@@ -330,7 +330,7 @@ const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
                     placeholder="Password"
                     required
                     className="login-input"
-                    style={{ paddingLeft: '2.1rem', paddingRight: '0.5rem' }}
+                    style={{ paddingLeft: '3.2rem', paddingRight: '0.5rem' }}
                   />
                 </div>
 
@@ -348,7 +348,7 @@ const LoginPage = ({ onBackToHome, onLoginSuccess }) => {
                     placeholder="Confirm Pass"
                     required
                     className="login-input"
-                    style={{ paddingLeft: '2.1rem', paddingRight: '0.5rem' }}
+                    style={{ paddingLeft: '3.2rem', paddingRight: '0.5rem' }}
                   />
                 </div>
               </div>
