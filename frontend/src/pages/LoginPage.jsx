@@ -33,6 +33,10 @@ const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
   const [block, setBlock] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
+  const trimmedEmail = email.trim().toLowerCase();
+  const isEmailValid = trimmedEmail.endsWith('@sece.ac.in');
+  const showEmailStatus = email.length > 0;
+
   const slides = [h1, h2, h3, h4, h5, h6, h7, h8];
 
   // Auto-slideshow timer for hostel photos (every 1 second)
@@ -50,6 +54,18 @@ const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    const cleanEmail = email.trim().toLowerCase();
+    const isEmailValid = cleanEmail.endsWith('@sece.ac.in');
+
+    if (!isEmailValid) {
+      if (isSignupMode) {
+        alert("Please register using your official college email (@sece.ac.in).");
+      } else {
+        alert("Only official Sri Eshwar College email addresses (@sece.ac.in) are allowed.");
+      }
+      return;
+    }
     
     if (isSignupMode) {
       if (role !== 'student') {
@@ -289,11 +305,39 @@ const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Official Mail ID"
+                    placeholder="abdulkani.b2024it@sece.ac.in"
                     required
-                    className="login-input"
-                    style={{ paddingLeft: '3.2rem', paddingRight: '0.5rem' }}
+                    className={`login-input ${showEmailStatus ? (isEmailValid ? 'valid' : 'invalid') : ''}`}
+                    style={{ paddingLeft: '3.2rem', paddingRight: showEmailStatus ? '2.5rem' : '0.5rem' }}
                   />
+                  {showEmailStatus && (
+                    <span 
+                      className="input-icon-right" 
+                      style={{ 
+                        right: '0.5rem', 
+                        top: '50%', 
+                        transform: 'translateY(-50%)', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        pointerEvents: 'none' 
+                      }}
+                    >
+                      {isEmailValid ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="12" y1="8" x2="12" y2="12" />
+                          <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </svg>
+                      )}
+                    </span>
+                  )}
+                  <div style={{ color: showEmailStatus ? (isEmailValid ? '#22c55e' : '#ef4444') : '#64748b', fontSize: '0.72rem', marginTop: '0.25rem', fontWeight: '500', lineHeight: '1.2' }}>
+                    {showEmailStatus ? (isEmailValid ? 'Valid college email' : 'Please register using your official college email (@sece.ac.in).') : 'Use your official Sri Eshwar College email.'}
+                  </div>
                 </div>
 
                 {/* Roll No */}
@@ -424,10 +468,39 @@ const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Official Mail ID"
+                    placeholder="abdulkani.b2024it@sece.ac.in"
                     required
-                    className="login-input"
+                    className={`login-input ${showEmailStatus ? (isEmailValid ? 'valid' : 'invalid') : ''}`}
+                    style={{ paddingRight: showEmailStatus ? '2.5rem' : '1rem' }}
                   />
+                  {showEmailStatus && (
+                    <span 
+                      className="input-icon-right" 
+                      style={{ 
+                        right: '1.15rem', 
+                        top: '50%', 
+                        transform: 'translateY(-50%)', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        pointerEvents: 'none' 
+                      }}
+                    >
+                      {isEmailValid ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="12" y1="8" x2="12" y2="12" />
+                          <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </svg>
+                      )}
+                    </span>
+                  )}
+                  <div style={{ color: showEmailStatus ? (isEmailValid ? '#22c55e' : '#ef4444') : '#64748b', fontSize: '0.78rem', marginTop: '0.25rem', fontWeight: '500', textAlign: 'left' }}>
+                    {showEmailStatus ? (isEmailValid ? 'Valid college email' : 'Only official Sri Eshwar College email addresses (@sece.ac.in) are allowed.') : 'Use your official Sri Eshwar College email.'}
+                  </div>
                 </div>
 
                 {/* Password field */}

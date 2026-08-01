@@ -563,6 +563,13 @@ app.use('/api', checkDbConnected);
 app.post('/api/signup', async (req, res) => {
   const { name, email, rollNo, phoneNo, roomNo, block, password, role } = req.body;
 
+  if (!email || !email.trim().toLowerCase().endsWith('@sece.ac.in')) {
+    return res.status(400).json({
+      success: false,
+      message: "Only official Sri Eshwar College email addresses (@sece.ac.in) are allowed."
+    });
+  }
+
   if (!name || !email || !rollNo || !phoneNo || !roomNo || !block || !password) {
     return res.status(400).json({ error: 'All fields are required' });
   }
@@ -589,6 +596,13 @@ app.post('/api/signup', async (req, res) => {
 // 2. LOGIN ENDPOINT
 app.post('/api/login', async (req, res) => {
   const { email, password, role } = req.body;
+
+  if (!email || !email.trim().toLowerCase().endsWith('@sece.ac.in')) {
+    return res.status(400).json({
+      success: false,
+      message: "Only official Sri Eshwar College email addresses (@sece.ac.in) are allowed."
+    });
+  }
 
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password are required' });
