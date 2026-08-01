@@ -5190,7 +5190,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
               <button className="close-modal-btn" onClick={() => setIsViewWardenOpen(false)}>×</button>
             </div>
 
-            <div className="modal-form-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1rem 0' }}>
+            <div className="modal-form-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.25rem 1.5rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
                 {selectedWarden.profilePhoto ? (
                   <img src={selectedWarden.profilePhoto} alt={selectedWarden.name} style={{ width: '70px', height: '70px', borderRadius: '50%', objectFit: 'cover', border: '2.5px solid #1e5bbf' }} />
