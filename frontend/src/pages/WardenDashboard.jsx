@@ -3379,17 +3379,6 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                                     </svg>
                                   </button>
                                   <button
-                                    title="Message Warden"
-                                    onClick={() => {
-                                      setSelectedWardenChat(w);
-                                    }}
-                                    style={{ padding: '0.45rem', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', color: '#16a34a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
-                                  >
-                                    <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                                    </svg>
-                                  </button>
-                                  <button
                                     title="Edit Warden"
                                     onClick={() => {
                                       setSelectedWarden(w);
