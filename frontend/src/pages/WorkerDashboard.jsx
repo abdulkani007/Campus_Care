@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import logo from '../assets/CC.png';
 import '../styles/WorkerDashboard.css';
+import { useSocket } from '../context/SocketContext';
 
 // SVG Lucide Vector Icons (Zero Emojis)
 const LayoutDashboardIcon = () => (
@@ -108,8 +109,23 @@ const DownloadIcon = () => (
 );
 
 const WorkerDashboard = ({ user, onLogout }) => {
+  const { socket } = useSocket();
   const [tasks, setTasks] = useState([]);
-  const [activeTab, setActiveTab] = useState('Dashboard'); // Dashboard, Assigned Task Orders, In Progress Repairs, Completed Reports, Rejected Tasks, My Profile & Duty
+  const [activeTab, setActiveTab] = useState('Dashboard');
+
+  useEffect(() => {
+    if (socket) {
+      const handleNewTask = (data) => {
+        fetchTasks();
+        alert(`You have been assigned a new ${data.task.workerCategory || 'maintenance'} task: ${data.complaint?.title || 'No Title'}`);
+      };
+
+      socket.on('new_task_assigned', handleNewTask);
+      return () => {
+        socket.off('new_task_assigned', handleNewTask);
+      };
+    }
+  }, [socket]); // Dashboard, Assigned Task Orders, In Progress Repairs, Completed Reports, Rejected Tasks, My Profile & Duty
   const [priorityFilter, setPriorityFilter] = useState('All');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [sortOrder, setSortOrder] = useState('Newest');
@@ -981,44 +997,84 @@ const WorkerDashboard = ({ user, onLogout }) => {
           )}
 
           {/* TAB 6: MY PROFILE & DUTY */}
-          {activeTab === 'My Profile & Duty' && (
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '18px', padding: '1.75rem', border: '1px solid #E4ECF8', boxShadow: '0 4px 14px rgba(30, 91, 191, 0.04)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', paddingBottom: '1.5rem', borderBottom: '1px solid #E4ECF8', marginBottom: '1.5rem' }}>
-                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'linear-gradient(135deg, #1E5BBF 0%, #2563EB 100%)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.6rem', fontWeight: 800, border: '3px solid #BFDBFE' }}>
-                  {avatarInitials}
+          {activeTab === 'My Profile & Duty' && (() => {
+            const profileActiveCount = tasks.filter(t => ['Assigned', 'Accepted', 'In Progress'].includes(t.status)).length;
+            const profileCompletedCount = tasks.filter(t => ['Completed', 'Verified', 'Closed'].includes(t.status)).length;
+
+            const resolutionTimes = tasks
+              .filter(t => t.completedDate && t.assignedDate && ['Completed', 'Verified', 'Closed'].includes(t.status))
+              .map(t => new Date(t.completedDate) - new Date(t.assignedDate));
+            
+            const avgResolutionTimeStr = resolutionTimes.length > 0
+              ? (resolutionTimes.reduce((sum, time) => sum + time, 0) / resolutionTimes.length / 3600000).toFixed(1) + ' Hours'
+              : 'N/A';
+
+            return (
+              <div style={{ backgroundColor: '#ffffff', borderRadius: '18px', padding: '1.75rem', border: '1px solid #E4ECF8', boxShadow: '0 4px 14px rgba(30, 91, 191, 0.04)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', paddingBottom: '1.5rem', borderBottom: '1px solid #E4ECF8', marginBottom: '1.5rem' }}>
+                  <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'linear-gradient(135deg, #1E5BBF 0%, #2563EB 100%)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.6rem', fontWeight: 800, border: '3px solid #BFDBFE' }}>
+                    {avatarInitials}
+                  </div>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800, color: '#1E293B' }}>{workerName}</h2>
+                    <p style={{ margin: '3px 0 0', color: '#1E5BBF', fontWeight: 700, fontSize: '0.9rem' }}>{workerCategory} Technician</p>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.4rem', fontSize: '0.75rem', fontWeight: 800, color: (user?.status === 'Inactive') ? '#EF4444' : '#22C55E', backgroundColor: (user?.status === 'Inactive') ? '#FEF2F2' : '#ECFDF5', padding: '0.2rem 0.65rem', borderRadius: '12px', border: (user?.status === 'Inactive') ? '1px solid #FCA5A5' : '1px solid #A7F3D0' }}>
+                      ● {user?.status === 'Inactive' ? 'INACTIVE (OFF DUTY)' : 'ACTIVE ON DUTY'}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800, color: '#1E293B' }}>{workerName}</h2>
-                  <p style={{ margin: '3px 0 0', color: '#1E5BBF', fontWeight: 700, fontSize: '0.9rem' }}>{workerCategory} Technician</p>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.4rem', fontSize: '0.75rem', fontWeight: 800, color: '#22C55E', backgroundColor: '#ECFDF5', padding: '0.2rem 0.65rem', borderRadius: '12px', border: '1px solid #A7F3D0' }}>
-                    ● ACTIVE ON DUTY
-                  </span>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
+                  <div style={{ backgroundColor: '#F8FAFC', padding: '1.15rem', borderRadius: '12px', border: '1px solid #E4ECF8' }}>
+                    <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>OFFICIAL WORKER EMAIL</span>
+                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#1E293B', marginTop: '0.2rem' }}>{user?.email || 'N/A'}</div>
+                  </div>
+
+                  <div style={{ backgroundColor: '#F8FAFC', padding: '1.15rem', borderRadius: '12px', border: '1px solid #E4ECF8' }}>
+                    <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>CONTACT PHONE NUMBER</span>
+                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#1E293B', marginTop: '0.2rem' }}>{user?.phone || 'N/A'}</div>
+                  </div>
+
+                  <div style={{ backgroundColor: '#F8FAFC', padding: '1.15rem', borderRadius: '12px', border: '1px solid #E4ECF8' }}>
+                    <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>SKILL / CATEGORY</span>
+                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#1E293B', marginTop: '0.2rem' }}>{user?.category || user?.skill || 'General'}</div>
+                  </div>
+
+                  <div style={{ backgroundColor: '#F8FAFC', padding: '1.15rem', borderRadius: '12px', border: '1px solid #E4ECF8' }}>
+                    <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>YEARS OF EXPERIENCE</span>
+                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#1E293B', marginTop: '0.2rem' }}>{user?.experience || 'None listed'}</div>
+                  </div>
+
+                  <div style={{ backgroundColor: '#F8FAFC', padding: '1.15rem', borderRadius: '12px', border: '1px solid #E4ECF8' }}>
+                    <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>ASSIGNED HOSTEL BLOCK</span>
+                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#1E293B', marginTop: '0.2rem' }}>{user?.assignedBlock ? `${user.assignedBlock} Block` : 'None (Global / All Blocks)'}</div>
+                  </div>
+
+                  <div style={{ backgroundColor: '#F8FAFC', padding: '1.15rem', borderRadius: '12px', border: '1px solid #E4ECF8' }}>
+                    <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>ACTIVE TASKS</span>
+                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#D97706', marginTop: '0.2rem' }}>{profileActiveCount} Active Task(s)</div>
+                  </div>
+
+                  <div style={{ backgroundColor: '#F8FAFC', padding: '1.15rem', borderRadius: '12px', border: '1px solid #E4ECF8' }}>
+                    <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>COMPLETED REPAIR ORDERS</span>
+                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#059669', marginTop: '0.2rem' }}>{profileCompletedCount} Tasks Resolved</div>
+                  </div>
+
+                  <div style={{ backgroundColor: '#F8FAFC', padding: '1.15rem', borderRadius: '12px', border: '1px solid #E4ECF8' }}>
+                    <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>AVERAGE RESOLUTION TIME</span>
+                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#2563EB', marginTop: '0.2rem' }}>{avgResolutionTimeStr}</div>
+                  </div>
+
+                  <div style={{ backgroundColor: '#F8FAFC', padding: '1.15rem', borderRadius: '12px', border: '1px solid #E4ECF8' }}>
+                    <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>DUTY STATUS</span>
+                    <div style={{ fontSize: '14px', fontWeight: 800, color: (user?.status === 'Inactive') ? '#EF4444' : '#22C55E', marginTop: '0.2rem' }}>
+                      {user?.status === 'Inactive' ? 'Inactive (Off Duty)' : 'Active (On Duty)'}
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
-                <div style={{ backgroundColor: '#F8FAFC', padding: '1.15rem', borderRadius: '12px', border: '1px solid #E4ECF8' }}>
-                  <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>OFFICIAL WORKER EMAIL</span>
-                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#1E293B', marginTop: '0.2rem' }}>{user?.email || 'workers@campuscare.com'}</div>
-                </div>
-
-                <div style={{ backgroundColor: '#F8FAFC', padding: '1.15rem', borderRadius: '12px', border: '1px solid #E4ECF8' }}>
-                  <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>CONTACT PHONE NUMBER</span>
-                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#1E293B', marginTop: '0.2rem' }}>{user?.phone || '9876543210'}</div>
-                </div>
-
-                <div style={{ backgroundColor: '#F8FAFC', padding: '1.15rem', borderRadius: '12px', border: '1px solid #E4ECF8' }}>
-                  <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>ASSIGNED MAINTENANCE STATION</span>
-                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#1E293B', marginTop: '0.2rem' }}>Campus Central Maintenance Yard</div>
-                </div>
-
-                <div style={{ backgroundColor: '#F8FAFC', padding: '1.15rem', borderRadius: '12px', border: '1px solid #E4ECF8' }}>
-                  <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>COMPLETED REPAIR ORDERS</span>
-                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#059669', marginTop: '0.2rem' }}>{completedCount} Tasks Resolved</div>
-                </div>
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
         </main>
       </div>

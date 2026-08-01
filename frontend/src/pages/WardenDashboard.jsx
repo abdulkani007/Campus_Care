@@ -169,11 +169,14 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [workerForm, setWorkerForm] = useState({
     id: null,
     name: '',
-    email: 'workers@campuscare.com',
+    email: '',
     phone: '',
     category: 'Electrician',
     experience: '',
     address: '',
+    assignedBlock: '',
+    password: '',
+    confirmPassword: '',
     status: 'Active'
   });
   const [showAssignWorkerModal, setShowAssignWorkerModal] = useState(false);
@@ -646,8 +649,28 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
 
   const handleSaveWorker = async (e) => {
     e.preventDefault();
-    if (!workerForm.name || !workerForm.phone || !workerForm.category) {
-      alert('Please fill in Full Name, Phone Number, and Worker Category.');
+    if (!workerForm.name || !workerForm.phone || !workerForm.category || !workerForm.email) {
+      alert('Please fill in Full Name, Phone Number, Email, and Category.');
+      return;
+    }
+
+    if (workerForm.phone.trim().length !== 10) {
+      alert('Phone number must be exactly 10 digits.');
+      return;
+    }
+
+    if (!workerForm.id && !workerForm.password) {
+      alert('Password is required.');
+      return;
+    }
+
+    if (workerForm.password && workerForm.password.length < 8) {
+      alert('Password must be at least 8 characters long.');
+      return;
+    }
+
+    if (workerForm.password && workerForm.password !== workerForm.confirmPassword) {
+      alert('Passwords do not match.');
       return;
     }
 
@@ -660,11 +683,14 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: workerForm.name,
-          email: workerForm.email || 'workers@campuscare.com',
+          email: workerForm.email,
           phone: workerForm.phone,
           category: workerForm.category,
+          skill: workerForm.category,
           experience: workerForm.experience,
           address: workerForm.address,
+          assignedBlock: workerForm.assignedBlock,
+          password: workerForm.password || undefined,
           status: workerForm.status || 'Active',
           createdBy: user?.name || profile.name
         }),
@@ -676,7 +702,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
           const updatedWorkers = await workersRes.json();
           setWorkers(updatedWorkers);
         }
-        setWorkerForm({ id: null, name: '', email: 'workers@campuscare.com', phone: '', category: 'Electrician', experience: '', address: '', status: 'Active' });
+        setWorkerForm({ id: null, name: '', email: '', phone: '', category: 'Electrician', experience: '', address: '', assignedBlock: '', password: '', confirmPassword: '', status: 'Active' });
         setShowAddWorkerModal(false);
         alert(workerForm.id ? 'Worker updated successfully!' : 'Worker added to global database successfully!');
       } else {
@@ -801,11 +827,14 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
     setWorkerForm({
       id: w._id || w.id,
       name: w.name,
-      email: w.email || 'workers@campuscare.com',
+      email: w.email || '',
       phone: w.phone || '',
-      category: w.category || w.role || 'Electrician',
+      category: w.category || w.skill || 'Electrician',
       experience: w.experience || '',
       address: w.address || '',
+      assignedBlock: w.assignedBlock || '',
+      password: '',
+      confirmPassword: '',
       status: w.status || 'Active'
     });
     setShowAddWorkerModal(true);
@@ -2381,7 +2410,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 <button 
                   className="lodge-complaint-trigger-btn" 
                   onClick={() => {
-                    setWorkerForm({ id: null, name: '', email: 'workers@campuscare.com', phone: '', category: 'Electrician', experience: '', address: '', status: 'Active' });
+                    setWorkerForm({ id: null, name: '', email: '', phone: '', category: 'Electrician', experience: '', address: '', assignedBlock: '', password: '', confirmPassword: '', status: 'Active' });
                     setShowAddWorkerModal(true);
                   }}
                 >
@@ -2460,7 +2489,8 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
 
                             <div className="worker-meta" style={{ fontSize: '0.85rem', color: '#475569', display: 'flex', flexDirection: 'column', gap: '0.35rem', marginBottom: '1.25rem' }}>
                               <div><strong>Phone:</strong> {w.phone || 'N/A'}</div>
-                              <div><strong>Email:</strong> {w.email || 'workers@campuscare.com'}</div>
+                              <div><strong>Email:</strong> {w.email || 'N/A'}</div>
+                              {w.assignedBlock && <div><strong>Assigned Block:</strong> {w.assignedBlock} Block</div>}
                               {w.experience && <div><strong>Experience:</strong> {w.experience}</div>}
                               {w.address && <div><strong>Address / Station:</strong> {w.address}</div>}
                               <div><strong>Current Assigned Tasks:</strong> <span style={{ color: '#2563eb', fontWeight: 800 }}>{w.tasks || 0} active</span></div>
@@ -4074,21 +4104,20 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
             </div>
 
             <form onSubmit={handleSaveWorker} className="modal-form-body">
-              {/* Full Name */}
-              <div className="form-group">
-                <label>Full Name *</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Ramesh Kumar"
-                  required
-                  value={workerForm.name}
-                  onChange={(e) => setWorkerForm({ ...workerForm, name: e.target.value })}
-                  className="modal-input-field"
-                />
-              </div>
-
-              {/* Phone & Email */}
+              {/* Full Name & Phone */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label>Full Name *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Ramesh Kumar"
+                    required
+                    value={workerForm.name}
+                    onChange={(e) => setWorkerForm({ ...workerForm, name: e.target.value })}
+                    className="modal-input-field"
+                  />
+                </div>
+
                 <div className="form-group">
                   <label>Phone Number *</label>
                   <input
@@ -4100,23 +4129,24 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                     className="modal-input-field"
                   />
                 </div>
+              </div>
 
+              {/* Email & Category */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
-                  <label>Worker Email</label>
+                  <label>Official Email ID *</label>
                   <input
                     type="email"
-                    placeholder="workers@campuscare.com"
+                    placeholder="e.g. ramesh@campuscare.com"
+                    required
                     value={workerForm.email}
                     onChange={(e) => setWorkerForm({ ...workerForm, email: e.target.value })}
                     className="modal-input-field"
                   />
                 </div>
-              </div>
 
-              {/* Category & Status */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
-                  <label>Worker Category *</label>
+                  <label>Skill / Category *</label>
                   <select
                     value={workerForm.category}
                     onChange={(e) => setWorkerForm({ ...workerForm, category: e.target.value })}
@@ -4132,42 +4162,77 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                     <option value="Other">Other</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Block & Status */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label>Assigned Block (Optional)</label>
+                  <select
+                    value={workerForm.assignedBlock || ''}
+                    onChange={(e) => setWorkerForm({ ...workerForm, assignedBlock: e.target.value })}
+                    className="modal-select-field"
+                  >
+                    <option value="">None (Global / All)</option>
+                    <option value="A">A Block</option>
+                    <option value="B">B Block</option>
+                    <option value="C">C Block</option>
+                    <option value="D">D Block</option>
+                    <option value="E">E Block</option>
+                    <option value="F">F Block</option>
+                  </select>
+                </div>
 
                 <div className="form-group">
-                  <label>Duty Status *</label>
+                  <label>Status *</label>
                   <select
                     value={workerForm.status}
                     onChange={(e) => setWorkerForm({ ...workerForm, status: e.target.value })}
                     className="modal-select-field"
                   >
-                    <option value="Active">Active (On Duty)</option>
-                    <option value="Inactive">Inactive (Off Duty)</option>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
                   </select>
                 </div>
               </div>
 
-              {/* Experience (Optional) */}
+              {/* Years of Experience */}
               <div className="form-group">
-                <label>Experience (Optional)</label>
+                <label>Years of Experience</label>
                 <input
                   type="text"
-                  placeholder="e.g. 5 Years in Industrial Electrical Repairs"
+                  placeholder="e.g. 5 Years in Industrial Repairs"
                   value={workerForm.experience}
                   onChange={(e) => setWorkerForm({ ...workerForm, experience: e.target.value })}
                   className="modal-input-field"
                 />
               </div>
 
-              {/* Address (Optional) */}
-              <div className="form-group">
-                <label>Address / Maintenance Station (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Campus Staff Quarters, Block A"
-                  value={workerForm.address}
-                  onChange={(e) => setWorkerForm({ ...workerForm, address: e.target.value })}
-                  className="modal-input-field"
-                />
+              {/* Password Fields */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label>Password {workerForm.id ? '(Leave blank to keep current)' : '*'}</label>
+                  <input
+                    type="password"
+                    placeholder="Min 8 characters"
+                    required={!workerForm.id}
+                    value={workerForm.password}
+                    onChange={(e) => setWorkerForm({ ...workerForm, password: e.target.value })}
+                    className="modal-input-field"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Confirm Password {workerForm.id ? '(Leave blank to keep current)' : '*'}</label>
+                  <input
+                    type="password"
+                    placeholder="Confirm Password"
+                    required={!workerForm.id}
+                    value={workerForm.confirmPassword}
+                    onChange={(e) => setWorkerForm({ ...workerForm, confirmPassword: e.target.value })}
+                    className="modal-input-field"
+                  />
+                </div>
               </div>
 
               <div className="modal-footer-actions">

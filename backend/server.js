@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
+import bcrypt from 'bcryptjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -174,24 +175,36 @@ const Message = mongoose.model('Message', MessageSchema);
 
 const WorkerSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  email: { type: String, default: '' },
-  phone: { type: String, required: true },
-  category: { 
-    type: String, 
-    enum: ['Electrician', 'Plumber', 'Carpenter', 'Housekeeping', 'Network Technician', 'Painter', 'Mess Staff', 'Other'], 
-    required: true 
-  },
+  email: { type: String, required: true, unique: true },
+  phone: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  skill: { type: String, required: true },
+  category: { type: String },
   experience: { type: String, default: '' },
-  address: { type: String, default: '' },
+  assignedBlock: { type: String, default: '' },
+  assignedTasks: { type: Number, default: 0 },
+  completedTasks: { type: Number, default: 0 },
   status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' },
   createdBy: { type: String, default: 'Warden' },
-  role: { type: String }, // Backward compatibility (defaults to category)
-  tasks: { type: Number, default: 0 },
+  createdDate: { type: Date, default: Date.now },
+  updatedDate: { type: Date, default: Date.now },
+  role: { type: String, default: 'worker' },
   avatar: { type: String },
   color: { type: String },
-  createdAt: { type: Date, default: Date.now }
+  tasks: { type: Number, default: 0 }
 });
 const Worker = mongoose.model('Worker', WorkerSchema);
+
+const WorkerActivityLogSchema = new mongoose.Schema({
+  workerName: { type: String, required: true },
+  workerEmail: { type: String, required: true },
+  complaintId: { type: String, required: true },
+  action: { type: String, required: true },
+  date: { type: String, required: true },
+  time: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now }
+});
+const WorkerActivityLog = mongoose.model('WorkerActivityLog', WorkerActivityLogSchema);
 
 const WorkerTaskSchema = new mongoose.Schema({
   taskId: { type: String, required: true, unique: true },
@@ -661,38 +674,48 @@ app.post('/api/login', async (req, res) => {
     }
 
     // 4. Worker login
-    if (role === 'worker' || cleanEmail === 'workers@campuscare.com') {
-      if (cleanEmail === 'workers@campuscare.com' && password === 'sece123') {
-        return res.json({
-          success: true,
-          user: {
-            name: 'CampusCare Worker Staff',
-            email: 'workers@campuscare.com',
-            role: 'worker',
-            category: 'General Maintenance'
-          }
-        });
-      }
+    if (role === 'worker') {
       const matchedWorker = await Worker.findOne({ email: cleanEmail });
-      if (matchedWorker && password === 'sece123') {
-        return res.json({
-          success: true,
-          user: {
-            _id: matchedWorker._id,
-            name: matchedWorker.name,
-            email: matchedWorker.email || 'workers@campuscare.com',
-            phone: matchedWorker.phone,
-            category: matchedWorker.category,
-            role: 'worker'
+      if (matchedWorker) {
+        if (matchedWorker.status === 'Inactive') {
+          return res.status(403).json({ error: 'Your account has been disabled. Please contact the Warden.' });
+        }
+        
+        let isMatch = false;
+        if (matchedWorker.password) {
+          if (matchedWorker.password.startsWith('$2a$') || matchedWorker.password.startsWith('$2b$')) {
+            try {
+              isMatch = bcrypt.compareSync(password, matchedWorker.password);
+            } catch (err) {
+              isMatch = (password === matchedWorker.password);
+            }
+          } else {
+            isMatch = (password === matchedWorker.password);
           }
-        });
+        } else {
+          isMatch = (password === 'sece123' || password === 'ramesh123');
+        }
+
+        if (isMatch) {
+          return res.json({
+            success: true,
+            user: {
+              _id: matchedWorker._id,
+              name: matchedWorker.name,
+              email: matchedWorker.email,
+              phone: matchedWorker.phone,
+              category: matchedWorker.category || matchedWorker.skill,
+              skill: matchedWorker.skill,
+              experience: matchedWorker.experience,
+              role: 'worker'
+            }
+          });
+        }
       }
-      if (role === 'worker') {
-        return res.status(401).json({ error: 'Invalid worker credentials' });
-      }
+      return res.status(401).json({ error: 'Invalid worker credentials' });
     }
 
-    // 4. Dynamic role lookup fallback across Warden, Management, Student
+    // 5. Dynamic role lookup fallback across Warden, Management, Student, Worker
     let matchedWarden = await Warden.findOne({ email: cleanEmail, password });
     if (matchedWarden) {
       if (matchedWarden.deleted === true) {
@@ -723,6 +746,44 @@ app.post('/api/login', async (req, res) => {
     if (matchedStudent) {
       const { password: _password, ...userWithoutPassword } = matchedStudent.toJSON();
       return res.json({ success: true, user: { ...userWithoutPassword, role: 'student' } });
+    }
+
+    let matchedWorker = await Worker.findOne({ email: cleanEmail });
+    if (matchedWorker) {
+      if (matchedWorker.status === 'Inactive') {
+        return res.status(403).json({ error: 'Your account has been disabled. Please contact the Warden.' });
+      }
+      
+      let isMatch = false;
+      if (matchedWorker.password) {
+        if (matchedWorker.password.startsWith('$2a$') || matchedWorker.password.startsWith('$2b$')) {
+          try {
+            isMatch = bcrypt.compareSync(password, matchedWorker.password);
+          } catch (err) {
+            isMatch = (password === matchedWorker.password);
+          }
+        } else {
+          isMatch = (password === matchedWorker.password);
+        }
+      } else {
+        isMatch = (password === 'sece123' || password === 'ramesh123');
+      }
+
+      if (isMatch) {
+        return res.json({
+          success: true,
+          user: {
+            _id: matchedWorker._id,
+            name: matchedWorker.name,
+            email: matchedWorker.email,
+            phone: matchedWorker.phone,
+            category: matchedWorker.category || matchedWorker.skill,
+            skill: matchedWorker.skill,
+            experience: matchedWorker.experience,
+            role: 'worker'
+          }
+        });
+      }
     }
 
     return res.status(401).json({ error: 'Invalid email or password' });
@@ -1232,57 +1293,117 @@ app.get('/api/workers', async (req, res) => {
 });
 
 app.post('/api/workers', async (req, res) => {
-  const { name, email, phone, category, experience, address, status, createdBy } = req.body;
+  const { name, email, phone, category, skill, experience, assignedBlock, password, status, createdBy } = req.body;
 
-  if (!name || !phone || !category) {
-    return res.status(400).json({ error: 'Full Name, Phone Number, and Worker Category are required' });
+  if (!name || !phone || !email || !password) {
+    return res.status(400).json({ error: 'Full Name, Phone Number, Email, and Password are required.' });
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+  const cleanPhone = phone.trim();
+  const workerCategory = category || skill || 'Other';
+
+  if (cleanPhone.length !== 10) {
+    return res.status(400).json({ error: 'Phone number must be exactly 10 digits.' });
+  }
+
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
   }
 
   try {
+    const existingEmail = await Worker.findOne({ email: cleanEmail });
+    if (existingEmail) {
+      return res.status(400).json({ error: 'This email is already registered.' });
+    }
+
+    const existingPhone = await Worker.findOne({ phone: cleanPhone });
+    if (existingPhone) {
+      return res.status(400).json({ error: 'This phone number is already registered.' });
+    }
+
     const count = await Worker.countDocuments();
     const avatar = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     const color = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'][count % 6];
+    const hashedPassword = bcrypt.hashSync(password, 10);
 
     const newWorker = await Worker.create({
       name,
-      email: email || 'workers@campuscare.com',
-      phone,
-      category,
-      role: category,
+      email: cleanEmail,
+      phone: cleanPhone,
+      password: hashedPassword,
+      skill: workerCategory,
+      category: workerCategory,
       experience: experience || '',
-      address: address || '',
+      assignedBlock: assignedBlock || '',
       status: status || 'Active',
       createdBy: createdBy || 'Warden',
-      tasks: 0,
+      assignedTasks: 0,
+      completedTasks: 0,
       avatar,
-      color
+      color,
+      tasks: 0,
+      createdDate: new Date(),
+      updatedDate: new Date()
     });
     res.status(201).json({ success: true, worker: newWorker });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error creating worker', details: err.message });
   }
 });
 
 app.put('/api/workers/:id', async (req, res) => {
-  const { name, email, phone, category, experience, address, status } = req.body;
+  const { name, email, phone, category, skill, experience, assignedBlock, password, status } = req.body;
+
+  if (!name || !phone || !email) {
+    return res.status(400).json({ error: 'Full Name, Phone Number, and Email are required.' });
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+  const cleanPhone = phone.trim();
+  const workerCategory = category || skill || 'Other';
+
+  if (cleanPhone.length !== 10) {
+    return res.status(400).json({ error: 'Phone number must be exactly 10 digits.' });
+  }
+
+  if (password && password.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+  }
+
   try {
-    const updated = await Worker.findByIdAndUpdate(
-      req.params.id,
-      {
-        name,
-        email,
-        phone,
-        category,
-        role: category,
-        experience,
-        address,
-        status
-      },
-      { new: true }
-    );
-    if (!updated) return res.status(404).json({ error: 'Worker not found' });
-    res.json({ success: true, worker: updated });
+    const existingEmail = await Worker.findOne({ email: cleanEmail, _id: { $ne: req.params.id } });
+    if (existingEmail) {
+      return res.status(400).json({ error: 'This email is already registered.' });
+    }
+
+    const existingPhone = await Worker.findOne({ phone: cleanPhone, _id: { $ne: req.params.id } });
+    if (existingPhone) {
+      return res.status(400).json({ error: 'This phone number is already registered.' });
+    }
+
+    const worker = await Worker.findById(req.params.id);
+    if (!worker) return res.status(404).json({ error: 'Worker not found' });
+
+    worker.name = name;
+    worker.email = cleanEmail;
+    worker.phone = cleanPhone;
+    worker.skill = workerCategory;
+    worker.category = workerCategory;
+    worker.experience = experience || '';
+    worker.assignedBlock = assignedBlock || '';
+    worker.status = status || worker.status;
+    worker.updatedDate = new Date();
+
+    if (password) {
+      worker.password = bcrypt.hashSync(password, 10);
+    }
+
+    await worker.save();
+    res.json({ success: true, worker });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error updating worker' });
   }
 });
@@ -1349,7 +1470,17 @@ app.post('/api/complaints/:id/assign-worker', async (req, res) => {
     // Increment worker task count
     if (worker) {
       worker.tasks = (worker.tasks || 0) + 1;
+      worker.assignedTasks = (worker.assignedTasks || 0) + 1;
       await worker.save();
+
+      // Emit socket notification dynamically to specific worker
+      if (worker.email) {
+        const workerRoom = `user:${worker.email.toLowerCase().trim()}`;
+        io.to(workerRoom).emit('new_task_assigned', { task, complaint });
+        io.to(workerRoom).emit('notification', { 
+          text: `You have been assigned a new ${task.workerCategory} complaint.` 
+        });
+      }
     }
 
     res.json({ success: true, complaint, task });
@@ -1368,10 +1499,7 @@ app.get('/api/worker-tasks', async (req, res) => {
     } else if (workerId) {
       filter.workerId = workerId;
     } else if (workerEmail) {
-      filter.$or = [
-        { workerEmail: workerEmail.toLowerCase().trim() },
-        { workerEmail: 'workers@campuscare.com' }
-      ];
+      filter.workerEmail = workerEmail.toLowerCase().trim();
     }
     const tasks = await WorkerTask.find(filter).sort({ assignedDate: -1 });
 
@@ -1408,6 +1536,53 @@ app.put('/api/worker-tasks/:taskId/status', async (req, res) => {
       if (proofImage) task.proofImage = proofImage;
     }
     await task.save();
+
+    // Increment completedTasks counter for the worker
+    if (status === 'Completed' && task.workerId) {
+      const worker = await Worker.findById(task.workerId);
+      if (worker) {
+        worker.completedTasks = (worker.completedTasks || 0) + 1;
+        await worker.save();
+      }
+    }
+
+    // Activity logging
+    try {
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const timeStr = now.toTimeString().split(' ')[0];
+
+      // If proof image is uploaded
+      if (proofImage) {
+        await WorkerActivityLog.create({
+          workerName: task.workerName || 'Worker',
+          workerEmail: task.workerEmail || 'worker@campuscare.com',
+          complaintId: task.complaintId,
+          action: 'Uploaded Proof',
+          date: dateStr,
+          time: timeStr
+        });
+      }
+
+      let action = '';
+      if (status === 'Accepted') action = 'Accepted Task';
+      else if (status === 'Rejected') action = 'Rejected Task';
+      else if (status === 'In Progress') action = 'Started Repair';
+      else if (status === 'Completed') action = 'Completed Repair';
+
+      if (action) {
+        await WorkerActivityLog.create({
+          workerName: task.workerName || 'Worker',
+          workerEmail: task.workerEmail || 'worker@campuscare.com',
+          complaintId: task.complaintId,
+          action,
+          date: dateStr,
+          time: timeStr
+        });
+      }
+    } catch (logErr) {
+      console.error('Error creating worker activity log:', logErr);
+    }
 
     // Sync status to Complaint model
     const complaint = await Complaint.findById(task.complaintId);
