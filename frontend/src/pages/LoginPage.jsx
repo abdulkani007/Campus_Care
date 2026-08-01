@@ -335,9 +335,9 @@ const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
                       )}
                     </span>
                   )}
-                  <div style={{ color: showEmailStatus ? (isEmailValid ? '#22c55e' : '#ef4444') : '#64748b', fontSize: '0.72rem', marginTop: '0.25rem', fontWeight: '500', lineHeight: '1.2' }}>
-                    {showEmailStatus ? (isEmailValid ? 'Valid college email' : 'Please register using your official college email (@sece.ac.in).') : 'Use your official Sri Eshwar College email.'}
-                  </div>
+                </div>
+                <div style={{ color: showEmailStatus ? (isEmailValid ? '#22c55e' : '#ef4444') : '#64748b', fontSize: '0.72rem', marginTop: '-1rem', marginBottom: '1.25rem', fontWeight: '600', lineHeight: '1.3', textAlign: 'left', gridColumn: 'span 2' }}>
+                  {showEmailStatus ? (isEmailValid ? 'Valid college email' : 'Please register using your official college email (@sece.ac.in).') : 'Use your official Sri Eshwar College email.'}
                 </div>
 
                 {/* Roll No */}
@@ -498,9 +498,9 @@ const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
                       )}
                     </span>
                   )}
-                  <div style={{ color: showEmailStatus ? (isEmailValid ? '#22c55e' : '#ef4444') : '#64748b', fontSize: '0.78rem', marginTop: '0.25rem', fontWeight: '500', textAlign: 'left' }}>
-                    {showEmailStatus ? (isEmailValid ? 'Valid college email' : 'Only official Sri Eshwar College email addresses (@sece.ac.in) are allowed.') : 'Use your official Sri Eshwar College email.'}
-                  </div>
+                </div>
+                <div style={{ color: showEmailStatus ? (isEmailValid ? '#22c55e' : '#ef4444') : '#64748b', fontSize: '0.78rem', marginTop: '-1rem', marginBottom: '1.25rem', fontWeight: '600', textAlign: 'left', lineHeight: '1.3' }}>
+                  {showEmailStatus ? (isEmailValid ? 'Valid college email' : 'Only official Sri Eshwar College email addresses (@sece.ac.in) are allowed.') : 'Use your official Sri Eshwar College email.'}
                 </div>
 
                 {/* Password field */}
