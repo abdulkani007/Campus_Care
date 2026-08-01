@@ -3379,6 +3379,17 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                                     </svg>
                                   </button>
                                   <button
+                                    title="Message Warden"
+                                    onClick={() => {
+                                      setSelectedWardenChat(w);
+                                    }}
+                                    style={{ padding: '0.45rem', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', color: '#16a34a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                                  >
+                                    <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                                    </svg>
+                                  </button>
+                                  <button
                                     title="Edit Warden"
                                     onClick={() => {
                                       setSelectedWarden(w);
@@ -3413,11 +3424,15 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                                           },
                                           body: JSON.stringify({ status: nextStatus })
                                         });
-                                        const data = await res.json();
+                                        let data = {};
+                                        const contentType = res.headers.get('content-type');
+                                        if (contentType && contentType.includes('application/json')) {
+                                          data = await res.json();
+                                        }
                                         if (res.ok) {
                                           refreshWardens();
                                         } else {
-                                          alert(data.error || 'Failed to update warden status.');
+                                          alert(data.error || `Failed to update status (Status: ${res.status}).`);
                                         }
                                       } catch (err) {
                                         console.error(err);
@@ -3432,9 +3447,9 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                                     </svg>
                                   </button>
                                   <button
-                                    title="Delete Warden (Soft Delete)"
+                                    title="Delete Warden (Hard Delete)"
                                     onClick={async () => {
-                                      if (window.confirm(`Are you sure you want to delete ${w.name}? Previous complaints will remain linked.`)) {
+                                      if (window.confirm(`Are you sure you want to permanently delete ${w.name} from the database? Previous complaints will remain assigned.`)) {
                                         try {
                                           const res = await fetch(`/api/admin/wardens/${w._id}`, {
                                             method: 'DELETE',
@@ -3443,11 +3458,15 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                                               'x-user-role': user?.role || 'headwarden'
                                             }
                                           });
+                                          let data = {};
+                                          const contentType = res.headers.get('content-type');
+                                          if (contentType && contentType.includes('application/json')) {
+                                            data = await res.json();
+                                          }
                                           if (res.ok) {
                                             refreshWardens();
                                           } else {
-                                            const data = await res.json();
-                                            alert(data.error || 'Failed to delete warden.');
+                                            alert(data.error || `Failed to delete warden (Status: ${res.status}).`);
                                           }
                                         } catch (err) {
                                           console.error(err);

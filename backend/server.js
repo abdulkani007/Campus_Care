@@ -1673,7 +1673,7 @@ app.get('/api/students', async (req, res) => {
 // 8. WARDENS LIST API (With Assigned Blocks)
 app.get('/api/wardens', async (req, res) => {
   try {
-    const wardens = await Warden.find({ deleted: { $ne: true } });
+    const wardens = await Warden.find({});
     const assignments = await BlockAssignment.find({});
     
     const wardensWithAssignments = wardens.map(w => {
@@ -1773,6 +1773,56 @@ app.post('/api/admin/wardens', isAdmin, async (req, res) => {
   }
 });
 
+// Toggle Status Warden (Admin access)
+app.put('/api/admin/wardens/:id/status', isAdmin, async (req, res) => {
+  const wardenId = req.params.id;
+  const { status } = req.body;
+
+  if (!status || !['Active', 'Inactive'].includes(status)) {
+    return res.status(400).json({ error: 'Status must be Active or Inactive' });
+  }
+
+  try {
+    const warden = await Warden.findById(wardenId);
+    if (!warden) {
+      return res.status(404).json({ error: 'Warden not found.' });
+    }
+
+    if (status === 'Active') {
+      const activeWardenForBlock = await Warden.findOne({ 
+        _id: { $ne: wardenId },
+        block: warden.block, 
+        status: 'Active'
+      });
+      if (activeWardenForBlock) {
+        return res.status(400).json({ error: 'This hostel block already has an active warden.' });
+      }
+
+      let blocksArr = [];
+      if (warden.block === 'ABC Block') blocksArr = ['A', 'B', 'C'];
+      else if (warden.block === 'D Block') blocksArr = ['D'];
+      else if (warden.block === 'E Block') blocksArr = ['E'];
+      else if (warden.block === 'F Block') blocksArr = ['F'];
+
+      await BlockAssignment.findOneAndUpdate(
+        { wardenEmail: warden.email },
+        { wardenEmail: warden.email, wardenName: warden.name, blocks: blocksArr, role: 'warden' },
+        { upsert: true, new: true }
+      );
+    } else {
+      await BlockAssignment.deleteOne({ wardenEmail: warden.email });
+    }
+
+    warden.status = status;
+    await warden.save();
+
+    res.json({ success: true, status: warden.status });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update warden status.' });
+  }
+});
+
 // Update Warden (Admin access)
 app.put('/api/admin/wardens/:id', isAdmin, async (req, res) => {
   const { name, phoneNo, email, block, password, status } = req.body;
@@ -1794,19 +1844,19 @@ app.put('/api/admin/wardens/:id', isAdmin, async (req, res) => {
 
   try {
     const warden = await Warden.findById(wardenId);
-    if (!warden || warden.deleted === true) {
+    if (!warden) {
       return res.status(404).json({ error: 'Warden not found.' });
     }
 
     if (cleanEmail !== warden.email) {
-      const existingEmail = await Warden.findOne({ email: cleanEmail, deleted: { $ne: true } });
+      const existingEmail = await Warden.findOne({ email: cleanEmail });
       if (existingEmail) {
         return res.status(400).json({ error: 'This official email ID is already registered.' });
       }
     }
 
     if (phoneNo !== warden.phoneNo) {
-      const existingPhone = await Warden.findOne({ phoneNo, deleted: { $ne: true } });
+      const existingPhone = await Warden.findOne({ phoneNo });
       if (existingPhone) {
         return res.status(400).json({ error: 'This phone number is already registered.' });
       }
@@ -1817,8 +1867,7 @@ app.put('/api/admin/wardens/:id', isAdmin, async (req, res) => {
       const activeWardenForBlock = await Warden.findOne({ 
         _id: { $ne: wardenId },
         block, 
-        status: 'Active', 
-        deleted: { $ne: true } 
+        status: 'Active'
       });
       if (activeWardenForBlock) {
         return res.status(400).json({ error: 'This hostel block already has an active warden.' });
@@ -1860,77 +1909,22 @@ app.put('/api/admin/wardens/:id', isAdmin, async (req, res) => {
   }
 });
 
-// Soft Delete Warden (Admin access)
+// Delete Warden (Admin access - Hard Delete)
 app.delete('/api/admin/wardens/:id', isAdmin, async (req, res) => {
   const wardenId = req.params.id;
 
   try {
-    const warden = await Warden.findById(wardenId);
+    const warden = await Warden.findByIdAndDelete(wardenId);
     if (!warden) {
       return res.status(404).json({ error: 'Warden not found.' });
     }
 
-    warden.deleted = true;
-    warden.status = 'Inactive';
-    await warden.save();
-
     await BlockAssignment.deleteOne({ wardenEmail: warden.email });
 
-    res.json({ success: true, message: 'Warden soft-deleted successfully.' });
+    res.json({ success: true, message: 'Warden deleted from database successfully.' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to delete warden.' });
-  }
-});
-
-// Toggle Status Warden (Admin access)
-app.put('/api/admin/wardens/:id/status', isAdmin, async (req, res) => {
-  const wardenId = req.params.id;
-  const { status } = req.body;
-
-  if (!status || !['Active', 'Inactive'].includes(status)) {
-    return res.status(400).json({ error: 'Status must be Active or Inactive' });
-  }
-
-  try {
-    const warden = await Warden.findById(wardenId);
-    if (!warden || warden.deleted === true) {
-      return res.status(404).json({ error: 'Warden not found.' });
-    }
-
-    if (status === 'Active') {
-      const activeWardenForBlock = await Warden.findOne({ 
-        _id: { $ne: wardenId },
-        block: warden.block, 
-        status: 'Active', 
-        deleted: { $ne: true } 
-      });
-      if (activeWardenForBlock) {
-        return res.status(400).json({ error: 'This hostel block already has an active warden.' });
-      }
-
-      let blocksArr = [];
-      if (warden.block === 'ABC Block') blocksArr = ['A', 'B', 'C'];
-      else if (warden.block === 'D Block') blocksArr = ['D'];
-      else if (warden.block === 'E Block') blocksArr = ['E'];
-      else if (warden.block === 'F Block') blocksArr = ['F'];
-
-      await BlockAssignment.findOneAndUpdate(
-        { wardenEmail: warden.email },
-        { wardenEmail: warden.email, wardenName: warden.name, blocks: blocksArr, role: 'warden' },
-        { upsert: true, new: true }
-      );
-    } else {
-      await BlockAssignment.deleteOne({ wardenEmail: warden.email });
-    }
-
-    warden.status = status;
-    await warden.save();
-
-    res.json({ success: true, status: warden.status });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to update warden status.' });
   }
 });
 
