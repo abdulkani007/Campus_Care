@@ -34,8 +34,8 @@ const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const trimmedEmail = email.trim().toLowerCase();
-  const isEmailValid = trimmedEmail.endsWith('@sece.ac.in');
-  const showEmailStatus = email.length > 0;
+  const isEmailValid = role === 'student' ? trimmedEmail.endsWith('@sece.ac.in') : true;
+  const showEmailStatus = role === 'student' && email.length > 0;
 
   const slides = [h1, h2, h3, h4, h5, h6, h7, h8];
 
@@ -56,9 +56,9 @@ const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
     e.preventDefault();
     
     const cleanEmail = email.trim().toLowerCase();
-    const isEmailValid = cleanEmail.endsWith('@sece.ac.in');
+    const isEmailValid = role === 'student' ? cleanEmail.endsWith('@sece.ac.in') : true;
 
-    if (!isEmailValid) {
+    if (role === 'student' && !isEmailValid) {
       if (isSignupMode) {
         alert("Please register using your official college email (@sece.ac.in).");
       } else {
@@ -468,7 +468,7 @@ const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="abdulkani.b2024it@sece.ac.in"
+                    placeholder={role === 'student' ? 'abdulkani.b2024it@sece.ac.in' : 'Official Mail ID'}
                     required
                     className={`login-input ${showEmailStatus ? (isEmailValid ? 'valid' : 'invalid') : ''}`}
                     style={{ paddingRight: showEmailStatus ? '2.5rem' : '1rem' }}
@@ -499,9 +499,11 @@ const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
                     </span>
                   )}
                 </div>
-                <div style={{ color: showEmailStatus ? (isEmailValid ? '#22c55e' : '#ef4444') : '#64748b', fontSize: '0.78rem', marginTop: '-1rem', marginBottom: '1.25rem', fontWeight: '600', textAlign: 'left', lineHeight: '1.3' }}>
-                  {showEmailStatus ? (isEmailValid ? 'Valid college email' : 'Only official Sri Eshwar College email addresses (@sece.ac.in) are allowed.') : 'Use your official Sri Eshwar College email.'}
-                </div>
+                {role === 'student' && (
+                  <div style={{ color: showEmailStatus ? (isEmailValid ? '#22c55e' : '#ef4444') : '#64748b', fontSize: '0.78rem', marginTop: '-1rem', marginBottom: '1.25rem', fontWeight: '600', textAlign: 'left', lineHeight: '1.3' }}>
+                    {showEmailStatus ? (isEmailValid ? 'Valid college email' : 'Only official Sri Eshwar College email addresses (@sece.ac.in) are allowed.') : 'Use your official Sri Eshwar College email.'}
+                  </div>
+                )}
 
                 {/* Password field */}
                 <div className="input-wrapper">

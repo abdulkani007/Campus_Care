@@ -597,7 +597,7 @@ app.post('/api/signup', async (req, res) => {
 app.post('/api/login', async (req, res) => {
   const { email, password, role } = req.body;
 
-  if (!email || !email.trim().toLowerCase().endsWith('@sece.ac.in')) {
+  if (role === 'student' && (!email || !email.trim().toLowerCase().endsWith('@sece.ac.in'))) {
     return res.status(400).json({
       success: false,
       message: "Only official Sri Eshwar College email addresses (@sece.ac.in) are allowed."
