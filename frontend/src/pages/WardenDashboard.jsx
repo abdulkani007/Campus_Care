@@ -203,6 +203,34 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [wardenMsgText, setWardenMsgText] = useState('');
   const [searchWardenQuery, setSearchWardenQuery] = useState('');
 
+  // Warden CRUD states
+  const [filterBlock, setFilterBlock] = useState('All');
+  const [isAddWardenOpen, setIsAddWardenOpen] = useState(false);
+  const [isEditWardenOpen, setIsEditWardenOpen] = useState(false);
+  const [isViewWardenOpen, setIsViewWardenOpen] = useState(false);
+  const [selectedWarden, setSelectedWarden] = useState(null);
+
+  // Form states
+  const [wardenFormName, setWardenFormName] = useState('');
+  const [wardenFormPhone, setWardenFormPhone] = useState('');
+  const [wardenFormEmail, setWardenFormEmail] = useState('');
+  const [wardenFormBlock, setWardenFormBlock] = useState('ABC Block');
+  const [wardenFormPassword, setWardenFormPassword] = useState('');
+  const [wardenFormConfirmPassword, setWardenFormConfirmPassword] = useState('');
+  const [wardenFormStatus, setWardenFormStatus] = useState('Active');
+  const [formError, setFormError] = useState('');
+
+  const refreshWardens = async () => {
+    try {
+      const res = await fetch('/api/wardens');
+      if (res.ok) {
+        setWardensList(await res.json());
+      }
+    } catch (err) {
+      console.error('Error refreshing wardens:', err);
+    }
+  };
+
   const socketCtx = useSocket();
   const socket = socketCtx?.socket;
   const sendRealtimeMessage = socketCtx?.sendRealtimeMessage;
@@ -658,6 +686,106 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
     } catch (err) {
       console.error(err);
       alert('Network error saving worker.');
+    }
+  };
+
+  const handleAddWarden = async (e) => {
+    e.preventDefault();
+    setFormError('');
+
+    if (!wardenFormName || !wardenFormPhone || !wardenFormEmail || !wardenFormBlock || !wardenFormPassword) {
+      setFormError('All asterisked (*) fields are required.');
+      return;
+    }
+
+    if (wardenFormPhone.length !== 10) {
+      setFormError('Phone number must be exactly 10 digits.');
+      return;
+    }
+
+    if (wardenFormPassword.length < 8) {
+      setFormError('Password must be at least 8 characters long.');
+      return;
+    }
+
+    if (wardenFormPassword !== wardenFormConfirmPassword) {
+      setFormError('Passwords do not match.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/admin/wardens', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: wardenFormName,
+          phoneNo: wardenFormPhone,
+          email: wardenFormEmail,
+          block: wardenFormBlock,
+          password: wardenFormPassword,
+          status: wardenFormStatus
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setIsAddWardenOpen(false);
+        refreshWardens();
+      } else {
+        setFormError(data.error || 'Failed to create warden.');
+      }
+    } catch (err) {
+      console.error(err);
+      setFormError('Network error creating warden.');
+    }
+  };
+
+  const handleEditWarden = async (e) => {
+    e.preventDefault();
+    setFormError('');
+
+    if (!wardenFormName || !wardenFormPhone || !wardenFormEmail || !wardenFormBlock) {
+      setFormError('Name, Phone, Email, and Block are required.');
+      return;
+    }
+
+    if (wardenFormPhone.length !== 10) {
+      setFormError('Phone number must be exactly 10 digits.');
+      return;
+    }
+
+    if (wardenFormPassword && wardenFormPassword.length < 8) {
+      setFormError('Password must be at least 8 characters long.');
+      return;
+    }
+
+    if (wardenFormPassword && wardenFormPassword !== wardenFormConfirmPassword) {
+      setFormError('Passwords do not match.');
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/wardens/${selectedWarden._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: wardenFormName,
+          phoneNo: wardenFormPhone,
+          email: wardenFormEmail,
+          block: wardenFormBlock,
+          password: wardenFormPassword || undefined,
+          status: wardenFormStatus
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setIsEditWardenOpen(false);
+        refreshWardens();
+      } else {
+        setFormError(data.error || 'Failed to update warden.');
+      }
+    } catch (err) {
+      console.error(err);
+      setFormError('Network error updating warden.');
     }
   };
 
@@ -1391,7 +1519,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 </svg>
               )},
               ...( (user?.role === 'headwarden' || profile?.role === 'headwarden') ? [
-                { name: 'Wardens', icon: (
+                { name: 'Warden Management', icon: (
                   <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
@@ -3057,145 +3185,279 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
           )}
 
           {/* TAB: WARDENS MANAGEMENT (HEAD WARDEN ONLY) */}
-          {activeTab === 'Wardens' && (
+          {activeTab === 'Warden Management' && (
             <div className="tab-focused-view" style={{ width: '100%' }}>
-              <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', width: '100%' }}>
+              
+              {/* Header section with Add Button */}
+              <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', width: '100%', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
-                  <h2>Wardens Management & Communication</h2>
-                  <p style={{ color: '#64748b' }}>Oversee all block wardens across hostel blocks, view contact details & message directly</p>
+                  <h2 style={{ fontSize: '1.6rem', color: '#0f172a', fontWeight: 800, margin: 0 }}>Warden Management</h2>
+                  <p style={{ color: '#64748b', fontSize: '0.9rem', margin: '4px 0 0 0' }}>Add, edit, deactivate, and monitor wardens assigned to each hostel block.</p>
                 </div>
-                <div style={{ maxWidth: '320px', width: '100%' }}>
+                <button
+                  onClick={() => {
+                    setWardenFormName('');
+                    setWardenFormPhone('');
+                    setWardenFormEmail('');
+                    setWardenFormBlock('ABC Block');
+                    setWardenFormPassword('');
+                    setWardenFormConfirmPassword('');
+                    setWardenFormStatus('Active');
+                    setFormError('');
+                    setIsAddWardenOpen(true);
+                  }}
+                  style={{
+                    backgroundColor: '#1e5bbf',
+                    color: '#ffffff',
+                    padding: '0.75rem 1.5rem',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontSize: '0.9rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    boxShadow: '0 4px 14px rgba(30, 91, 191, 0.25)',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  Add Warden
+                </button>
+              </div>
+
+              {/* Controls bar: Search + Filter */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', width: '100%', flexWrap: 'wrap', gap: '1rem', backgroundColor: '#ffffff', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div style={{ position: 'relative', maxWidth: '360px', width: '100%' }}>
+                  <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', display: 'flex', alignItems: 'center' }}>
+                    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                  </span>
                   <input 
                     type="text" 
-                    className="standard-input-field" 
-                    placeholder="Search wardens by name, block, phone..." 
+                    placeholder="Search wardens by name, email, phone..." 
                     value={searchWardenQuery} 
                     onChange={(e) => setSearchWardenQuery(e.target.value)} 
-                    style={{ width: '100%', padding: '0.65rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                    style={{ width: '100%', padding: '0.65rem 1rem 0.65rem 2.5rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', transition: 'border-color 0.2s' }}
                   />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{ color: '#475569', fontSize: '0.9rem', fontWeight: 600 }}>Filter by Block:</span>
+                  <select
+                    value={filterBlock}
+                    onChange={(e) => setFilterBlock(e.target.value)}
+                    style={{ padding: '0.65rem 1.5rem 0.65rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, cursor: 'pointer' }}
+                  >
+                    <option value="All">All Blocks</option>
+                    <option value="ABC Block">ABC Block</option>
+                    <option value="D Block">D Block</option>
+                    <option value="E Block">E Block</option>
+                    <option value="F Block">F Block</option>
+                  </select>
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem', width: '100%' }}>
-                {wardensList.filter(w => {
-                  const q = searchWardenQuery.toLowerCase();
-                  const blocksStr = Array.isArray(w.blocks) ? w.blocks.join(' ') : (w.block || '');
-                  return (
-                    (w.name || '').toLowerCase().includes(q) ||
-                    (w.email || '').toLowerCase().includes(q) ||
-                    (w.phoneNo || '').toLowerCase().includes(q) ||
-                    blocksStr.toLowerCase().includes(q)
-                  );
-                }).length === 0 ? (
-                  <div style={{ color: '#64748b', textAlign: 'center', padding: '3rem 0', gridColumn: '1 / -1', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                    No block wardens found.
-                  </div>
-                ) : (
-                  wardensList.filter(w => {
-                    const q = searchWardenQuery.toLowerCase();
-                    const blocksStr = Array.isArray(w.blocks) ? w.blocks.join(' ') : (w.block || '');
-                    return (
-                      (w.name || '').toLowerCase().includes(q) ||
-                      (w.email || '').toLowerCase().includes(q) ||
-                      (w.phoneNo || '').toLowerCase().includes(q) ||
-                      blocksStr.toLowerCase().includes(q)
-                    );
-                  }).map(w => (
-                    <div 
-                      key={w._id || w.email} 
-                      style={{ 
-                        padding: '1.5rem', 
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                        backdropFilter: 'blur(12px)',
-                        borderRadius: '16px', 
-                        border: '1px solid rgba(226, 232, 240, 0.9)', 
-                        borderTop: w.role === 'headwarden' ? '3px solid #f59e0b' : '3px solid #2563eb',
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        justify: 'space-between', 
-                        boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.06), 0 4px 6px -2px rgba(15, 23, 42, 0.02)',
-                        transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-                      }}
-                    >
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                          {w.profilePhoto ? (
-                            <img src={w.profilePhoto} alt="warden" style={{ width: '54px', height: '54px', borderRadius: '50%', objectFit: 'cover', border: w.role === 'headwarden' ? '2.5px solid #f59e0b' : '2.5px solid #2563eb' }} />
-                          ) : (
-                            <div style={{ width: '54px', height: '54px', borderRadius: '50%', backgroundColor: '#0f172a', color: w.role === 'headwarden' ? '#fbbf24' : '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem', border: w.role === 'headwarden' ? '2px solid #f59e0b' : '2px solid #2563eb', boxShadow: '0 4px 10px rgba(15, 23, 42, 0.2)' }}>
-                              {w.name?.split(' ').map(n=>n[0]).join('') || 'W'}
-                            </div>
-                          )}
-                          <div>
-                            <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#0f172a', fontWeight: 800 }}>{w.name}</h3>
-                            <span style={{ 
-                              fontSize: '0.75rem', 
-                              padding: '0.25rem 0.65rem', 
-                              backgroundColor: w.role === 'headwarden' ? '#fffbeb' : '#eff6ff', 
-                              border: w.role === 'headwarden' ? '1px solid #fde68a' : '1px solid #bfdbfe', 
-                              borderRadius: '6px', 
-                              color: w.role === 'headwarden' ? '#b45309' : '#1d4ed8', 
-                              fontWeight: 700, 
-                              display: 'inline-block', 
-                              marginTop: '4px' 
-                            }}>
-                              {w.role === 'headwarden' ? '⭐ Head Warden (Overall)' : '🛡️ Block Warden'}
-                            </span>
-                          </div>
-                        </div>
+              {/* Data Table */}
+              <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e4ecf8', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)', overflow: 'hidden', width: '100%' }}>
+                <div style={{ overflowX: 'auto', width: '100%' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ padding: '1rem 1.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Profile</th>
+                        <th style={{ padding: '1rem 1.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Warden Name</th>
+                        <th style={{ padding: '1rem 1.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Assigned Block</th>
+                        <th style={{ padding: '1rem 1.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Official Email</th>
+                        <th style={{ padding: '1rem 1.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Phone Number</th>
+                        <th style={{ padding: '1rem 1.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
+                        <th style={{ padding: '1rem 1.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Created Date</th>
+                        <th style={{ padding: '1rem 1.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {wardensList.filter(w => {
+                        if (w.role === 'headwarden') return false;
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.88rem', color: '#0f172a', backgroundColor: 'rgba(248, 250, 252, 0.95)', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                          <div>
-                            <strong style={{ color: '#475569' }}>Assigned Blocks:</strong>{' '}
-                            <span style={{ color: '#2563eb', fontWeight: 700 }}>
-                              {Array.isArray(w.blocks) ? w.blocks.join(', ') : (w.block || 'A, B, C, D, E, F')}
-                            </span>
-                          </div>
-                          <div>
-                            <strong style={{ color: '#475569' }}>Phone Number:</strong>{' '}
-                            <span style={{ color: '#0f172a', fontWeight: 700 }}>{w.phoneNo || 'N/A'}</span>
-                          </div>
-                          <div>
-                            <strong style={{ color: '#475569' }}>Email:</strong>{' '}
-                            <span style={{ color: '#0f172a', fontWeight: 600 }}>{w.email}</span>
-                          </div>
-                          <div>
-                            <strong style={{ color: '#475569' }}>Office / Room:</strong>{' '}
-                            <span style={{ color: '#0f172a', fontWeight: 600 }}>{w.roomNo || 'N/A'}</span>
-                          </div>
-                        </div>
-                      </div>
+                        const q = searchWardenQuery.toLowerCase();
+                        const matchesSearch = (w.name || '').toLowerCase().includes(q) ||
+                          (w.email || '').toLowerCase().includes(q) ||
+                          (w.phoneNo || '').toLowerCase().includes(q);
 
-                      <button
-                        onClick={() => setSelectedWardenChat(w)}
-                        style={{
-                          marginTop: '1.25rem',
-                          width: '100%',
-                          padding: '0.75rem',
-                          backgroundColor: '#0f172a',
-                          color: '#ffffff',
-                          border: '1px solid rgba(245, 158, 11, 0.3)',
-                          borderRadius: '10px',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '0.5rem',
-                          fontSize: '0.9rem',
-                          boxShadow: '0 4px 14px rgba(15, 23, 42, 0.18)',
-                          transition: 'all 0.2s ease'
-                        }}
-                      >
-                        <svg width="17" height="17" fill="none" stroke="#fbbf24" strokeWidth="2.2" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                        </svg>
-                        Message Warden
-                      </button>
-                    </div>
-                  ))
-                )}
+                        const matchesFilter = filterBlock === 'All' || w.block === filterBlock;
+                        return matchesSearch && matchesFilter;
+                      }).length === 0 ? (
+                        <tr>
+                          <td colSpan="8" style={{ padding: '3rem', textAlign: 'center', color: '#64748b', fontSize: '0.95rem' }}>
+                            No block wardens found matching filters.
+                          </td>
+                        </tr>
+                      ) : (
+                        wardensList.filter(w => {
+                          if (w.role === 'headwarden') return false;
+                          const q = searchWardenQuery.toLowerCase();
+                          const matchesSearch = (w.name || '').toLowerCase().includes(q) ||
+                            (w.email || '').toLowerCase().includes(q) ||
+                            (w.phoneNo || '').toLowerCase().includes(q);
+                          const matchesFilter = filterBlock === 'All' || w.block === filterBlock;
+                          return matchesSearch && matchesFilter;
+                        }).map(w => {
+                          const statusActive = w.status === 'Active';
+                          const createdDateStr = w.createdAt ? new Date(w.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'Predefined';
+                          
+                          return (
+                            <tr key={w._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              
+                              <td style={{ padding: '1rem 1.5rem' }}>
+                                {w.profilePhoto ? (
+                                  <img src={w.profilePhoto} alt={w.name} style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #1e5bbf' }} />
+                                ) : (
+                                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#eff6ff', color: '#1e5bbf', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.9rem', border: '1.5px solid #bfdbfe' }}>
+                                    {w.name?.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase() || 'W'}
+                                  </div>
+                                )}
+                              </td>
+
+                              <td style={{ padding: '1rem 1.5rem', fontWeight: 650, color: '#0f172a' }}>{w.name}</td>
+
+                              <td style={{ padding: '1rem 1.5rem' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.25rem 0.65rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700, backgroundColor: '#f0f4fc', color: '#1e5bbf', border: '1px solid #d4e2f8' }}>
+                                  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                  </svg>
+                                  {w.block}
+                                </span>
+                              </td>
+
+                              <td style={{ padding: '1rem 1.5rem', color: '#475569', fontSize: '0.9rem' }}>{w.email}</td>
+
+                              <td style={{ padding: '1rem 1.5rem', color: '#475569', fontSize: '0.9rem', fontWeight: 500 }}>{w.phoneNo}</td>
+
+                              <td style={{ padding: '1rem 1.5rem' }}>
+                                <span style={{
+                                  display: 'inline-block',
+                                  padding: '0.25rem 0.65rem',
+                                  borderRadius: '9999px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700,
+                                  backgroundColor: statusActive ? '#f0fdf4' : '#fef2f2',
+                                  color: statusActive ? '#16a34a' : '#dc2626',
+                                  border: statusActive ? '1px solid #bbf7d0' : '1px solid #fecaca'
+                                }}>
+                                  {w.status || 'Active'}
+                                </span>
+                              </td>
+
+                              <td style={{ padding: '1rem 1.5rem', color: '#64748b', fontSize: '0.85rem' }}>{createdDateStr}</td>
+
+                              <td style={{ padding: '1rem 1.5rem', textAlign: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                                  <button
+                                    title="View Details"
+                                    onClick={() => {
+                                      setSelectedWarden(w);
+                                      setIsViewWardenOpen(true);
+                                    }}
+                                    style={{ padding: '0.45rem', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', color: '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                                  >
+                                    <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                      <circle cx="12" cy="12" r="3" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    title="Edit Warden"
+                                    onClick={() => {
+                                      setSelectedWarden(w);
+                                      setWardenFormName(w.name);
+                                      setWardenFormPhone(w.phoneNo);
+                                      setWardenFormEmail(w.email);
+                                      setWardenFormBlock(w.block);
+                                      setWardenFormPassword('');
+                                      setWardenFormConfirmPassword('');
+                                      setWardenFormStatus(w.status || 'Active');
+                                      setFormError('');
+                                      setIsEditWardenOpen(true);
+                                    }}
+                                    style={{ padding: '0.45rem', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', color: '#1e5bbf', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                                  >
+                                    <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                                      <path d="M12 20h9" />
+                                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    title={statusActive ? "Deactivate Warden" : "Activate Warden"}
+                                    onClick={async () => {
+                                      const nextStatus = statusActive ? 'Inactive' : 'Active';
+                                      try {
+                                        const res = await fetch(`/api/admin/wardens/${w._id}/status`, {
+                                          method: 'PUT',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ status: nextStatus })
+                                        });
+                                        const data = await res.json();
+                                        if (res.ok) {
+                                          refreshWardens();
+                                        } else {
+                                          alert(data.error || 'Failed to update warden status.');
+                                        }
+                                      } catch (err) {
+                                        console.error(err);
+                                        alert('Network error updating warden status.');
+                                      }
+                                    }}
+                                    style={{ padding: '0.45rem', backgroundColor: statusActive ? '#fff1f2' : '#f0fdf4', border: '1px solid ' + (statusActive ? '#fecaca' : '#bbf7d0'), borderRadius: '6px', color: statusActive ? '#dc2626' : '#16a34a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                                  >
+                                    <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                                      <rect x="2" y="6" width="20" height="12" rx="6" ry="6" />
+                                      <circle cx={statusActive ? "16" : "8"} cy="12" r="3" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    title="Delete Warden (Soft Delete)"
+                                    onClick={async () => {
+                                      if (window.confirm(`Are you sure you want to delete ${w.name}? Previous complaints will remain linked.`)) {
+                                        try {
+                                          const res = await fetch(`/api/admin/wardens/${w._id}`, {
+                                            method: 'DELETE'
+                                          });
+                                          if (res.ok) {
+                                            refreshWardens();
+                                          } else {
+                                            const data = await res.json();
+                                            alert(data.error || 'Failed to delete warden.');
+                                          }
+                                        } catch (err) {
+                                          console.error(err);
+                                          alert('Network error deleting warden.');
+                                        }
+                                      }
+                                    }}
+                                    style={{ padding: '0.45rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                                  >
+                                    <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                                      <polyline points="3 6 5 6 21 6" />
+                                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </td>
+
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
+
             </div>
           )}
 
@@ -4643,6 +4905,313 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 Send
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ADD WARDEN */}
+      {isAddWardenOpen && (
+        <div className="modal-backdrop">
+          <div className="modal-content-card" style={{ maxWidth: '540px' }}>
+            <div className="modal-header">
+              <h3>Add New Block Warden</h3>
+              <button className="close-modal-btn" onClick={() => setIsAddWardenOpen(false)}>×</button>
+            </div>
+
+            <form onSubmit={handleAddWarden} className="modal-form-body">
+              {formError && (
+                <div style={{ padding: '0.75rem', marginBottom: '1rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 600 }}>
+                  {formError}
+                </div>
+              )}
+
+              {/* Full Name */}
+              <div className="form-group">
+                <label style={{ fontWeight: 600, color: '#334155' }}>Full Name *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Ananth Kumar"
+                  required
+                  value={wardenFormName}
+                  onChange={(e) => setWardenFormName(e.target.value)}
+                  className="modal-input-field"
+                />
+              </div>
+
+              {/* Email & Phone */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label style={{ fontWeight: 600, color: '#334155' }}>Official Email ID *</label>
+                  <input
+                    type="email"
+                    placeholder="e.g. abcwarden@campuscare.com"
+                    required
+                    value={wardenFormEmail}
+                    onChange={(e) => setWardenFormEmail(e.target.value)}
+                    className="modal-input-field"
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ fontWeight: 600, color: '#334155' }}>Phone Number *</label>
+                  <input
+                    type="text"
+                    maxLength={10}
+                    placeholder="e.g. 9876543210"
+                    required
+                    value={wardenFormPhone}
+                    onChange={(e) => setWardenFormPhone(e.target.value.replace(/\D/g, ''))}
+                    className="modal-input-field"
+                  />
+                </div>
+              </div>
+
+              {/* Assigned Block & Status */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label style={{ fontWeight: 600, color: '#334155' }}>Assigned Hostel Block *</label>
+                  <select
+                    value={wardenFormBlock}
+                    onChange={(e) => setWardenFormBlock(e.target.value)}
+                    className="modal-input-field"
+                    style={{ height: '42px', padding: '0 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                  >
+                    <option value="ABC Block">ABC Block</option>
+                    <option value="D Block">D Block</option>
+                    <option value="E Block">E Block</option>
+                    <option value="F Block">F Block</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label style={{ fontWeight: 600, color: '#334155' }}>Status</label>
+                  <select
+                    value={wardenFormStatus}
+                    onChange={(e) => setWardenFormStatus(e.target.value)}
+                    className="modal-input-field"
+                    style={{ height: '42px', padding: '0 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Password & Confirm Password */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label style={{ fontWeight: 600, color: '#334155' }}>Password *</label>
+                  <input
+                    type="password"
+                    placeholder="Minimum 8 characters"
+                    required
+                    value={wardenFormPassword}
+                    onChange={(e) => setWardenFormPassword(e.target.value)}
+                    className="modal-input-field"
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ fontWeight: 600, color: '#334155' }}>Confirm Password *</label>
+                  <input
+                    type="password"
+                    placeholder="Must match password"
+                    required
+                    value={wardenFormConfirmPassword}
+                    onChange={(e) => setWardenFormConfirmPassword(e.target.value)}
+                    className="modal-input-field"
+                  />
+                </div>
+              </div>
+
+              <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+                <button type="button" className="cancel-btn" onClick={() => setIsAddWardenOpen(false)}>Cancel</button>
+                <button type="submit" className="save-btn" style={{ backgroundColor: '#1e5bbf', color: '#ffffff' }}>Add Warden</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDIT WARDEN */}
+      {isEditWardenOpen && (
+        <div className="modal-backdrop">
+          <div className="modal-content-card" style={{ maxWidth: '540px' }}>
+            <div className="modal-header">
+              <h3>Edit Block Warden Details</h3>
+              <button className="close-modal-btn" onClick={() => setIsEditWardenOpen(false)}>×</button>
+            </div>
+
+            <form onSubmit={handleEditWarden} className="modal-form-body">
+              {formError && (
+                <div style={{ padding: '0.75rem', marginBottom: '1rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 600 }}>
+                  {formError}
+                </div>
+              )}
+
+              {/* Full Name */}
+              <div className="form-group">
+                <label style={{ fontWeight: 600, color: '#334155' }}>Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={wardenFormName}
+                  onChange={(e) => setWardenFormName(e.target.value)}
+                  className="modal-input-field"
+                />
+              </div>
+
+              {/* Email & Phone */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label style={{ fontWeight: 600, color: '#334155' }}>Official Email ID *</label>
+                  <input
+                    type="email"
+                    required
+                    value={wardenFormEmail}
+                    onChange={(e) => setWardenFormEmail(e.target.value)}
+                    className="modal-input-field"
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ fontWeight: 600, color: '#334155' }}>Phone Number *</label>
+                  <input
+                    type="text"
+                    maxLength={10}
+                    required
+                    value={wardenFormPhone}
+                    onChange={(e) => setWardenFormPhone(e.target.value.replace(/\D/g, ''))}
+                    className="modal-input-field"
+                  />
+                </div>
+              </div>
+
+              {/* Assigned Block & Status */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label style={{ fontWeight: 600, color: '#334155' }}>Assigned Hostel Block *</label>
+                  <select
+                    value={wardenFormBlock}
+                    onChange={(e) => setWardenFormBlock(e.target.value)}
+                    className="modal-input-field"
+                    style={{ height: '42px', padding: '0 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                  >
+                    <option value="ABC Block">ABC Block</option>
+                    <option value="D Block">D Block</option>
+                    <option value="E Block">E Block</option>
+                    <option value="F Block">F Block</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label style={{ fontWeight: 600, color: '#334155' }}>Status</label>
+                  <select
+                    value={wardenFormStatus}
+                    onChange={(e) => setWardenFormStatus(e.target.value)}
+                    className="modal-input-field"
+                    style={{ height: '42px', padding: '0 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Optional Password Change */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label style={{ fontWeight: 600, color: '#334155' }}>Password (Optional)</label>
+                  <input
+                    type="password"
+                    placeholder="Leave blank to keep same"
+                    value={wardenFormPassword}
+                    onChange={(e) => setWardenFormPassword(e.target.value)}
+                    className="modal-input-field"
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ fontWeight: 600, color: '#334155' }}>Confirm Password</label>
+                  <input
+                    type="password"
+                    placeholder="Leave blank to keep same"
+                    value={wardenFormConfirmPassword}
+                    onChange={(e) => setWardenFormConfirmPassword(e.target.value)}
+                    className="modal-input-field"
+                  />
+                </div>
+              </div>
+
+              <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+                <button type="button" className="cancel-btn" onClick={() => setIsEditWardenOpen(false)}>Cancel</button>
+                <button type="submit" className="save-btn" style={{ backgroundColor: '#1e5bbf', color: '#ffffff' }}>Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: VIEW WARDEN */}
+      {isViewWardenOpen && selectedWarden && (
+        <div className="modal-backdrop">
+          <div className="modal-content-card" style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <h3>Warden Profile Details</h3>
+              <button className="close-modal-btn" onClick={() => setIsViewWardenOpen(false)}>×</button>
+            </div>
+
+            <div className="modal-form-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1rem 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' }}>
+                {selectedWarden.profilePhoto ? (
+                  <img src={selectedWarden.profilePhoto} alt={selectedWarden.name} style={{ width: '70px', height: '70px', borderRadius: '50%', objectFit: 'cover', border: '2.5px solid #1e5bbf' }} />
+                ) : (
+                  <div style={{ width: '70px', height: '70px', borderRadius: '50%', backgroundColor: '#eff6ff', color: '#1e5bbf', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '1.5rem', border: '2.5px solid #bfdbfe' }}>
+                    {selectedWarden.name?.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase() || 'W'}
+                  </div>
+                )}
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.3rem', color: '#0f172a', fontWeight: 800 }}>{selectedWarden.name}</h3>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Block Warden</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', fontSize: '0.92rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #f1f5f9', paddingBottom: '0.5rem' }}>
+                  <span style={{ color: '#64748b', fontWeight: 550 }}>Official Email</span>
+                  <span style={{ color: '#0f172a', fontWeight: 600 }}>{selectedWarden.email}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #f1f5f9', paddingBottom: '0.5rem' }}>
+                  <span style={{ color: '#64748b', fontWeight: 550 }}>Phone Number</span>
+                  <span style={{ color: '#0f172a', fontWeight: 600 }}>{selectedWarden.phoneNo}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #f1f5f9', paddingBottom: '0.5rem' }}>
+                  <span style={{ color: '#64748b', fontWeight: 550 }}>Assigned Block</span>
+                  <span style={{ color: '#1e5bbf', fontWeight: 700 }}>{selectedWarden.block}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #f1f5f9', paddingBottom: '0.5rem' }}>
+                  <span style={{ color: '#64748b', fontWeight: 550 }}>Warden ID</span>
+                  <span style={{ color: '#475569', fontWeight: 600 }}>{selectedWarden.rollNo || 'N/A'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #f1f5f9', paddingBottom: '0.5rem' }}>
+                  <span style={{ color: '#64748b', fontWeight: 550 }}>Office Room</span>
+                  <span style={{ color: '#475569', fontWeight: 600 }}>{selectedWarden.roomNo || 'N/A'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #f1f5f9', paddingBottom: '0.5rem' }}>
+                  <span style={{ color: '#64748b', fontWeight: 550 }}>Account Status</span>
+                  <span style={{
+                    fontWeight: 700,
+                    color: selectedWarden.status === 'Active' ? '#16a34a' : '#dc2626'
+                  }}>
+                    {selectedWarden.status || 'Active'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem' }}>
+                  <span style={{ color: '#64748b', fontWeight: 550 }}>Created Date</span>
+                  <span style={{ color: '#475569', fontWeight: 600 }}>
+                    {selectedWarden.createdAt ? new Date(selectedWarden.createdAt).toLocaleString() : 'Predefined Seed'}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.25rem' }}>
+                <button type="button" className="cancel-btn" style={{ width: '100%', padding: '0.65rem 0', borderRadius: '8px' }} onClick={() => setIsViewWardenOpen(false)}>Close View</button>
+              </div>
+            </div>
           </div>
         </div>
       )}
