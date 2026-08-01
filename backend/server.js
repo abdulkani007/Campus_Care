@@ -1691,8 +1691,19 @@ app.get('/api/wardens', async (req, res) => {
   }
 });
 
+const isAdmin = (req, res, next) => {
+  const userEmail = (req.headers['x-user-email'] || req.query.userEmail || '').toLowerCase().trim();
+  const userRole = (req.headers['x-user-role'] || req.query.userRole || '').toLowerCase().trim();
+  
+  if (userEmail === 'headwarden@campuscare.com' || userRole === 'headwarden') {
+    next();
+  } else {
+    res.status(403).json({ error: 'Unauthorized. Only the Head Warden can manage wardens.' });
+  }
+};
+
 // Create Warden (Admin access)
-app.post('/api/admin/wardens', async (req, res) => {
+app.post('/api/admin/wardens', isAdmin, async (req, res) => {
   const { name, phoneNo, email, block, password, status } = req.body;
 
   if (!name || !phoneNo || !email || !block || !password) {
@@ -1763,7 +1774,7 @@ app.post('/api/admin/wardens', async (req, res) => {
 });
 
 // Update Warden (Admin access)
-app.put('/api/admin/wardens/:id', async (req, res) => {
+app.put('/api/admin/wardens/:id', isAdmin, async (req, res) => {
   const { name, phoneNo, email, block, password, status } = req.body;
   const wardenId = req.params.id;
 
@@ -1850,7 +1861,7 @@ app.put('/api/admin/wardens/:id', async (req, res) => {
 });
 
 // Soft Delete Warden (Admin access)
-app.delete('/api/admin/wardens/:id', async (req, res) => {
+app.delete('/api/admin/wardens/:id', isAdmin, async (req, res) => {
   const wardenId = req.params.id;
 
   try {
@@ -1873,7 +1884,7 @@ app.delete('/api/admin/wardens/:id', async (req, res) => {
 });
 
 // Toggle Status Warden (Admin access)
-app.put('/api/admin/wardens/:id/status', async (req, res) => {
+app.put('/api/admin/wardens/:id/status', isAdmin, async (req, res) => {
   const wardenId = req.params.id;
   const { status } = req.body;
 

@@ -716,7 +716,11 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
     try {
       const res = await fetch('/api/admin/wardens', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-email': user?.email || profile.email,
+          'x-user-role': user?.role || 'headwarden'
+        },
         body: JSON.stringify({
           name: wardenFormName,
           phoneNo: wardenFormPhone,
@@ -766,7 +770,11 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
     try {
       const res = await fetch(`/api/admin/wardens/${selectedWarden._id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-email': user?.email || profile.email,
+          'x-user-role': user?.role || 'headwarden'
+        },
         body: JSON.stringify({
           name: wardenFormName,
           phoneNo: wardenFormPhone,
@@ -3185,7 +3193,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
           )}
 
           {/* TAB: WARDENS MANAGEMENT (HEAD WARDEN ONLY) */}
-          {activeTab === 'Warden Management' && (
+          {activeTab === 'Warden Management' && (user?.role === 'headwarden' || profile?.role === 'headwarden') && (
             <div className="tab-focused-view" style={{ width: '100%' }}>
               
               {/* Header section with Add Button */}
@@ -3398,7 +3406,11 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                                       try {
                                         const res = await fetch(`/api/admin/wardens/${w._id}/status`, {
                                           method: 'PUT',
-                                          headers: { 'Content-Type': 'application/json' },
+                                          headers: { 
+                                            'Content-Type': 'application/json',
+                                            'x-user-email': user?.email || profile.email,
+                                            'x-user-role': user?.role || 'headwarden'
+                                          },
                                           body: JSON.stringify({ status: nextStatus })
                                         });
                                         const data = await res.json();
@@ -3425,7 +3437,11 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                                       if (window.confirm(`Are you sure you want to delete ${w.name}? Previous complaints will remain linked.`)) {
                                         try {
                                           const res = await fetch(`/api/admin/wardens/${w._id}`, {
-                                            method: 'DELETE'
+                                            method: 'DELETE',
+                                            headers: {
+                                              'x-user-email': user?.email || profile.email,
+                                              'x-user-role': user?.role || 'headwarden'
+                                            }
                                           });
                                           if (res.ok) {
                                             refreshWardens();
