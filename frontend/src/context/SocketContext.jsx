@@ -11,7 +11,7 @@ export const SocketProvider = ({ user, children }) => {
 
   useEffect(() => {
     // Determine socket host url dynamically
-    const socketUrl = window.location.port === '5173' || window.location.port === '3000'
+    const socketUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
       ? 'http://localhost:5000'
       : window.location.origin;
 

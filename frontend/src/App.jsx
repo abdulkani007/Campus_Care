@@ -9,6 +9,31 @@ import WorkerDashboard from './pages/WorkerDashboard';
 import ClickSpark from './components/ClickSpark';
 import { SocketProvider } from './context/SocketContext';
 
+// Global fetch interceptor to automatically append X-Hostel-Type header
+const originalFetch = window.fetch;
+window.fetch = function (url, options) {
+  let finalOptions = options;
+  if (finalOptions === null || typeof finalOptions !== 'object') {
+    finalOptions = {};
+  }
+  const sessionStr = localStorage.getItem('campuscare_session');
+  if (sessionStr) {
+    try {
+      const session = JSON.parse(sessionStr);
+      if (session && session.hostelType) {
+        finalOptions.headers = finalOptions.headers || {};
+        // Only append if not already specified manually
+        if (!finalOptions.headers['X-Hostel-Type'] && !finalOptions.headers['x-hostel-type']) {
+          finalOptions.headers['X-Hostel-Type'] = session.hostelType;
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+  return originalFetch(url, finalOptions);
+};
+
 function App() {
   const [currentScreen, setCurrentScreen] = useState('splash');
   const [userSession, setUserSession] = useState(null);
@@ -56,28 +81,24 @@ function App() {
   };
 
   const handleUpdateSession = (updatedFields) => {
-    setUserSession(prev => {
-      const next = { ...prev, ...updatedFields };
-      localStorage.setItem('campuscare_session', JSON.stringify(next));
-      return next;
-    });
+    if (userSession) {
+      const nextSession = { ...userSession, ...updatedFields };
+      setUserSession(nextSession);
+      localStorage.setItem('campuscare_session', JSON.stringify(nextSession));
+    }
   };
 
   return (
-    <ClickSpark sparkColor="#FFC107" sparkSize={10} sparkRadius={25} sparkCount={8}>
+    <ClickSpark>
       <SocketProvider user={userSession}>
-        <div style={{ width: '100vw', minHeight: '100vh', backgroundColor: '#f4f7fc' }}>
+        <div className="App">
           {currentScreen === 'splash' && (
-            <SplashScreen 
-              onComplete={() => setCurrentScreen('landing')} 
-              onFinish={() => setCurrentScreen('landing')} 
-            />
+            <SplashScreen onComplete={() => setCurrentScreen('landing')} onFinished={() => setCurrentScreen('landing')} />
           )}
           {currentScreen === 'landing' && (
             <LandingPage 
+              onGetStarted={() => setCurrentScreen('login')} 
               onLoginClick={() => setCurrentScreen('login')} 
-              onNavigateLogin={() => setCurrentScreen('login')} 
-              user={userSession}
             />
           )}
           {currentScreen === 'login' && (

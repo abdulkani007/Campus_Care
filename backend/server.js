@@ -67,7 +67,8 @@ const StudentSchema = new mongoose.Schema({
   roomNo: { type: String, required: true },
   block: { type: String, required: true },
   password: { type: String, required: true },
-  profilePhoto: { type: String, default: null }
+  profilePhoto: { type: String, default: null },
+  hostelType: { type: String, enum: ['Boys Hostel', 'Girls Hostel'], default: 'Boys Hostel' }
 });
 const Student = mongoose.model('Student', StudentSchema);
 
@@ -82,7 +83,8 @@ const WardenSchema = new mongoose.Schema({
   role: { type: String, default: 'warden' },
   profilePhoto: { type: String, default: null },
   status: { type: String, default: 'Active' },
-  deleted: { type: Boolean, default: false }
+  deleted: { type: Boolean, default: false },
+  hostelType: { type: String, enum: ['Boys Hostel', 'Girls Hostel'], default: 'Boys Hostel' }
 });
 const Warden = mongoose.model('Warden', WardenSchema);
 
@@ -104,7 +106,8 @@ const BlockAssignmentSchema = new mongoose.Schema({
   wardenName: { type: String, required: true },
   blocks: [{ type: String, required: true }],
   role: { type: String, default: 'warden' },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  hostelType: { type: String, enum: ['Boys Hostel', 'Girls Hostel'], default: 'Boys Hostel' }
 });
 const BlockAssignment = mongoose.model('BlockAssignment', BlockAssignmentSchema);
 
@@ -134,7 +137,8 @@ const ComplaintSchema = new mongoose.Schema({
   completionDate: { type: Date, default: null },
   proof: { type: String, default: null },
   proofName: { type: String, default: null },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  hostelType: { type: String, enum: ['Boys Hostel', 'Girls Hostel'], default: 'Boys Hostel' }
 });
 const Complaint = mongoose.model('Complaint', ComplaintSchema);
 
@@ -147,7 +151,8 @@ const AnnouncementSchema = new mongoose.Schema({
   date: { type: String, required: true },
   postedBy: { type: String, default: 'Warden' },
   authorName: { type: String, default: 'Hostel Administration' },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  hostelType: { type: String, enum: ['Boys Hostel', 'Girls Hostel'], default: 'Boys Hostel' }
 });
 const Announcement = mongoose.model('Announcement', AnnouncementSchema);
 
@@ -157,7 +162,8 @@ const EventBannerSchema = new mongoose.Schema({
   date: { type: String, default: '' },
   bannerImage: { type: String, default: '' },
   active: { type: Boolean, default: true },
-  updatedAt: { type: Date, default: Date.now }
+  updatedAt: { type: Date, default: Date.now },
+  hostelType: { type: String, enum: ['Boys Hostel', 'Girls Hostel'], default: 'Boys Hostel' }
 });
 const EventBanner = mongoose.model('EventBanner', EventBannerSchema);
 
@@ -169,7 +175,8 @@ const MessageSchema = new mongoose.Schema({
   studentName: { type: String, default: 'Student' },
   studentBlock: { type: String, default: 'N/A' },
   read: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  hostelType: { type: String, enum: ['Boys Hostel', 'Girls Hostel'], default: 'Boys Hostel' }
 });
 const Message = mongoose.model('Message', MessageSchema);
 
@@ -191,7 +198,8 @@ const WorkerSchema = new mongoose.Schema({
   role: { type: String, default: 'worker' },
   avatar: { type: String },
   color: { type: String },
-  tasks: { type: Number, default: 0 }
+  tasks: { type: Number, default: 0 },
+  hostelType: { type: String, enum: ['Boys Hostel', 'Girls Hostel'], default: 'Boys Hostel' }
 });
 const Worker = mongoose.model('Worker', WorkerSchema);
 
@@ -223,7 +231,8 @@ const WorkerTaskSchema = new mongoose.Schema({
     default: 'Assigned' 
   },
   completionNotes: { type: String, default: '' },
-  proofImage: { type: String, default: '' }
+  proofImage: { type: String, default: '' },
+  hostelType: { type: String, enum: ['Boys Hostel', 'Girls Hostel'], default: 'Boys Hostel' }
 });
 const WorkerTask = mongoose.model('WorkerTask', WorkerTaskSchema);
 
@@ -235,7 +244,8 @@ const FeedbackRequestSchema = new mongoose.Schema({
   authorName: { type: String, default: 'Hostel Administration' },
   authorEmail: { type: String, default: '' },
   targetBlock: { type: String, default: 'All' },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  hostelType: { type: String, enum: ['Boys Hostel', 'Girls Hostel'], default: 'Boys Hostel' }
 });
 const FeedbackRequest = mongoose.model('FeedbackRequest', FeedbackRequestSchema);
 
@@ -246,7 +256,8 @@ const FeedbackResponseSchema = new mongoose.Schema({
   studentBlock: { type: String, default: '' },
   rating: { type: Number, required: true, min: 1, max: 5 },
   comments: { type: String, default: '' },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  hostelType: { type: String, enum: ['Boys Hostel', 'Girls Hostel'], default: 'Boys Hostel' }
 });
 const FeedbackResponse = mongoose.model('FeedbackResponse', FeedbackResponseSchema);
 
@@ -277,7 +288,8 @@ const IncidentGroupMessageSchema = new mongoose.Schema({
   senderRole: { type: String, required: true },
   senderRoomNo: { type: String }, // optional for student
   text: { type: String, required: true },
-  timestamp: { type: Date, default: Date.now }
+  timestamp: { type: Date, default: Date.now },
+  hostelType: { type: String, enum: ['Boys Hostel', 'Girls Hostel'], default: 'Boys Hostel' }
 });
 const IncidentGroupMessage = mongoose.model('IncidentGroupMessage', IncidentGroupMessageSchema);
 
@@ -288,15 +300,16 @@ const GroupInsightSchema = new mongoose.Schema({
   mostMentionedCategory: { type: String },
   lastUpdated: { type: Date, default: Date.now },
   messageCount: { type: Number, default: 0 },
-  activeStudentsCount: { type: Number, default: 0 }
+  activeStudentsCount: { type: Number, default: 0 },
+  hostelType: { type: String, enum: ['Boys Hostel', 'Girls Hostel'], default: 'Boys Hostel' }
 });
 const GroupInsight = mongoose.model('GroupInsight', GroupInsightSchema);
 
 
 // Dynamic Block Warden Assignment helper
-const getAssignedWardenForBlock = async (studentBlock) => {
+const getAssignedWardenForBlock = async (studentBlock, hostelType = 'Boys Hostel') => {
   if (!studentBlock) {
-    const headW = await BlockAssignment.findOne({ role: 'headwarden' });
+    const headW = await BlockAssignment.findOne({ role: 'headwarden', hostelType });
     return {
       wardenEmail: headW ? headW.wardenEmail : 'headwarden@campuscare.com',
       wardenName: headW ? headW.wardenName : 'Head Warden'
@@ -314,11 +327,12 @@ const getAssignedWardenForBlock = async (studentBlock) => {
   // Find block assignment in DB dynamically
   let assignment = await BlockAssignment.findOne({
     blocks: cleanBlock,
-    role: 'warden'
+    role: 'warden',
+    hostelType
   });
 
   if (!assignment) {
-    assignment = await BlockAssignment.findOne({ blocks: cleanBlock });
+    assignment = await BlockAssignment.findOne({ blocks: cleanBlock, hostelType });
   }
 
   if (assignment) {
@@ -329,9 +343,9 @@ const getAssignedWardenForBlock = async (studentBlock) => {
     };
   }
 
-  const headW = await BlockAssignment.findOne({ role: 'headwarden' });
+  const headW = await BlockAssignment.findOne({ role: 'headwarden', hostelType });
   return {
-    wardenEmail: headW ? headW.wardenEmail : 'headwarden@campuscare.com',
+    wardenEmail: headW ? headW.wardenEmail : (hostelType === 'Girls Hostel' ? 'gheadwarden@campuscare.com' : 'headwarden@campuscare.com'),
     wardenName: headW ? headW.wardenName : 'Head Warden',
     assignedBlock: cleanBlock
   };
@@ -344,6 +358,48 @@ const seedDefaults = async () => {
     await Warden.deleteMany({ email: { $in: ['warden@gmail.com', 'managemant@gmail.com'] } });
     await BlockAssignment.deleteMany({ wardenEmail: { $in: ['warden@gmail.com', 'managemant@gmail.com'] } });
     await Management.deleteMany({ email: { $in: ['managemant@gmail.com', 'management@gmail.com'] } });
+    // Perform database migration to ensure hostelType is set correctly on all legacy documents
+    const collectionsToMigrate = [
+      { model: Student, defaultVal: 'Boys Hostel' },
+      { model: Warden, defaultVal: 'Boys Hostel' },
+      { model: Worker, defaultVal: 'Boys Hostel' },
+      { model: Complaint, defaultVal: 'Boys Hostel' },
+      { model: Announcement, defaultVal: 'Boys Hostel' },
+      { model: EventBanner, defaultVal: 'Boys Hostel' },
+      { model: FeedbackRequest, defaultVal: 'Boys Hostel' },
+      { model: FeedbackResponse, defaultVal: 'Boys Hostel' },
+      { model: WorkerTask, defaultVal: 'Boys Hostel' },
+      { model: Message, defaultVal: 'Boys Hostel' },
+      { model: IncidentGroupMessage, defaultVal: 'Boys Hostel' },
+      { model: GroupInsight, defaultVal: 'Boys Hostel' }
+    ];
+
+    for (const item of collectionsToMigrate) {
+      // 1. Fix missing hostelType
+      const missingRes = await item.model.updateMany(
+        { hostelType: { $exists: false } },
+        { $set: { hostelType: item.defaultVal } }
+      );
+      if (missingRes.modifiedCount > 0) {
+        console.log(`Migrated ${missingRes.modifiedCount} legacy documents in ${item.model.modelName} to default hostelType: '${item.defaultVal}'`);
+      }
+
+      // 2. Fix malformed/case-insensitive values to strictly match 'Boys Hostel' or 'Girls Hostel'
+      await item.model.updateMany(
+        { hostelType: { $in: ['boys', 'boys hostel', 'boyshostel', 'Boys'] } },
+        { $set: { hostelType: 'Boys Hostel' } }
+      );
+      await item.model.updateMany(
+        { hostelType: { $in: ['girls', 'girls hostel', 'girlshostel', 'Girls'] } },
+        { $set: { hostelType: 'Girls Hostel' } }
+      );
+    }
+
+    // Clean up any stray test complaints from automated test suites
+    await Complaint.deleteMany({
+      title: { $in: ['Water Leakage in Bathroom', 'Broken Light Bulb', 'Fan Not Working', 'Door lock jammed'] },
+      studentEmail: { $in: ['girls.student@sece.ac.in', 'riya.b2024it@sece.ac.in', 'maya.b2024it@sece.ac.in', 'aditi.b2024it@sece.ac.in'] }
+    });
 
     const defaultWardens = [
       {
@@ -355,7 +411,8 @@ const seedDefaults = async () => {
         block: 'A, B, C',
         password: 'sece123',
         role: 'warden',
-        blocks: ['A', 'B', 'C']
+        blocks: ['A', 'B', 'C'],
+        hostelType: 'Boys Hostel'
       },
       {
         name: 'D Block Warden',
@@ -366,7 +423,8 @@ const seedDefaults = async () => {
         block: 'D',
         password: 'sece123',
         role: 'warden',
-        blocks: ['D']
+        blocks: ['D'],
+        hostelType: 'Boys Hostel'
       },
       {
         name: 'E Block Warden',
@@ -377,7 +435,8 @@ const seedDefaults = async () => {
         block: 'E',
         password: 'sece123',
         role: 'warden',
-        blocks: ['E']
+        blocks: ['E'],
+        hostelType: 'Boys Hostel'
       },
       {
         name: 'F Block Warden',
@@ -388,7 +447,8 @@ const seedDefaults = async () => {
         block: 'F',
         password: 'sece123',
         role: 'warden',
-        blocks: ['F']
+        blocks: ['F'],
+        hostelType: 'Boys Hostel'
       },
       {
         name: 'Head Warden',
@@ -399,7 +459,57 @@ const seedDefaults = async () => {
         block: 'A, B, C, D, E, F',
         password: 'sece123',
         role: 'headwarden',
-        blocks: ['A', 'B', 'C', 'D', 'E', 'F']
+        blocks: ['A', 'B', 'C', 'D', 'E', 'F'],
+        hostelType: 'Boys Hostel'
+      },
+      // Girls Hostel Wardens
+      {
+        name: 'G1 Warden',
+        email: 'g1warden@campuscare.com',
+        rollNo: 'EMP-G1',
+        phoneNo: '9876543231',
+        roomNo: 'Office-G1',
+        block: 'A',
+        password: 'sece123',
+        role: 'warden',
+        blocks: ['A'],
+        hostelType: 'Girls Hostel'
+      },
+      {
+        name: 'G2 Warden',
+        email: 'g2warden@campuscare.com',
+        rollNo: 'EMP-G2',
+        phoneNo: '9876543232',
+        roomNo: 'Office-G2',
+        block: 'B',
+        password: 'sece123',
+        role: 'warden',
+        blocks: ['B'],
+        hostelType: 'Girls Hostel'
+      },
+      {
+        name: 'G3 Warden',
+        email: 'g3warden@campuscare.com',
+        rollNo: 'EMP-G3',
+        phoneNo: '9876543233',
+        roomNo: 'Office-G3',
+        block: 'C',
+        password: 'sece123',
+        role: 'warden',
+        blocks: ['C'],
+        hostelType: 'Girls Hostel'
+      },
+      {
+        name: 'Girls Head Warden',
+        email: 'gheadwarden@campuscare.com',
+        rollNo: 'EMP-GHEAD',
+        phoneNo: '9876543235',
+        roomNo: 'Office-GHEAD',
+        block: 'A, B, C',
+        password: 'sece123',
+        role: 'headwarden',
+        blocks: ['A', 'B', 'C'],
+        hostelType: 'Girls Hostel'
       }
     ];
 
@@ -414,12 +524,14 @@ const seedDefaults = async () => {
           roomNo: w.roomNo,
           block: w.block,
           password: w.password,
-          role: w.role
+          role: w.role,
+          hostelType: w.hostelType
         });
         console.log(`Seeded Warden: ${w.email}`);
       } else {
         existingWarden.password = w.password;
         existingWarden.role = w.role;
+        existingWarden.hostelType = w.hostelType;
         await existingWarden.save();
       }
 
@@ -429,12 +541,14 @@ const seedDefaults = async () => {
           wardenEmail: w.email.toLowerCase(),
           wardenName: w.name,
           blocks: w.blocks,
-          role: w.role
+          role: w.role,
+          hostelType: w.hostelType
         });
         console.log(`Seeded BlockAssignment for ${w.email}`);
       } else {
         existingAssignment.blocks = w.blocks;
         existingAssignment.role = w.role;
+        existingAssignment.hostelType = w.hostelType;
         await existingAssignment.save();
       }
     }
@@ -478,7 +592,8 @@ const seedDefaults = async () => {
         phoneNo: '9876543210',
         roomNo: '302',
         block: 'A',
-        password: 'student123'
+        password: 'student123',
+        hostelType: 'Boys Hostel'
       },
       {
         name: 'Rahul Sharma',
@@ -487,7 +602,8 @@ const seedDefaults = async () => {
         phoneNo: '9876543219',
         roomNo: '204',
         block: 'B',
-        password: 'student123'
+        password: 'student123',
+        hostelType: 'Boys Hostel'
       },
       {
         name: 'Arun Kumar',
@@ -496,7 +612,8 @@ const seedDefaults = async () => {
         phoneNo: '9876543210',
         roomNo: '305',
         block: 'C',
-        password: 'student123'
+        password: 'student123',
+        hostelType: 'Boys Hostel'
       },
       {
         name: 'Abbu',
@@ -505,7 +622,8 @@ const seedDefaults = async () => {
         phoneNo: '8072924468',
         roomNo: '402-B',
         block: 'D2',
-        password: 'abbu007'
+        password: 'abbu007',
+        hostelType: 'Boys Hostel'
       },
       {
         name: 'Haris',
@@ -514,7 +632,8 @@ const seedDefaults = async () => {
         phoneNo: '9876543218',
         roomNo: '105',
         block: 'E',
-        password: 'student123'
+        password: 'student123',
+        hostelType: 'Boys Hostel'
       },
       {
         name: 'Vikas',
@@ -523,7 +642,8 @@ const seedDefaults = async () => {
         phoneNo: '9876543217',
         roomNo: '401',
         block: 'F',
-        password: 'student123'
+        password: 'student123',
+        hostelType: 'Boys Hostel'
       }
     ];
 
@@ -533,13 +653,57 @@ const seedDefaults = async () => {
         await Student.create(st);
       } else {
         existingStudent.block = st.block;
+        existingStudent.hostelType = st.hostelType || 'Boys Hostel';
         await existingStudent.save();
       }
     }
     console.log('Seeded default students for all blocks.');
 
-    // Clean out default system-seeded workers so only warden-added workers appear
-    await Worker.deleteMany({ createdBy: 'System' });
+    // Seed default workers for both Boys and Girls Hostels
+    const defaultWorkers = [
+      {
+        name: 'Boys Plumber',
+        email: 'plumber@campuscare.com',
+        phone: '9876543260',
+        skill: 'Plumber',
+        category: 'Plumbing',
+        assignedBlock: 'A',
+        password: 'sece123',
+        hostelType: 'Boys Hostel'
+      },
+      {
+        name: 'Boys Electrician',
+        email: 'electrician@campuscare.com',
+        phone: '9876543261',
+        skill: 'Electrician',
+        category: 'Electrical',
+        assignedBlock: 'B',
+        password: 'sece123',
+        hostelType: 'Boys Hostel'
+      }
+    ];
+
+    for (const w of defaultWorkers) {
+      const existingWorker = await Worker.findOne({ email: w.email.toLowerCase() });
+      if (!existingWorker) {
+        const hashedPassword = bcrypt.hashSync(w.password, 10);
+        await Worker.create({
+          name: w.name,
+          email: w.email.toLowerCase(),
+          phone: w.phone,
+          password: hashedPassword,
+          skill: w.skill,
+          category: w.category,
+          assignedBlock: w.assignedBlock,
+          hostelType: w.hostelType,
+          createdBy: 'System'
+        });
+        console.log(`Seeded Worker: ${w.email}`);
+      } else {
+        existingWorker.hostelType = w.hostelType;
+        await existingWorker.save();
+      }
+    }
 
     // Clean up default mock messages if they exist in the database
     await IncidentGroupMessage.deleteMany({
@@ -572,11 +736,33 @@ const checkDbConnected = (req, res, next) => {
 
 app.use('/api', checkDbConnected);
 
+const getRequestHostelType = async (req) => {
+  // 1. Check query, body, or headers
+  let hostelType = req.query.hostelType || req.body.hostelType || req.headers['x-hostel-type'];
+  if (hostelType) return hostelType;
+
+  // 2. Try to look up by email
+  const email = (req.query.userEmail || req.query.email || req.body.email || req.body.userEmail || req.query.studentEmail || req.body.studentEmail || req.query.workerEmail || req.body.workerEmail || '').toLowerCase().trim();
+  if (email) {
+    const student = await Student.findOne({ email });
+    if (student) return student.hostelType;
+
+    const warden = await Warden.findOne({ email });
+    if (warden) return warden.hostelType;
+
+    const worker = await Worker.findOne({ email });
+    if (worker) return worker.hostelType;
+  }
+
+  // 3. Fallback default
+  return 'Boys Hostel';
+};
+
 // ================= API ENDPOINTS =================
 
 // 1. SIGNUP ENDPOINT
 app.post('/api/signup', async (req, res) => {
-  const { name, email, rollNo, phoneNo, roomNo, block, password, role } = req.body;
+  const { name, email, rollNo, phoneNo, roomNo, block, password, role, hostelType } = req.body;
 
   if (!email || !email.trim().toLowerCase().endsWith('@sece.ac.in')) {
     return res.status(400).json({
@@ -595,13 +781,22 @@ app.post('/api/signup', async (req, res) => {
     return res.status(403).json({ error: 'Registration is restricted for Warden and Management roles.' });
   }
 
+  if (signupRole === 'student') {
+    if (!hostelType || !['Boys Hostel', 'Girls Hostel'].includes(hostelType)) {
+      return res.status(400).json({ error: 'Hostel Type is required and must be either Boys Hostel or Girls Hostel' });
+    }
+  }
+
   try {
     const existing = await Student.findOne({ email: email.toLowerCase() });
     if (existing) {
       return res.status(400).json({ error: 'Official Mail ID is already registered!' });
     }
-    const newStudent = await Student.create({ name, email: email.toLowerCase(), rollNo, phoneNo, roomNo, block, password });
-    return res.status(201).json({ success: true, user: { name, email: newStudent.email, rollNo, phoneNo, roomNo, block, role: signupRole } });
+    const newStudent = await Student.create({ name, email: email.toLowerCase(), rollNo, phoneNo, roomNo, block, password, hostelType });
+    if (io) {
+      io.to('management_room').emit('resident_updated');
+    }
+    return res.status(201).json({ success: true, user: { name, email: newStudent.email, rollNo, phoneNo, roomNo, block, role: signupRole, hostelType: newStudent.hostelType } });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Database signup error' });
@@ -707,7 +902,8 @@ app.post('/api/login', async (req, res) => {
               category: matchedWorker.category || matchedWorker.skill,
               skill: matchedWorker.skill,
               experience: matchedWorker.experience,
-              role: 'worker'
+              role: 'worker',
+              hostelType: matchedWorker.hostelType || 'Boys Hostel'
             }
           });
         }
@@ -780,7 +976,8 @@ app.post('/api/login', async (req, res) => {
             category: matchedWorker.category || matchedWorker.skill,
             skill: matchedWorker.skill,
             experience: matchedWorker.experience,
-            role: 'worker'
+            role: 'worker',
+            hostelType: matchedWorker.hostelType || 'Boys Hostel'
           }
         });
       }
@@ -843,6 +1040,11 @@ app.get('/api/complaints', async (req, res) => {
           };
         }
       }
+    }
+
+    const hostelType = await getRequestHostelType(req);
+    if (hostelType && hostelType !== 'All Hostels') {
+      filter.hostelType = hostelType;
     }
 
     const complaints = await Complaint.find(filter).sort({ createdAt: -1 });
@@ -914,15 +1116,19 @@ app.post('/api/complaints', async (req, res) => {
   }
 
   try {
-    if ((!studentBlock || studentBlock === 'N/A') && studentEmail) {
-      const studentDoc = await Student.findOne({ email: studentEmail.toLowerCase() });
-      if (studentDoc && studentDoc.block) {
+    const hostelType = await getRequestHostelType(req);
+    let computedHostelType = hostelType;
+    const studentDoc = studentEmail ? await Student.findOne({ email: studentEmail.toLowerCase() }) : null;
+    
+    if (studentDoc) {
+      computedHostelType = studentDoc.hostelType || 'Boys Hostel';
+      if (!studentBlock || studentBlock === 'N/A') {
         studentBlock = studentDoc.block;
       }
     }
 
     // Automatically assign the correct Block Warden via DB BlockAssignment
-    const wardenInfo = await getAssignedWardenForBlock(studentBlock);
+    const wardenInfo = await getAssignedWardenForBlock(studentBlock, computedHostelType);
 
     const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) + 
                     ' - ' + 
@@ -945,8 +1151,12 @@ app.post('/api/complaints', async (req, res) => {
       assignedWardenEmail: wardenInfo.wardenEmail,
       assignedWardenName: wardenInfo.wardenName,
       proof: proof || null,
-      proofName: proofName || null
+      proofName: proofName || null,
+      hostelType: computedHostelType
     });
+    if (io) {
+      io.to('management_room').emit('complaint_created', newComplaint.toJSON());
+    }
     res.status(201).json({ success: true, complaint: newComplaint });
   } catch (err) {
     console.error(err);
@@ -1022,6 +1232,9 @@ app.patch('/api/complaints/:id/status', async (req, res) => {
     }
 
     if (complaint) {
+      if (io) {
+        io.to('management_room').emit('complaint_updated', complaint.toJSON());
+      }
       return res.json({ success: true, complaint });
     } else {
       return res.status(404).json({ error: 'Complaint not found' });
@@ -1087,7 +1300,7 @@ app.delete('/api/complaints/history/clear', async (req, res) => {
 });
 
 app.put('/api/profile', async (req, res) => {
-  const { email, role, name, phoneNo, roomNo, block, profilePhoto, rollNo } = req.body;
+  const { email, role, name, phoneNo, roomNo, block, profilePhoto, rollNo, hostelType } = req.body;
 
   if (!email || !role) {
     return res.status(400).json({ error: 'Email and role are required' });
@@ -1102,6 +1315,7 @@ app.put('/api/profile', async (req, res) => {
     if (block !== undefined) updateData.block = block;
     if (profilePhoto !== undefined) updateData.profilePhoto = profilePhoto;
     if (rollNo !== undefined) updateData.rollNo = rollNo;
+    if (hostelType !== undefined) updateData.hostelType = hostelType;
 
     if (role === 'student') {
       updatedUser = await Student.findOneAndUpdate({ email: email.toLowerCase() }, updateData, { returnDocument: 'after' });
@@ -1114,7 +1328,8 @@ app.put('/api/profile', async (req, res) => {
           phoneNo: phoneNo || '9876543210',
           roomNo: roomNo || '305',
           block: block || 'C',
-          profilePhoto: profilePhoto || null
+          profilePhoto: profilePhoto || null,
+          hostelType: hostelType || 'Boys Hostel'
         });
       }
     } else if (role === 'warden') {
@@ -1167,7 +1382,12 @@ app.put('/api/profile', async (req, res) => {
 // 4. ANNOUNCEMENTS API
 app.get('/api/announcements', async (req, res) => {
   try {
-    const announcements = await Announcement.find().sort({ createdAt: -1 });
+    const hostelType = await getRequestHostelType(req);
+    const filter = {};
+    if (hostelType && hostelType !== 'All Hostels') {
+      filter.hostelType = hostelType;
+    }
+    const announcements = await Announcement.find(filter).sort({ createdAt: -1 });
     res.json(announcements);
   } catch (err) {
     console.error(err);
@@ -1183,6 +1403,10 @@ app.post('/api/announcements', async (req, res) => {
   }
 
   try {
+    let hostelType = await getRequestHostelType(req);
+    if (!hostelType || hostelType === 'All Hostels') {
+      hostelType = 'Boys Hostel';
+    }
     const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) + 
                     ' - ' + 
                     new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -1195,8 +1419,12 @@ app.post('/api/announcements', async (req, res) => {
       important: !!important,
       date: dateStr,
       postedBy: postedBy || 'Warden',
-      authorName: authorName || 'Hostel Administration'
+      authorName: authorName || 'Hostel Administration',
+      hostelType
     });
+    if (io) {
+      io.to('management_room').emit('announcement_created', newAnnouncement.toJSON());
+    }
     res.status(201).json({ success: true, announcement: newAnnouncement });
   } catch (err) {
     console.error(err);
@@ -1233,7 +1461,12 @@ app.delete('/api/announcements/:id', async (req, res) => {
 // Event Banner API
 app.get('/api/event-banner', async (req, res) => {
   try {
-    const banner = await EventBanner.findOne().sort({ updatedAt: -1 });
+    const hostelType = await getRequestHostelType(req);
+    const filter = {};
+    if (hostelType && hostelType !== 'All Hostels') {
+      filter.hostelType = hostelType;
+    }
+    const banner = await EventBanner.findOne(filter).sort({ updatedAt: -1 });
     res.json(banner);
   } catch (err) {
     console.error(err);
@@ -1247,7 +1480,11 @@ app.post('/api/event-banner', async (req, res) => {
     return res.status(400).json({ error: 'Title is required' });
   }
   try {
-    let banner = await EventBanner.findOne();
+    let hostelType = await getRequestHostelType(req);
+    if (!hostelType || hostelType === 'All Hostels') {
+      hostelType = 'Boys Hostel';
+    }
+    let banner = await EventBanner.findOne({ hostelType });
     if (banner) {
       banner.title = title;
       banner.description = description || '';
@@ -1262,7 +1499,8 @@ app.post('/api/event-banner', async (req, res) => {
         description: description || '',
         date: date || '',
         bannerImage: bannerImage || '',
-        active: active !== undefined ? active : true
+        active: active !== undefined ? active : true,
+        hostelType
       });
     }
     res.json({ success: true, banner });
@@ -1274,7 +1512,8 @@ app.post('/api/event-banner', async (req, res) => {
 
 app.delete('/api/event-banner', async (req, res) => {
   try {
-    await EventBanner.deleteMany();
+    const hostelType = await getRequestHostelType(req);
+    await EventBanner.deleteMany({ hostelType });
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -1285,7 +1524,12 @@ app.delete('/api/event-banner', async (req, res) => {
 // 5. WORKERS API & TASK MANAGEMENT
 app.get('/api/workers', async (req, res) => {
   try {
-    const workers = await Worker.find().sort({ createdAt: -1 });
+    const hostelType = await getRequestHostelType(req);
+    const filter = {};
+    if (hostelType && hostelType !== 'All Hostels') {
+      filter.hostelType = hostelType;
+    }
+    const workers = await Worker.find(filter).sort({ createdAt: -1 });
     res.json(workers);
   } catch (err) {
     res.status(500).json({ error: 'Database read error' });
@@ -1312,6 +1556,10 @@ app.post('/api/workers', async (req, res) => {
   }
 
   try {
+    let hostelType = await getRequestHostelType(req);
+    if (!hostelType || hostelType === 'All Hostels') {
+      hostelType = 'Boys Hostel';
+    }
     const existingEmail = await Worker.findOne({ email: cleanEmail });
     if (existingEmail) {
       return res.status(400).json({ error: 'This email is already registered.' });
@@ -1322,7 +1570,7 @@ app.post('/api/workers', async (req, res) => {
       return res.status(400).json({ error: 'This phone number is already registered.' });
     }
 
-    const count = await Worker.countDocuments();
+    const count = await Worker.countDocuments({ hostelType });
     const avatar = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     const color = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'][count % 6];
     const hashedPassword = bcrypt.hashSync(password, 10);
@@ -1344,8 +1592,12 @@ app.post('/api/workers', async (req, res) => {
       color,
       tasks: 0,
       createdDate: new Date(),
-      updatedDate: new Date()
+      updatedDate: new Date(),
+      hostelType
     });
+    if (io) {
+      io.to('management_room').emit('worker_updated');
+    }
     res.status(201).json({ success: true, worker: newWorker });
   } catch (err) {
     console.error(err);
@@ -1401,6 +1653,9 @@ app.put('/api/workers/:id', async (req, res) => {
     }
 
     await worker.save();
+    if (io) {
+      io.to('management_room').emit('worker_updated');
+    }
     res.json({ success: true, worker });
   } catch (err) {
     console.error(err);
@@ -1424,6 +1679,9 @@ app.delete('/api/workers/:id', async (req, res) => {
 
     const deleted = await Worker.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ error: 'Worker not found' });
+    if (io) {
+      io.to('management_room').emit('worker_updated');
+    }
     res.json({ success: true, message: 'Worker removed successfully' });
   } catch (err) {
     res.status(500).json({ error: 'Error deleting worker' });
@@ -1481,6 +1739,10 @@ app.post('/api/complaints/:id/assign-worker', async (req, res) => {
           text: `You have been assigned a new ${task.workerCategory} complaint.` 
         });
       }
+    }
+
+    if (io) {
+      io.to('management_room').emit('complaint_updated', complaint.toJSON());
     }
 
     res.json({ success: true, complaint, task });
@@ -1617,7 +1879,8 @@ app.put('/api/worker-tasks/:taskId/status', async (req, res) => {
 app.get('/api/messages', async (req, res) => {
   const { studentEmail, userEmail, userRole } = req.query;
   try {
-    let query = {};
+    const hostelType = await getRequestHostelType(req);
+    let query = { hostelType };
     const effectiveEmail = (userEmail || '').toLowerCase().trim();
     const effectiveRole = (userRole || '').toLowerCase().trim();
 
@@ -1627,7 +1890,7 @@ app.get('/api/messages', async (req, res) => {
       const assignment = await BlockAssignment.findOne({ wardenEmail: effectiveEmail });
       if (assignment) {
         if (assignment.role === 'headwarden' || assignment.blocks.length >= 6) {
-          query = {}; // Head warden can see all messages across all blocks
+          query = { hostelType }; // Head warden can see all messages across all blocks in their hostel
         } else {
           // Block warden sees messages ONLY from students in their assigned blocks
           const blockRegexes = assignment.blocks.map(b => new RegExp(`^(${b}|${b}\\s*Block|Block\\s*${b})$`, 'i'));
@@ -1635,10 +1898,12 @@ app.get('/api/messages', async (req, res) => {
             $or: [
               { block: { $in: assignment.blocks } },
               { block: { $in: blockRegexes } }
-            ]
+            ],
+            hostelType
           });
           const studentEmails = studentsInBlock.map(s => s.email.toLowerCase());
           query = {
+            hostelType,
             $or: [
               { studentEmail: { $in: studentEmails } },
               { studentEmail: effectiveEmail },
@@ -1656,10 +1921,12 @@ app.get('/api/messages', async (req, res) => {
           $or: [
             { block: { $in: assignment.blocks } },
             { block: { $in: blockRegexes } }
-          ]
+          ],
+          hostelType
         });
         const studentEmails = studentsInBlock.map(s => s.email.toLowerCase());
         query = {
+          hostelType,
           $or: [
             { studentEmail: { $in: studentEmails } },
             { studentBlock: { $in: assignment.blocks } },
@@ -1687,8 +1954,10 @@ app.post('/api/messages', async (req, res) => {
   const cleanEmail = (studentEmail || 'student@gmail.com').toLowerCase().trim();
 
   try {
+    const studentDoc = await Student.findOne({ email: cleanEmail });
+    const computedHostelType = studentDoc ? studentDoc.hostelType : 'Boys Hostel';
+
     if ((!studentBlock || studentBlock === 'N/A') && cleanEmail) {
-      const studentDoc = await Student.findOne({ email: cleanEmail });
       if (studentDoc && studentDoc.block) {
         studentBlock = studentDoc.block;
       }
@@ -1701,12 +1970,21 @@ app.post('/api/messages', async (req, res) => {
       time: timeStr,
       studentEmail: cleanEmail,
       studentName: studentName || 'Student',
-      studentBlock: studentBlock || 'N/A'
+      studentBlock: studentBlock || 'N/A',
+      hostelType: computedHostelType
     });
 
     const msgObj = newMessage.toJSON();
-    io.emit('receive_direct_message', msgObj);
-    io.emit('global_activity_notification', msgObj);
+    const studentRoom = `user:${cleanEmail}`;
+    io.to(studentRoom).emit('receive_direct_message', msgObj);
+    io.to(studentRoom).emit('global_activity_notification', msgObj);
+
+    const wardenInfo = await getAssignedWardenForBlock(studentBlock, computedHostelType);
+    if (wardenInfo && wardenInfo.wardenEmail) {
+      const wardenEmail = wardenInfo.wardenEmail.toLowerCase().trim();
+      io.to(`user:${wardenEmail}`).emit('receive_direct_message', msgObj);
+      io.to(`user:${wardenEmail}`).emit('global_activity_notification', msgObj);
+    }
 
     res.status(201).json({ success: true, message: newMessage });
   } catch (err) {
@@ -1745,9 +2023,10 @@ app.delete('/api/messages/conversation', async (req, res) => {
     return res.status(400).json({ error: 'studentEmail query param is required' });
   }
   try {
+    const hostelType = await getRequestHostelType(req);
     const cleanEmail = studentEmail.trim().toLowerCase();
     const regex = new RegExp(`^${cleanEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i');
-    await Message.deleteMany({ studentEmail: regex });
+    await Message.deleteMany({ studentEmail: regex, hostelType });
     res.json({ success: true, message: 'Conversation cleared successfully' });
   } catch (err) {
     console.error('Error clearing conversation:', err);
@@ -1777,7 +2056,8 @@ app.put('/api/messages/read', async (req, res) => {
     return res.status(400).json({ error: 'studentEmail is required' });
   }
   try {
-    const filter = { studentEmail: studentEmail.toLowerCase() };
+    const hostelType = await getRequestHostelType(req);
+    const filter = { studentEmail: studentEmail.toLowerCase(), hostelType };
     if (sender) filter.sender = sender;
     await Message.updateMany(filter, { read: true });
     res.json({ success: true });
@@ -1838,6 +2118,10 @@ app.get('/api/students', async (req, res) => {
       }
     }
 
+    const hostelType = await getRequestHostelType(req);
+    if (hostelType && hostelType !== 'All Hostels') {
+      filter.hostelType = hostelType;
+    }
     const students = await Student.find(filter, { password: 0 });
     res.json(students);
   } catch (err) {
@@ -1848,8 +2132,13 @@ app.get('/api/students', async (req, res) => {
 // 8. WARDENS LIST API (With Assigned Blocks)
 app.get('/api/wardens', async (req, res) => {
   try {
-    const wardens = await Warden.find({});
-    const assignments = await BlockAssignment.find({});
+    const hostelType = await getRequestHostelType(req);
+    const filter = {};
+    if (hostelType && hostelType !== 'All Hostels') {
+      filter.hostelType = hostelType;
+    }
+    const wardens = await Warden.find(filter);
+    const assignments = await BlockAssignment.find(filter);
     
     const wardensWithAssignments = wardens.map(w => {
       const assign = assignments.find(a => a.wardenEmail.toLowerCase() === w.email.toLowerCase());
@@ -2114,10 +2403,14 @@ app.post('/api/feedback-requests', async (req, res) => {
     return res.status(400).json({ error: 'Title and description are required' });
   }
   try {
+    let hostelType = await getRequestHostelType(req);
+    if (!hostelType || hostelType === 'All Hostels') {
+      hostelType = 'Boys Hostel';
+    }
     const cleanTarget = targetBlock || 'All';
 
-    // Deactivate previous active feedback requests for matching target block
-    const allActive = await FeedbackRequest.find({ active: true });
+    // Deactivate previous active feedback requests for matching target block and hostel type
+    const allActive = await FeedbackRequest.find({ active: true, hostelType });
     for (const reqItem of allActive) {
       if (matchesBlock(reqItem.targetBlock, cleanTarget) || cleanTarget === 'All') {
         reqItem.active = false;
@@ -2132,12 +2425,14 @@ app.post('/api/feedback-requests', async (req, res) => {
       postedBy: postedBy || 'Warden',
       authorName: authorName || 'Hostel Administration',
       authorEmail: authorEmail || '',
-      targetBlock: cleanTarget
+      targetBlock: cleanTarget,
+      hostelType
     });
     await newRequest.save();
 
     if (io) {
       io.emit('new_feedback_campaign', newRequest.toJSON());
+      io.to('management_room').emit('feedback_created', newRequest.toJSON());
     }
 
     res.status(201).json(newRequest);
@@ -2152,7 +2447,12 @@ app.get('/api/feedback-requests', async (req, res) => {
   const { targetBlock, wardenBlock } = req.query;
   const blockToFilter = targetBlock || wardenBlock;
   try {
-    let requests = await FeedbackRequest.find().sort({ createdAt: -1 });
+    const hostelType = await getRequestHostelType(req);
+    const filter = {};
+    if (hostelType && hostelType !== 'All Hostels') {
+      filter.hostelType = hostelType;
+    }
+    let requests = await FeedbackRequest.find(filter).sort({ createdAt: -1 });
 
     if (blockToFilter && blockToFilter !== 'All' && blockToFilter !== 'ALL') {
       requests = requests.filter(r => matchesBlock(r.targetBlock, blockToFilter));
@@ -2169,7 +2469,8 @@ app.get('/api/feedback-requests', async (req, res) => {
 app.get('/api/feedback-requests/active', async (req, res) => {
   const { studentBlock } = req.query;
   try {
-    const activeRequests = await FeedbackRequest.find({ active: true });
+    const hostelType = await getRequestHostelType(req);
+    const activeRequests = await FeedbackRequest.find({ active: true, hostelType });
 
     if (!studentBlock) {
       return res.json(activeRequests);
@@ -2196,6 +2497,9 @@ app.put('/api/feedback-requests/:id/close', async (req, res) => {
     if (!updated) {
       return res.status(404).json({ error: 'Feedback request not found' });
     }
+    if (io) {
+      io.to('management_room').emit('feedback_updated');
+    }
     res.json(updated);
   } catch (err) {
     console.error(err);
@@ -2213,6 +2517,9 @@ app.delete('/api/feedback-requests/:id', async (req, res) => {
     }
     // Delete all associated feedback responses
     await FeedbackResponse.deleteMany({ feedbackRequestId: id });
+    if (io) {
+      io.to('management_room').emit('feedback_updated');
+    }
     res.json({ success: true, message: 'Feedback request and responses deleted successfully' });
   } catch (err) {
     console.error(err);
@@ -2237,10 +2544,11 @@ app.post('/api/feedback-responses', async (req, res) => {
   }
   try {
     let resolvedBlock = studentBlock || '';
-    if (!resolvedBlock && studentEmail) {
-      const student = await Student.findOne({ email: studentEmail.toLowerCase() });
-      if (student) resolvedBlock = student.block;
+    const student = await Student.findOne({ email: studentEmail.toLowerCase() });
+    if (!resolvedBlock && student) {
+      resolvedBlock = student.block;
     }
+    const computedHostelType = student ? student.hostelType : 'Boys Hostel';
 
     const response = new FeedbackResponse({
       feedbackRequestId,
@@ -2248,7 +2556,8 @@ app.post('/api/feedback-responses', async (req, res) => {
       studentName,
       studentBlock: resolvedBlock,
       rating,
-      comments: comments || ''
+      comments: comments || '',
+      hostelType: computedHostelType
     });
     await response.save();
     res.status(201).json(response);
@@ -2263,7 +2572,11 @@ app.get('/api/feedback-responses', async (req, res) => {
   const { feedbackRequestId, studentEmail, targetBlock, wardenBlock } = req.query;
   const blockToFilter = targetBlock || wardenBlock;
   try {
+    const hostelType = await getRequestHostelType(req);
     let query = {};
+    if (hostelType && hostelType !== 'All Hostels') {
+      query.hostelType = hostelType;
+    }
     if (feedbackRequestId) {
       if (mongoose.Types.ObjectId.isValid(feedbackRequestId)) {
         query.feedbackRequestId = feedbackRequestId;
@@ -2275,7 +2588,7 @@ app.get('/api/feedback-responses', async (req, res) => {
     let responses = await FeedbackResponse.find(query).sort({ createdAt: -1 });
 
     if (blockToFilter && blockToFilter !== 'All' && blockToFilter !== 'ALL') {
-      const requests = await FeedbackRequest.find();
+      const requests = await FeedbackRequest.find({ hostelType });
       const requestMap = new Map(requests.map(r => [r._id.toString(), r]));
 
       responses = responses.filter(resp => {
@@ -2492,37 +2805,58 @@ Return the response STRICTLY as a valid JSON object matching the following struc
 
 // ==================== INCIDENT GROUPS MODULE ====================
 
-const getUserBlockGroup = (block) => {
-  if (!block) return 'ABC';
+const getUserBlockGroup = (block, hostelType) => {
+  if (!block) return hostelType === 'Girls Hostel' ? 'girls_ABC' : 'boys_ABC';
   const b = block.trim().toUpperCase();
-  if (b === 'ABC' || b === 'A' || b === 'B' || b === 'C') return 'ABC';
-  if (b.startsWith('D')) return 'D';
-  if (b.startsWith('E')) return 'E';
-  if (b.startsWith('F')) return 'F';
-  return 'ABC'; // fallback
+  const prefix = hostelType === 'Girls Hostel' ? 'girls_' : 'boys_';
+  
+  if (b === 'ABC' || b === 'A' || b === 'B' || b === 'C') return `${prefix}ABC`;
+  if (b.startsWith('D')) return `${prefix}D`;
+  if (b.startsWith('E')) return `${prefix}E`;
+  if (b.startsWith('F')) return `${prefix}F`;
+  return `${prefix}ABC`; // fallback
 };
 
 // 1. Get accessible Incident Groups for user
 app.get('/api/incident-groups', async (req, res) => {
   const { userEmail, userRole, userBlock } = req.query;
   try {
+    const computedHostelType = await getRequestHostelType(req);
     const role = (userRole || '').toLowerCase().trim();
     const email = (userEmail || '').toLowerCase().trim();
     const block = (userBlock || '').trim().toUpperCase();
 
-    const allGroups = [
-      { id: 'ABC', name: 'ABC Block Group', description: 'Discussion group for ABC Block residents' },
-      { id: 'D', name: 'D Block Group', description: 'Discussion group for D Block residents' },
-      { id: 'E', name: 'E Block Group', description: 'Discussion group for E Block residents' },
-      { id: 'F', name: 'F Block Group', description: 'Discussion group for F Block residents' }
-    ];
+    const prefix = computedHostelType === 'Girls Hostel' ? 'girls_' : 'boys_';
+    const prefixName = computedHostelType === 'Girls Hostel' ? 'Girls ' : 'Boys ';
+
+    let allGroups = [];
+    if (computedHostelType === 'All Hostels') {
+      allGroups = [
+        { id: 'boys_ABC', name: 'Boys ABC Block Group', description: 'Discussion group for Boys ABC Block residents' },
+        { id: 'boys_D', name: 'Boys D Block Group', description: 'Discussion group for Boys D Block residents' },
+        { id: 'boys_E', name: 'Boys E Block Group', description: 'Discussion group for Boys E Block residents' },
+        { id: 'boys_F', name: 'Boys F Block Group', description: 'Discussion group for Boys F Block residents' },
+        { id: 'girls_ABC', name: 'Girls ABC Block Group', description: 'Discussion group for Girls ABC Block residents' }
+      ];
+    } else if (computedHostelType === 'Girls Hostel') {
+      allGroups = [
+        { id: 'girls_ABC', name: 'Girls ABC Block Group', description: 'Discussion group for Girls ABC Block residents' }
+      ];
+    } else {
+      allGroups = [
+        { id: 'boys_ABC', name: 'Boys ABC Block Group', description: 'Discussion group for Boys ABC Block residents' },
+        { id: 'boys_D', name: 'Boys D Block Group', description: 'Discussion group for Boys D Block residents' },
+        { id: 'boys_E', name: 'Boys E Block Group', description: 'Discussion group for Boys E Block residents' },
+        { id: 'boys_F', name: 'Boys F Block Group', description: 'Discussion group for Boys F Block residents' }
+      ];
+    }
 
     let accessibleGroups = [];
 
     if (role === 'management' || role === 'headwarden') {
       accessibleGroups = allGroups;
     } else if (role === 'student') {
-      const studentGroup = getUserBlockGroup(block);
+      const studentGroup = getUserBlockGroup(block, computedHostelType);
       if (studentGroup) {
         accessibleGroups = allGroups.filter(g => g.id === studentGroup);
       }
@@ -2534,13 +2868,13 @@ app.get('/api/incident-groups', async (req, res) => {
         } else {
           const wardenGroups = new Set();
           assignment.blocks.forEach(b => {
-            const grp = getUserBlockGroup(b);
+            const grp = getUserBlockGroup(b, computedHostelType);
             if (grp) wardenGroups.add(grp);
           });
           accessibleGroups = allGroups.filter(g => wardenGroups.has(g.id));
         }
       } else {
-        const wardenGroup = getUserBlockGroup(block);
+        const wardenGroup = getUserBlockGroup(block, computedHostelType);
         if (wardenGroup) {
           accessibleGroups = allGroups.filter(g => g.id === wardenGroup);
         }
@@ -2551,13 +2885,15 @@ app.get('/api/incident-groups', async (req, res) => {
     for (const group of accessibleGroups) {
       // Member count
       let memberCount = 0;
-      if (group.id === 'ABC') {
+      const cleanGroupId = group.id.replace('boys_', '').replace('girls_', '').toUpperCase();
+      if (cleanGroupId === 'ABC') {
         memberCount = await Student.countDocuments({
-          block: { $in: ['ABC', 'A', 'B', 'C', 'abc', 'a', 'b', 'c'] }
+          block: { $in: ['ABC', 'A', 'B', 'C', 'abc', 'a', 'b', 'c'] },
+          hostelType: computedHostelType
         });
       } else {
-        const regex = new RegExp(`^${group.id}`, 'i');
-        memberCount = await Student.countDocuments({ block: regex });
+        const regex = new RegExp(`^${cleanGroupId}`, 'i');
+        memberCount = await Student.countDocuments({ block: regex, hostelType: computedHostelType });
       }
 
       // Last message
@@ -2594,7 +2930,12 @@ app.get('/api/incident-groups/messages', async (req, res) => {
       return res.status(400).json({ error: 'blockGroup is required' });
     }
 
-    const query = { blockGroup };
+    const groups = [blockGroup];
+    if (blockGroup.startsWith('boys_')) {
+      groups.push(blockGroup.replace('boys_', ''));
+    }
+    const query = { blockGroup: { $in: groups } };
+
     if (search) {
       const cleanSearch = search.trim();
       if (cleanSearch) {
@@ -2621,6 +2962,8 @@ app.post('/api/incident-groups/messages', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    const hostelType = await getRequestHostelType(req);
+
     const newMessage = await IncidentGroupMessage.create({
       blockGroup,
       senderName,
@@ -2628,7 +2971,8 @@ app.post('/api/incident-groups/messages', async (req, res) => {
       senderRole,
       senderRoomNo,
       text,
-      timestamp: new Date()
+      timestamp: new Date(),
+      hostelType
     });
 
     const msgObj = newMessage.toJSON();
@@ -2820,7 +3164,15 @@ Return the response STRICTLY as a valid JSON object matching the following struc
 // 5. Get insights and summaries for all groups
 app.get('/api/incident-groups/insights', async (req, res) => {
   try {
-    const allGroups = ['ABC', 'D', 'E', 'F'];
+    const hostelType = await getRequestHostelType(req);
+    let allGroups = [];
+    if (hostelType === 'All Hostels') {
+      allGroups = ['boys_ABC', 'boys_D', 'boys_E', 'boys_F', 'girls_ABC'];
+    } else if (hostelType === 'Girls Hostel') {
+      allGroups = ['girls_ABC'];
+    } else {
+      allGroups = ['boys_ABC', 'boys_D', 'boys_E', 'boys_F'];
+    }
     const result = [];
 
     for (const group of allGroups) {
@@ -2838,7 +3190,8 @@ app.get('/api/incident-groups/insights', async (req, res) => {
           mostMentionedCategory: 'None',
           messageCount,
           activeStudentsCount,
-          lastUpdated: null
+          lastUpdated: null,
+          hostelType: group.startsWith('girls_') ? 'Girls Hostel' : 'Boys Hostel'
         });
       } else {
         insight.messageCount = messageCount;
@@ -2872,6 +3225,10 @@ io.on('connection', (socket) => {
     
     // Join personal user room for direct messaging & notifications
     socket.join(`user:${currentUserEmail}`);
+
+    if (role === 'management') {
+      socket.join('management_room');
+    }
 
     // Broadcast updated online users list
     io.emit('online_users_list', Array.from(activeOnlineUsers.keys()));
@@ -2909,14 +3266,33 @@ io.on('connection', (socket) => {
     }
   });
 
-  // 4. Real-Time Messages Push
-  socket.on('send_realtime_message', (msgData) => {
+  // 4. Real-Time Messages Push (Isolated targeting)
+  socket.on('send_realtime_message', async (msgData) => {
     if (msgData.blockGroup) {
       io.to(`group_${msgData.blockGroup}`).emit('receive_group_message', msgData);
     } else {
-      io.emit('receive_direct_message', msgData);
+      const studentEmail = (msgData.studentEmail || '').toLowerCase().trim();
+      const studentRoom = `user:${studentEmail}`;
+      
+      // Look up student block assignment to find block warden
+      let wardenEmail = '';
+      if (msgData.assignedWardenEmail) {
+        wardenEmail = msgData.assignedWardenEmail.toLowerCase().trim();
+      } else if (msgData.studentBlock) {
+        const studentDoc = await Student.findOne({ email: studentEmail });
+        const computedHostelType = studentDoc ? studentDoc.hostelType : 'Boys Hostel';
+        const wardenInfo = await getAssignedWardenForBlock(msgData.studentBlock, computedHostelType);
+        if (wardenInfo) wardenEmail = wardenInfo.wardenEmail.toLowerCase().trim();
+      }
+
+      io.to(studentRoom).emit('receive_direct_message', msgData);
+      io.to(studentRoom).emit('global_activity_notification', msgData);
+
+      if (wardenEmail && wardenEmail !== studentEmail) {
+        io.to(`user:${wardenEmail}`).emit('receive_direct_message', msgData);
+        io.to(`user:${wardenEmail}`).emit('global_activity_notification', msgData);
+      }
     }
-    io.emit('global_activity_notification', msgData);
   });
 
   // 5. Read Receipts (✓✓ Blue Ticks)

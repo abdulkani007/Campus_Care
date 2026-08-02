@@ -14,6 +14,7 @@ import h5 from '../assets/h5.jpg';
 import h6 from '../assets/h6.jpg';
 import h7 from '../assets/h7.jpg';
 import h8 from '../assets/h8.jpg';
+import g1 from '../assets/g1.jpg';
 
 const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
   const handleBackNavigation = onBackToHome || onBackToWebsite;
@@ -32,12 +33,13 @@ const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
   const [roomNo, setRoomNo] = useState('');
   const [block, setBlock] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [hostelType, setHostelType] = useState('');
 
   const trimmedEmail = email.trim().toLowerCase();
   const isEmailValid = role === 'student' ? trimmedEmail.endsWith('@sece.ac.in') : true;
   const showEmailStatus = role === 'student' && email.length > 0;
 
-  const slides = [h1, h2, h3, h4, h5, h6, h7, h8];
+  const slides = [h1, h2, h3, h4, h5, h6, h7, h8, g1];
 
   // Auto-slideshow timer for hostel photos (every 1 second)
   useEffect(() => {
@@ -80,6 +82,10 @@ const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
         alert("Please enter a valid 10-digit phone number.");
         return;
       }
+      if (role === 'student' && !hostelType) {
+        alert("Please select your Hostel Type (Boys Hostel or Girls Hostel).");
+        return;
+      }
 
       try {
         const res = await fetch('/api/signup', {
@@ -87,7 +93,7 @@ const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name, email, rollNo, phoneNo, roomNo, block, password, role }),
+          body: JSON.stringify({ name, email, rollNo, phoneNo, roomNo, block, password, role, hostelType }),
         });
 
         const data = await res.json();
@@ -101,6 +107,7 @@ const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
           setPhoneNo('');
           setRoomNo('');
           setBlock('');
+          setHostelType('');
         } else {
           alert(data.error || "Signup failed");
         }
@@ -276,6 +283,34 @@ const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
             {isSignupMode ? (
               /* Signup fields in responsive grid */
               <div className="signup-grid-layout">
+                {/* Hostel Type (Boys/Girls) Selection cards */}
+                <div className="hostel-type-selection-wrapper" style={{ gridColumn: 'span 2', marginBottom: '0.5rem' }}>
+                  <label className="input-label" style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: '#64748b', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                    Hostel Type <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <div className="hostel-type-segmented-control">
+                    <div 
+                      className={`hostel-type-segment ${hostelType === 'Boys Hostel' ? 'active' : ''}`}
+                      onClick={() => setHostelType('Boys Hostel')}
+                    >
+                      <svg className="hostel-segment-icon" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l9-5-9-5-9 5 9 5z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479L12 21l-6.825-3.943a12.084 12.084 0 01.665-6.48l6.16 3.423z" />
+                      </svg>
+                      <span>Boys Hostel</span>
+                    </div>
+                    <div 
+                      className={`hostel-type-segment ${hostelType === 'Girls Hostel' ? 'active' : ''}`}
+                      onClick={() => setHostelType('Girls Hostel')}
+                    >
+                      <svg className="hostel-segment-icon" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                      </svg>
+                      <span>Girls Hostel</span>
+                    </div>
+                    <div className={`hostel-segment-indicator ${hostelType === 'Boys Hostel' ? 'left' : hostelType === 'Girls Hostel' ? 'right' : 'hidden'}`} />
+                  </div>
+                </div>
                 {/* Name */}
                 <div className="input-wrapper" style={{ marginBottom: 0 }}>
                   <span className="input-icon-left" style={{ left: '0.75rem' }}>

@@ -436,3 +436,67 @@
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
 }
 
+/* Hostel Type Segmented Control Selection UI */
+.hostel-type-segmented-control {
+  position: relative;
+  display: flex;
+  background-color: #f1f5f9;
+  border-radius: 12px;
+  padding: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.hostel-type-segment {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  z-index: 2;
+  transition: color 0.25s ease;
+  user-select: none;
+  font-family: 'Arvo', 'Roboto Slab', serif;
+}
+
+.hostel-type-segment.active {
+  color: #2563eb;
+}
+
+.hostel-segment-icon {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+}
+
+.hostel-segment-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: calc(50% - 4px);
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.2s ease;
+  z-index: 1;
+}
+
+.hostel-segment-indicator.left {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.hostel-segment-indicator.right {
+  transform: translateX(100%);
+  opacity: 1;
+}
+
+.hostel-segment-indicator.hidden {
+  opacity: 0;
+}
+

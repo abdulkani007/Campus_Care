@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import './IncidentGroupsChat.css';
 import { useSocket } from '../context/SocketContext';
 
-export default function IncidentGroupsChat({ user }) {
+export default function IncidentGroupsChat({ user, hostelType }) {
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -89,10 +89,12 @@ export default function IncidentGroupsChat({ user }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Fetch groups on mount or when user changes
+  // Fetch groups on mount or when user/hostelType changes
   useEffect(() => {
+    setSelectedGroup(null);
+    setGroups([]);
     fetchGroups();
-  }, [user]);
+  }, [user, hostelType]);
 
   // Handle polling when group changes
   useEffect(() => {
@@ -113,7 +115,11 @@ export default function IncidentGroupsChat({ user }) {
 
   const fetchGroups = async () => {
     try {
-      const res = await fetch(`/api/incident-groups?userEmail=${encodeURIComponent(user?.email || '')}&userRole=${encodeURIComponent(userRole)}&userBlock=${encodeURIComponent(userBlock)}`);
+      const headers = {};
+      if (hostelType) {
+        headers['X-Hostel-Type'] = hostelType;
+      }
+      const res = await fetch(`/api/incident-groups?userEmail=${encodeURIComponent(user?.email || '')}&userRole=${encodeURIComponent(userRole)}&userBlock=${encodeURIComponent(userBlock)}`, { headers });
       if (res.ok) {
         const data = await res.json();
         setGroups(data);
@@ -296,7 +302,7 @@ export default function IncidentGroupsChat({ user }) {
                     onClick={() => handleGroupSelect(group)}
                   >
                     <div className="group-avatar" style={{ backgroundColor: getAvatarColor(group.name) }}>
-                      <span>{group.id}</span>
+                      <span>{group.id.replace('girls_', '').toUpperCase()}</span>
                     </div>
                     <div className="group-item-details">
                       <div className="group-item-row">
@@ -346,7 +352,7 @@ export default function IncidentGroupsChat({ user }) {
                   className="chat-header-avatar" 
                   style={{ backgroundColor: getAvatarColor(selectedGroup.name) }}
                 >
-                  {selectedGroup.id}
+                  {selectedGroup.id.replace('girls_', '').toUpperCase()}
                 </div>
 
                 <div className="chat-header-info">

@@ -1,19 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import './GroupInsightsDashboard.css';
 
-export default function GroupInsightsDashboard() {
+export default function GroupInsightsDashboard({ hostelType }) {
   const [insights, setInsights] = useState([]);
   const [loading, setLoading] = useState(true);
   const [summarizingBlock, setSummarizingBlock] = useState(null); // track which block is regenerating
 
   useEffect(() => {
     fetchInsights();
-  }, []);
+  }, [hostelType]);
 
   const fetchInsights = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/incident-groups/insights');
+      const headers = {};
+      if (hostelType) {
+        headers['X-Hostel-Type'] = hostelType;
+      }
+      const res = await fetch('/api/incident-groups/insights', { headers });
       if (res.ok) {
         const data = await res.json();
         setInsights(data);
@@ -28,14 +32,18 @@ export default function GroupInsightsDashboard() {
   const handleRegenerateSummary = async (blockGroup) => {
     setSummarizingBlock(blockGroup);
     try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (hostelType) {
+        headers['X-Hostel-Type'] = hostelType;
+      }
       const res = await fetch('/api/incident-groups/summarize', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ blockGroup })
       });
       if (res.ok) {
         // Fetch insights again to update UI
-        const res2 = await fetch('/api/incident-groups/insights');
+        const res2 = await fetch('/api/incident-groups/insights', { headers: { 'X-Hostel-Type': hostelType } });
         if (res2.ok) {
           const data2 = await res2.json();
           setInsights(data2);

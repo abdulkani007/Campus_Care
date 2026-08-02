@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import EventBannerCard from '../components/EventBannerCard';
 import { DynamicDonutChart, FeedbackBarChart } from '../components/DynamicComplaintCharts';
 import '../styles/ManagementDashboard.css';
@@ -102,60 +102,66 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [zoomImage, setZoomImage] = useState(null);
   const [selectedComplaint, setSelectedComplaint] = useState(null);
 
-  // Fetch all data from API on mount
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const complaintsRes = await fetch(`/api/complaints?userEmail=${encodeURIComponent(user?.email || 'management@campuscare.com')}&userRole=management`);
-        const announcementsRes = await fetch('/api/announcements');
-        const workersRes = await fetch('/api/workers');
-        const residentsRes = await fetch('/api/students');
-        const bannerRes = await fetch('/api/event-banner');
-        const wardensRes = await fetch('/api/wardens');
-        const feedbackReqRes = await fetch('/api/feedback-requests');
-        const feedbackRespRes = await fetch('/api/feedback-responses');
-        
-        if (complaintsRes.ok) {
-          const complaintsData = await complaintsRes.json();
-          setComplaints(complaintsData);
-        }
-        if (announcementsRes.ok) {
-          const announcementsData = await announcementsRes.json();
-          setAnnouncements(announcementsData);
-        }
-        if (workersRes.ok) {
-          const workersData = await workersRes.json();
-          setWorkers(workersData);
-        }
-        if (residentsRes.ok) {
-          const residentsData = await residentsRes.json();
-          setResidentsList(residentsData);
-        }
-        if (bannerRes.ok) {
-          const bannerData = await bannerRes.json();
-          if (bannerData) {
-            setEventBanner(bannerData);
-          }
-        }
-        if (wardensRes.ok) {
-          const wardensData = await wardensRes.json();
-          setWardensList(wardensData);
-        }
-        if (feedbackReqRes.ok) {
-          const feedbackReqData = await feedbackReqRes.json();
-          setFeedbackRequests(feedbackReqData);
-        }
-        if (feedbackRespRes.ok) {
-          const feedbackRespData = await feedbackRespRes.json();
-          setFeedbackResponses(feedbackRespData);
-        }
-      } catch (err) {
-        console.error('Error fetching management dashboard data:', err);
+  const [selectedHostelType, setSelectedHostelType] = useState('Boys Hostel');
+
+  // Fetch all data from API
+  const fetchData = useCallback(async () => {
+    try {
+      const headers = { 'X-Hostel-Type': selectedHostelType };
+      const complaintsRes = await fetch(`/api/complaints?userEmail=${encodeURIComponent(user?.email || 'management@campuscare.com')}&userRole=management`, { headers });
+      const announcementsRes = await fetch('/api/announcements', { headers });
+      const workersRes = await fetch('/api/workers', { headers });
+      const residentsRes = await fetch('/api/students', { headers });
+      const bannerRes = await fetch('/api/event-banner', { headers });
+      const wardensRes = await fetch('/api/wardens', { headers });
+      const feedbackReqRes = await fetch('/api/feedback-requests', { headers });
+      const feedbackRespRes = await fetch('/api/feedback-responses', { headers });
+      
+      if (complaintsRes.ok) {
+        const complaintsData = await complaintsRes.json();
+        setComplaints(complaintsData);
       }
-    };
-    
+      if (announcementsRes.ok) {
+        const announcementsData = await announcementsRes.json();
+        setAnnouncements(announcementsData);
+      }
+      if (workersRes.ok) {
+        const workersData = await workersRes.json();
+        setWorkers(workersData);
+      }
+      if (residentsRes.ok) {
+        const residentsData = await residentsRes.json();
+        setResidentsList(residentsData);
+      }
+      if (bannerRes.ok) {
+        const bannerData = await bannerRes.json();
+        if (bannerData) {
+          setEventBanner(bannerData);
+        } else {
+          setEventBanner(null);
+        }
+      }
+      if (wardensRes.ok) {
+        const wardensData = await wardensRes.json();
+        setWardensList(wardensData);
+      }
+      if (feedbackReqRes.ok) {
+        const feedbackReqData = await feedbackReqRes.json();
+        setFeedbackRequests(feedbackReqData);
+      }
+      if (feedbackRespRes.ok) {
+        const feedbackRespData = await feedbackRespRes.json();
+        setFeedbackResponses(feedbackRespData);
+      }
+    } catch (err) {
+      console.error('Error fetching management dashboard data:', err);
+    }
+  }, [user?.email, selectedHostelType]);
+
+  // Fetch all data on mount or selectedHostelType change
+  useEffect(() => {
     fetchData();
-  }, [activeTab, user?.email]);
+  }, [fetchData, activeTab]);
 
   const handleMgtAnalyzeFeedback = async (requestId) => {
     setIsMgtAnalyzing(true);
@@ -197,21 +203,42 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
       }
     };
 
+    const handleRealtimeUpdate = () => {
+      fetchData();
+    };
+
     socket.on('receive_direct_message', handleDirectMsg);
     socket.on('global_activity_notification', handleDirectMsg);
+
+    socket.on('complaint_created', handleRealtimeUpdate);
+    socket.on('complaint_updated', handleRealtimeUpdate);
+    socket.on('feedback_created', handleRealtimeUpdate);
+    socket.on('feedback_updated', handleRealtimeUpdate);
+    socket.on('announcement_created', handleRealtimeUpdate);
+    socket.on('worker_updated', handleRealtimeUpdate);
+    socket.on('resident_updated', handleRealtimeUpdate);
 
     return () => {
       socket.off('receive_direct_message', handleDirectMsg);
       socket.off('global_activity_notification', handleDirectMsg);
+      socket.off('complaint_created', handleRealtimeUpdate);
+      socket.off('complaint_updated', handleRealtimeUpdate);
+      socket.off('feedback_created', handleRealtimeUpdate);
+      socket.off('feedback_updated', handleRealtimeUpdate);
+      socket.off('announcement_created', handleRealtimeUpdate);
+      socket.off('worker_updated', handleRealtimeUpdate);
+      socket.off('resident_updated', handleRealtimeUpdate);
     };
-  }, [socket, selectedWardenChat]);
+  }, [socket, selectedWardenChat, fetchData]);
 
   // Fetch direct messages when a warden chat modal opens
   useEffect(() => {
     if (selectedWardenChat) {
       const fetchWardenChat = async () => {
         try {
-          const res = await fetch(`/api/messages?studentEmail=${encodeURIComponent(selectedWardenChat.email)}`);
+          const res = await fetch(`/api/messages?studentEmail=${encodeURIComponent(selectedWardenChat.email)}`, {
+            headers: { 'X-Hostel-Type': selectedHostelType }
+          });
           if (res.ok) {
             const msgs = await res.json();
             setWardenMessages(msgs);
@@ -222,7 +249,7 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
       };
       fetchWardenChat();
     }
-  }, [selectedWardenChat]);
+  }, [selectedWardenChat, selectedHostelType]);
 
   // Send Direct Message to Warden
   const handleSendWardenMessage = async (e) => {
@@ -232,7 +259,10 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
     try {
       const res = await fetch('/api/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Hostel-Type': selectedHostelType
+        },
         body: JSON.stringify({
           text: wardenMsgText,
           sender: 'management',
@@ -268,7 +298,10 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
     try {
       const res = await fetch('/api/announcements', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Hostel-Type': selectedHostelType
+        },
         body: JSON.stringify({
           title: newAnn.title,
           text: newAnn.content,
@@ -329,7 +362,10 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
     try {
       const res = await fetch('/api/feedback-requests', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Hostel-Type': selectedHostelType
+        },
         body: JSON.stringify({
           title: newFb.title,
           description: newFb.description,
@@ -723,6 +759,32 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
           </div>
 
           <div className="header-actions-right">
+            {/* Hostel Selector Slider */}
+            <div className="hostel-type-segmented-control" style={{ marginRight: '1.25rem', width: '280px', height: '42px' }}>
+              <div 
+                className={`hostel-type-segment ${selectedHostelType === 'Boys Hostel' ? 'active' : ''}`}
+                onClick={() => setSelectedHostelType('Boys Hostel')}
+                style={{ padding: '0.4rem 0.6rem' }}
+              >
+                <svg className="hostel-segment-icon" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l9-5-9-5-9 5 9 5z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479L12 21l-6.825-3.943a12.084 12.084 0 01.665-6.48l6.16 3.423z" />
+                </svg>
+                <span>Boys Hostel</span>
+              </div>
+              <div 
+                className={`hostel-type-segment ${selectedHostelType === 'Girls Hostel' ? 'active' : ''}`}
+                onClick={() => setSelectedHostelType('Girls Hostel')}
+                style={{ padding: '0.4rem 0.6rem' }}
+              >
+                <svg className="hostel-segment-icon" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                </svg>
+                <span>Girls Hostel</span>
+              </div>
+              <div className={`hostel-segment-indicator ${selectedHostelType === 'Boys Hostel' ? 'left' : 'right'}`} style={{ height: '34px', top: '3px', bottom: '3px' }} />
+            </div>
+
             {/* Notifications Bell */}
             <div className="bell-action-wrapper" onClick={() => setShowNotifications(!showNotifications)}>
               <svg width="22" height="22" fill="none" stroke="#475569" strokeWidth="2.2" viewBox="0 0 24 24">
@@ -1373,7 +1435,7 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
               <h2>📢 Incident Discussion Groups</h2>
               <p style={{ color: '#64748b' }}>Discuss maintenance issues and collaborate with block residents.</p>
             </div>
-            <IncidentGroupsChat user={{ ...profile, role: 'management' }} />
+            <IncidentGroupsChat user={{ ...profile, role: 'management' }} hostelType={selectedHostelType} />
           </div>
         )}
 
@@ -1384,7 +1446,7 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
               <h2>📊 Block Group Insights</h2>
               <p style={{ color: '#64748b' }}>View AI-generated discussion summaries and analytics for each hostel block.</p>
             </div>
-            <GroupInsightsDashboard />
+            <GroupInsightsDashboard hostelType={selectedHostelType} />
           </div>
         )}
 
@@ -1585,27 +1647,41 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {residentsList
-                      .filter(r => r.name?.toLowerCase().includes(searchQuery.toLowerCase()) || r.email?.toLowerCase().includes(searchQuery.toLowerCase()) || r.block?.toLowerCase().includes(searchQuery.toLowerCase()))
-                      .map(r => (
-                        <tr key={r._id || r.email}>
-                          <td className="font-semibold" style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
-                            {r.profilePhoto ? (
-                              <img src={r.profilePhoto} alt="student" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }} />
-                            ) : (
-                              <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#cbd5e1', color: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.75rem' }}>
-                                {r.name?.split(' ').map(n=>n[0]).join('') || 'S'}
-                              </div>
-                            )}
-                            {r.name}
-                          </td>
-                          <td>{r.rollNo || '2021CS101'}</td>
-                          <td><span style={{ fontWeight: 700, color: '#2563eb' }}>{r.block || 'D'} Block</span></td>
-                          <td>{r.roomNo || '101'}</td>
-                          <td>{r.phoneNo || '9876543210'}</td>
-                          <td>{r.email}</td>
-                        </tr>
-                      ))}
+                    {residentsList.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" style={{ textAlign: 'center', padding: '2rem 0', color: '#64748b' }}>
+                          No students registered in the {selectedHostelType === 'Girls Hostel' ? 'Girls Hostel' : 'Boys Hostel'} yet.
+                        </td>
+                      </tr>
+                    ) : residentsList.filter(r => r.name?.toLowerCase().includes(searchQuery.toLowerCase()) || r.email?.toLowerCase().includes(searchQuery.toLowerCase()) || r.block?.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 ? (
+                      <tr>
+                        <td colSpan="6" style={{ textAlign: 'center', padding: '2rem 0', color: '#64748b' }}>
+                          No residents match your query.
+                        </td>
+                      </tr>
+                    ) : (
+                      residentsList
+                        .filter(r => r.name?.toLowerCase().includes(searchQuery.toLowerCase()) || r.email?.toLowerCase().includes(searchQuery.toLowerCase()) || r.block?.toLowerCase().includes(searchQuery.toLowerCase()))
+                        .map(r => (
+                          <tr key={r._id || r.email}>
+                            <td className="font-semibold" style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+                              {r.profilePhoto ? (
+                                <img src={r.profilePhoto} alt="student" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }} />
+                              ) : (
+                                <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#cbd5e1', color: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.75rem' }}>
+                                  {r.name?.split(' ').map(n=>n[0]).join('') || 'S'}
+                                </div>
+                              )}
+                              {r.name}
+                            </td>
+                            <td>{r.rollNo || 'N/A'}</td>
+                            <td><span style={{ fontWeight: 700, color: '#2563eb' }}>{r.block ? `${r.block} Block` : 'N/A'}</span></td>
+                            <td>{r.roomNo || 'N/A'}</td>
+                            <td>{r.phoneNo || 'N/A'}</td>
+                            <td>{r.email}</td>
+                          </tr>
+                        ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1680,7 +1756,11 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.25rem', marginTop: '1rem' }}>
-              {filteredComplaints.length === 0 ? (
+              {complaints.length === 0 ? (
+                <p style={{ color: '#64748b', textAlign: 'center', padding: '2rem 0', gridColumn: '1 / -1', fontWeight: '500' }}>
+                  No complaints have been registered in the {selectedHostelType === 'Girls Hostel' ? 'Girls Hostel' : 'Boys Hostel'} yet.
+                </p>
+              ) : filteredComplaints.length === 0 ? (
                 <p style={{ color: '#64748b', textAlign: 'center', padding: '2rem 0', gridColumn: '1 / -1' }}>No complaints match your query.</p>
               ) : (
                 filteredComplaints.map(c => (
