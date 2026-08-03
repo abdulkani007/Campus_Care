@@ -298,42 +298,38 @@ const LandingPage = ({ onLoginClick }) => {
         <div className="mobile-drawer-overlay" onClick={() => setIsMobileMenuOpen(false)}>
           <div className="mobile-drawer-menu" onClick={(e) => e.stopPropagation()}>
             <div className="drawer-header">
-              <span className="drawer-title">CampusCare Menu</span>
-              <button className="drawer-close-btn" onClick={() => setIsMobileMenuOpen(false)}>
-                <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <div className="header-logo-section">
+                <img src={logo} alt="Campus Care Logo" className="header-logo-img" style={{ height: '32px', marginRight: '0.5rem' }} />
+                <div className="college-brand">
+                  <h1 className="college-title" style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0F4FA8' }}>Campus Care</h1>
+                  <span className="college-subtitle" style={{ fontSize: '0.65rem', color: '#64748b' }}>Intelligent Hostel Portal</span>
+                </div>
+              </div>
+              <button className="drawer-close-btn" onClick={() => setIsMobileMenuOpen(false)} aria-label="Close menu">
+                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            <nav className="drawer-nav">
-              <button className="drawer-nav-item" onClick={() => { scrollToSection(overviewRef, 'overview'); setIsMobileMenuOpen(false); }}>
-                <span className="item-icon">🏠</span> Overview
-              </button>
-              <button className="drawer-nav-item" onClick={() => { scrollToSection(featuresRef, 'features'); setIsMobileMenuOpen(false); }}>
-                <span className="item-icon">🔧</span> Complaint Types
-              </button>
-              <button className="drawer-nav-item" onClick={() => { scrollToSection(duplicateRef, 'duplicate'); setIsMobileMenuOpen(false); }}>
-                <span className="item-icon">🧠</span> Smart Detection
-              </button>
-              <button className="drawer-nav-item" onClick={() => { scrollToSection(statsRef, 'stats'); setIsMobileMenuOpen(false); }}>
-                <span className="item-icon">📊</span> Hostel Stats
-              </button>
-            </nav>
-
-            <div className="drawer-footer">
-              <SpecularButton
-                size="lg"
-                radius={8}
-                tint="#f8b400"
-                tintOpacity={1}
-                textColor="#1e293b"
-                lineColor="#ffffff"
-                baseColor="#e0a300"
-                onClick={() => { onLoginClick(); setIsMobileMenuOpen(false); }}
-              >
-                Portal Login
-              </SpecularButton>
+            <div className="drawer-content-blue">
+              <nav className="drawer-nav">
+                <button className="drawer-nav-item" onClick={() => { scrollToSection(overviewRef, 'overview'); setIsMobileMenuOpen(false); }}>
+                  OVERVIEW
+                </button>
+                <button className="drawer-nav-item" onClick={() => { scrollToSection(featuresRef, 'features'); setIsMobileMenuOpen(false); }}>
+                  COMPLAINT TYPES
+                </button>
+                <button className="drawer-nav-item" onClick={() => { scrollToSection(duplicateRef, 'duplicate'); setIsMobileMenuOpen(false); }}>
+                  SMART DETECTION
+                </button>
+                <button className="drawer-nav-item" onClick={() => { scrollToSection(statsRef, 'stats'); setIsMobileMenuOpen(false); }}>
+                  HOSTEL STATS
+                </button>
+                <button className="drawer-nav-item login-nav-item" onClick={() => { onLoginClick(); setIsMobileMenuOpen(false); }}>
+                  PORTAL LOGIN
+                </button>
+              </nav>
             </div>
           </div>
         </div>
