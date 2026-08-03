@@ -218,6 +218,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [wardenFormPhone, setWardenFormPhone] = useState('');
   const [wardenFormEmail, setWardenFormEmail] = useState('');
   const [wardenFormBlock, setWardenFormBlock] = useState(user?.hostelType === 'Girls Hostel' ? 'A Block' : 'ABC Block');
+  const [customBlock, setCustomBlock] = useState('');
   const [wardenFormPassword, setWardenFormPassword] = useState('');
   const [wardenFormConfirmPassword, setWardenFormConfirmPassword] = useState('');
   const [wardenFormStatus, setWardenFormStatus] = useState('Active');
@@ -739,6 +740,19 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
       return;
     }
 
+    let finalBlock = wardenFormBlock;
+    if (wardenFormBlock === '+ Add New Block') {
+      let clean = customBlock.trim();
+      if (!clean) {
+        setFormError('Please enter a custom block name.');
+        return;
+      }
+      if (clean.length === 1 || (clean.length > 1 && !/block$/i.test(clean))) {
+        clean = clean + ' Block';
+      }
+      finalBlock = clean;
+    }
+
     try {
       const res = await fetch('/api/admin/wardens', {
         method: 'POST',
@@ -751,7 +765,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
           name: wardenFormName,
           phoneNo: wardenFormPhone,
           email: wardenFormEmail,
-          block: wardenFormBlock,
+          block: finalBlock,
           password: wardenFormPassword,
           status: wardenFormStatus
         })
@@ -793,6 +807,19 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
       return;
     }
 
+    let finalBlock = wardenFormBlock;
+    if (wardenFormBlock === '+ Add New Block') {
+      let clean = customBlock.trim();
+      if (!clean) {
+        setFormError('Please enter a custom block name.');
+        return;
+      }
+      if (clean.length === 1 || (clean.length > 1 && !/block$/i.test(clean))) {
+        clean = clean + ' Block';
+      }
+      finalBlock = clean;
+    }
+
     try {
       const res = await fetch(`/api/admin/wardens/${selectedWarden._id}`, {
         method: 'PUT',
@@ -805,7 +832,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
           name: wardenFormName,
           phoneNo: wardenFormPhone,
           email: wardenFormEmail,
-          block: wardenFormBlock,
+          block: finalBlock,
           password: wardenFormPassword || undefined,
           status: wardenFormStatus
         })
@@ -3238,6 +3265,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                     setWardenFormPhone('');
                     setWardenFormEmail('');
                     setWardenFormBlock(user?.hostelType === 'Girls Hostel' ? 'A Block' : 'ABC Block');
+                    setCustomBlock('');
                     setWardenFormPassword('');
                     setWardenFormConfirmPassword('');
                     setWardenFormStatus('Active');
@@ -3415,7 +3443,18 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                                       setWardenFormName(w.name);
                                       setWardenFormPhone(w.phoneNo);
                                       setWardenFormEmail(w.email);
-                                      setWardenFormBlock(w.block);
+                                      const predefinedGirls = ['A Block', 'B Block', 'C Block', 'D Block'];
+                                      const predefinedBoys = ['ABC Block', 'D Block', 'E Block', 'F Block'];
+                                      const isGirls = (user?.hostelType || w.hostelType) === 'Girls Hostel';
+                                      const predefined = isGirls ? predefinedGirls : predefinedBoys;
+
+                                      if (predefined.includes(w.block)) {
+                                        setWardenFormBlock(w.block);
+                                        setCustomBlock('');
+                                      } else {
+                                        setWardenFormBlock('+ Add New Block');
+                                        setCustomBlock(w.block);
+                                      }
                                       setWardenFormPassword('');
                                       setWardenFormConfirmPassword('');
                                       setWardenFormStatus(w.status || 'Active');
@@ -5079,6 +5118,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                         <option value="F Block">F Block</option>
                       </>
                     )}
+                    <option value="+ Add New Block" style={{ fontWeight: 'bold', color: '#1e5bbf' }}>+ Add New Block</option>
                   </select>
                 </div>
                 <div className="form-group">
@@ -5094,6 +5134,20 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                   </select>
                 </div>
               </div>
+
+              {wardenFormBlock === '+ Add New Block' && (
+                <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ fontWeight: 600, color: '#334155' }}>New Block Name *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. G Block"
+                    required
+                    value={customBlock}
+                    onChange={(e) => setCustomBlock(e.target.value)}
+                    className="modal-input-field"
+                  />
+                </div>
+              )}
 
               {/* Password & Confirm Password */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -5208,6 +5262,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                         <option value="F Block">F Block</option>
                       </>
                     )}
+                    <option value="+ Add New Block" style={{ fontWeight: 'bold', color: '#1e5bbf' }}>+ Add New Block</option>
                   </select>
                 </div>
                 <div className="form-group">
@@ -5223,6 +5278,20 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                   </select>
                 </div>
               </div>
+
+              {wardenFormBlock === '+ Add New Block' && (
+                <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ fontWeight: 600, color: '#334155' }}>New Block Name *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. G Block"
+                    required
+                    value={customBlock}
+                    onChange={(e) => setCustomBlock(e.target.value)}
+                    className="modal-input-field"
+                  />
+                </div>
+              )}
 
               {/* Optional Password Change */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
