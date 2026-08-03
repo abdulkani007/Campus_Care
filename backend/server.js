@@ -399,6 +399,51 @@ const seedDefaults = async () => {
       );
     }
 
+    // Migrate legacy blockGroup names to new isolated block group structure
+    const blockGroupMigration = [
+      { from: 'ABC', to: 'boys_ABC', hostelType: 'Boys Hostel' },
+      { from: 'A', to: 'boys_ABC', hostelType: 'Boys Hostel' },
+      { from: 'B', to: 'boys_ABC', hostelType: 'Boys Hostel' },
+      { from: 'C', to: 'boys_ABC', hostelType: 'Boys Hostel' },
+      { from: 'D', to: 'boys_D', hostelType: 'Boys Hostel' },
+      { from: 'E', to: 'boys_E', hostelType: 'Boys Hostel' },
+      { from: 'F', to: 'boys_F', hostelType: 'Boys Hostel' },
+      { from: 'girls_ABC', to: 'girls_A', hostelType: 'Girls Hostel' },
+      { from: 'A Block', to: 'girls_A', hostelType: 'Girls Hostel' },
+      { from: 'B Block', to: 'girls_B', hostelType: 'Girls Hostel' },
+      { from: 'C Block', to: 'girls_C', hostelType: 'Girls Hostel' },
+      { from: 'D Block', to: 'girls_D', hostelType: 'Girls Hostel' }
+    ];
+
+    for (const migration of blockGroupMigration) {
+      // 1. IncidentGroupMessage
+      const msgRes = await IncidentGroupMessage.updateMany(
+        { blockGroup: migration.from, hostelType: migration.hostelType },
+        { $set: { blockGroup: migration.to } }
+      );
+      if (msgRes.modifiedCount > 0) {
+        console.log(`Migrated ${msgRes.modifiedCount} IncidentGroupMessage docs: ${migration.from} -> ${migration.to}`);
+      }
+
+      // 2. GroupInsight (handle unique constraint safely)
+      try {
+        const legacyInsight = await GroupInsight.findOne({ blockGroup: migration.from, hostelType: migration.hostelType });
+        if (legacyInsight) {
+          const targetInsight = await GroupInsight.findOne({ blockGroup: migration.to, hostelType: migration.hostelType });
+          if (targetInsight) {
+            await GroupInsight.deleteOne({ _id: legacyInsight._id });
+            console.log(`Deleted duplicate legacy GroupInsight: ${migration.from}`);
+          } else {
+            legacyInsight.blockGroup = migration.to;
+            await legacyInsight.save();
+            console.log(`Renamed GroupInsight: ${migration.from} -> ${migration.to}`);
+          }
+        }
+      } catch (err) {
+        console.error(`GroupInsight migration failed for ${migration.from}:`, err);
+      }
+    }
+
     // Clean up any stray test complaints from automated test suites
     await Complaint.deleteMany({
       title: { $in: ['Water Leakage in Bathroom', 'Broken Light Bulb', 'Fan Not Working', 'Door lock jammed'] },
@@ -722,20 +767,83 @@ const seedDefaults = async () => {
       }
     }
 
-    // Clean up default mock messages if they exist in the database
-    await IncidentGroupMessage.deleteMany({
-      text: {
-        $in: [
-          'Hi everyone, is the water working on the 4th floor of D block?',
-          'It is working here on 3rd floor but the pressure is very low.',
-          'Warden here. I have informed the maintenance team. Plumber will check the pumps in 10 minutes.',
-          'Thanks for the quick response, sir!',
-          'Hey guys, the Wi-Fi speed in C block is extremely slow today. Anyone face this internet issue?',
-          'Yes, same in Block A as well. Can barely load study materials.',
-          'Warden here. The internet provider is performing line maintenance today. It should be resolved by evening.'
-        ]
-      }
-    });
+    // Seed default mock messages for Boys Hostel blocks if collection is empty
+    const msgCount = await IncidentGroupMessage.countDocuments();
+    if (msgCount === 0) {
+      await IncidentGroupMessage.create([
+        {
+          blockGroup: 'boys_D',
+          senderEmail: 'student1@campuscare.com',
+          senderName: 'Rahul Kumar',
+          senderRole: 'student',
+          senderRoomNo: 'D-102',
+          text: 'Hi everyone, is the water working on the 4th floor of D block?',
+          timestamp: new Date(Date.now() - 3600000 * 2), // 2 hours ago
+          hostelType: 'Boys Hostel'
+        },
+        {
+          blockGroup: 'boys_D',
+          senderEmail: 'student2@campuscare.com',
+          senderName: 'Vikas Singh',
+          senderRole: 'student',
+          senderRoomNo: 'D-204',
+          text: 'It is working here on 3rd floor but the pressure is very low.',
+          timestamp: new Date(Date.now() - 3600000 * 1.8),
+          hostelType: 'Boys Hostel'
+        },
+        {
+          blockGroup: 'boys_D',
+          senderEmail: 'dwarden@campuscare.com',
+          senderName: 'D Block Warden',
+          senderRole: 'warden',
+          senderRoomNo: 'Office-D',
+          text: 'Warden here. I have informed the maintenance team. Plumber will check the pumps in 10 minutes.',
+          timestamp: new Date(Date.now() - 3600000 * 1.5),
+          hostelType: 'Boys Hostel'
+        },
+        {
+          blockGroup: 'boys_D',
+          senderEmail: 'student1@campuscare.com',
+          senderName: 'Rahul Kumar',
+          senderRole: 'student',
+          senderRoomNo: 'D-102',
+          text: 'Thanks for the quick response, sir!',
+          timestamp: new Date(Date.now() - 3600000 * 1.2),
+          hostelType: 'Boys Hostel'
+        },
+        {
+          blockGroup: 'boys_ABC',
+          senderEmail: 'student3@campuscare.com',
+          senderName: 'Amit Sharma',
+          senderRole: 'student',
+          senderRoomNo: 'A-305',
+          text: 'Hey guys, the Wi-Fi speed in C block is extremely slow today. Anyone face this internet issue?',
+          timestamp: new Date(Date.now() - 3600000 * 3),
+          hostelType: 'Boys Hostel'
+        },
+        {
+          blockGroup: 'boys_ABC',
+          senderEmail: 'student4@campuscare.com',
+          senderName: 'Kunal Verma',
+          senderRole: 'student',
+          senderRoomNo: 'B-108',
+          text: 'Yes, same in Block B as well. Can barely load study materials.',
+          timestamp: new Date(Date.now() - 3600000 * 2.8),
+          hostelType: 'Boys Hostel'
+        },
+        {
+          blockGroup: 'boys_ABC',
+          senderEmail: 'abcwarden@campuscare.com',
+          senderName: 'ABC Block Warden',
+          senderRole: 'warden',
+          senderRoomNo: 'Office-ABC',
+          text: 'Warden here. The internet provider is performing line maintenance today. It should be resolved by evening.',
+          timestamp: new Date(Date.now() - 3600000 * 2.5),
+          hostelType: 'Boys Hostel'
+        }
+      ]);
+      console.log('Seeded default incident group messages for Boys Hostel.');
+    }
   } catch (err) {
     console.error('Error seeding default data:', err);
   }
@@ -3112,16 +3220,17 @@ app.post('/api/incident-groups/summarize', async (req, res) => {
     let mostMentionedCategory = "General";
 
     if (messageCount > 0) {
+      let success = false;
       const groqApiKey = (process.env.GROQ_API_KEY || '').trim();
-      if (groqApiKey) {
-        try {
-          const formattedMessages = messages.map(m => ({
-            sender: `${m.senderName} (${m.senderRole}${m.senderRoomNo ? `, Room ${m.senderRoomNo}` : ''})`,
-            text: m.text,
-            time: m.timestamp
-          }));
+      const geminiApiKey = (process.env.GEMINI_API_KEY || '').trim();
 
-          const prompt = `Analyze the following hostel block group chat messages from the "${blockGroup} Block Group".
+      const formattedMessages = messages.map(m => ({
+        sender: `${m.senderName} (${m.senderRole}${m.senderRoomNo ? `, Room ${m.senderRoomNo}` : ''})`,
+        text: m.text,
+        time: m.timestamp
+      }));
+
+      const prompt = `Analyze the following hostel block group chat messages from the "${blockGroup} Block Group".
 Messages:
 ${JSON.stringify(formattedMessages, null, 2)}
 
@@ -3137,6 +3246,8 @@ Return the response STRICTLY as a valid JSON object matching the following struc
   "mostMentionedCategory": "..."
 }`;
 
+      if (groqApiKey) {
+        try {
           let groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -3173,39 +3284,39 @@ Return the response STRICTLY as a valid JSON object matching the following struc
             summaryText = analysis.summary;
             mostDiscussedTopic = analysis.mostDiscussedTopic;
             mostMentionedCategory = analysis.mostMentionedCategory;
+            success = true;
           } else {
-            const errText = await groqResponse.text();
-            console.error('[Groq AI Summary Error]:', errText);
-            throw new Error('Groq API error');
+            console.error('[Groq AI Summary Error]:', await groqResponse.text());
           }
         } catch (groqErr) {
-          console.error('[Groq Summarization Failed, Fallback Active]:', groqErr);
-          const counts = { Water: 0, Electricity: 0, Food: 0, Internet: 0, Cleaning: 0, Lift: 0, Plumbing: 0, General: 0 };
-          messages.forEach(m => {
-            const txt = m.text.toLowerCase();
-            if (txt.includes('water')) counts.Water++;
-            if (txt.includes('electricity') || txt.includes('light') || txt.includes('power')) counts.Electricity++;
-            if (txt.includes('food') || txt.includes('mess')) counts.Food++;
-            if (txt.includes('internet') || txt.includes('wifi') || txt.includes('net')) counts.Internet++;
-            if (txt.includes('clean') || txt.includes('sweep') || txt.includes('washroom')) counts.Cleaning++;
-            if (txt.includes('lift') || txt.includes('elevator')) counts.Lift++;
-            if (txt.includes('plumb') || txt.includes('leak') || txt.includes('tap')) counts.Plumbing++;
-          });
-
-          let maxCat = 'General';
-          let maxVal = 0;
-          Object.entries(counts).forEach(([cat, val]) => {
-            if (val > maxVal) {
-              maxVal = val;
-              maxCat = cat;
-            }
-          });
-
-          mostMentionedCategory = maxCat;
-          mostDiscussedTopic = maxCat !== 'General' ? `${maxCat} issues` : 'General queries';
-          summaryText = `Today's Discussion Summary (Local Fallback)\n\n• Total of ${messageCount} messages exchanged.\n• Senders talked about various block matters.\n• Most mentioned category was ${maxCat}.\n• Active participation from ${activeStudentsCount} students.`;
+          console.error('[Groq Summarization Failed, trying Gemini...]:', groqErr);
         }
-      } else {
+      }
+
+      if (!success && geminiApiKey) {
+        try {
+          const { GoogleGenerativeAI } = require("@google/generative-ai");
+          const genAI = new GoogleGenerativeAI(geminiApiKey);
+          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+          const promptWithFormat = `${prompt}
+Return the response STRICTLY as a valid JSON object matching the requested structure (no markdown wrapper, no backticks, no wrap, just clean JSON).`;
+
+          const result = await model.generateContent(promptWithFormat);
+          const textResponse = result.response.text().trim();
+          const jsonText = textResponse.replace(/```json/i, '').replace(/```/g, '').trim();
+          const analysis = JSON.parse(jsonText);
+
+          summaryText = analysis.summary;
+          mostDiscussedTopic = analysis.mostDiscussedTopic;
+          mostMentionedCategory = analysis.mostMentionedCategory;
+          success = true;
+        } catch (geminiErr) {
+          console.error('[Gemini Summarization Failed, falling back to Local]:', geminiErr);
+        }
+      }
+
+      if (!success) {
         const counts = { Water: 0, Electricity: 0, Food: 0, Internet: 0, Cleaning: 0, Lift: 0, Plumbing: 0, General: 0 };
         messages.forEach(m => {
           const txt = m.text.toLowerCase();
