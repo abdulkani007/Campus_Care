@@ -383,11 +383,17 @@ export default function IncidentGroupsChat({ user, hostelType }) {
                   )}
 
                   <button className="ai-summarize-btn" onClick={handleSummarize}>
-                    ✨ Summarize
+                    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 21L8.188 15.904L3 15L8.188 14.096L9 9L9.813 14.096L15 15L9.813 15.904ZM19.071 7.071L18.5 10.5L17.929 7.071L14.5 6.5L17.929 5.929L18.5 2.5L19.071 5.929L22.5 6.5L19.071 7.071ZM19.071 18.571L18.5 22L17.929 18.571L14.5 18L17.929 17.429L18.5 14L19.071 17.429L22.5 18L19.071 18.571Z" />
+                    </svg>
+                    <span>Summarize</span>
                   </button>
 
                   <button className="clear-chat-btn" onClick={handleClearChat} title="Clear all messages in this group">
-                    🗑️ Clear Chat
+                    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    <span>Clear Chat</span>
                   </button>
                 </div>
               </div>
