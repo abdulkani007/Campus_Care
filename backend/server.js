@@ -2646,7 +2646,6 @@ app.post('/api/feedback-requests/:id/analyze', async (req, res) => {
         categoryDistribution: [],
         recommendations: [],
         priorityLevels: { high: [], medium: [], low: [] },
-        executiveSummary: "No responses submitted yet.",
         positive: [],
         negative: [],
         common: []
@@ -2685,22 +2684,25 @@ Produce a thorough analysis of this feedback campaign. You must return a JSON ob
    - "high": Array of objects with "issue" and "count" for high priority items (repeated by many students or critical safety/hygiene concerns).
    - "medium": Array of objects with "issue" and "count" for medium priority items.
    - "low": Array of objects with "issue" and "count" for low priority items.
-8. "executiveSummary": A final executive summary text summarizing the feedback trends and immediate action areas.
 
 To maintain backward compatibility, you must also include these root-level fields mapping the original structure:
-9. "positive": Array of objects representing all positive feedback submissions:
+8. "positive": Array of objects representing all positive feedback submissions:
    - "studentName": String
    - "comments": String
    - "rating": Number
-10. "negative": Array of objects representing all negative feedback submissions:
+9. "negative": Array of objects representing all negative feedback submissions:
    - "studentName": String
    - "comments": String
    - "rating": Number
-11. "common": Array of objects matching "commonRepeatingIssues" but mapped exactly to:
+10. "common": Array of objects matching "commonRepeatingIssues" but mapped exactly to:
    - "issue": String
    - "count": Number
    - "students": Array of student names (matches studentNames).
 
+Classify each student feedback submission as positive or negative based objectively on the text content of the comments. 
+CRITICAL RULE:
+Be precise: student remarks expressing satisfaction (e.g., "ok nice", "good food", "nice", "Rice and dal were delicious!") must be placed in the "positive" list. 
+Only remarks expressing dissatisfaction, complaints, or problems (e.g., "very poor", "not good", "hard chappati") should be placed in the "negative" list.
 Return the response STRICTLY as a valid JSON object matching this structure (no markdown wrapper, no backticks, no wrap, just clean JSON).`;
 
     const groqApiKey = (process.env.GROQ_API_KEY || '').trim();
@@ -2873,7 +2875,6 @@ Return the response STRICTLY as a valid JSON object matching this structure (no 
       categoryDistribution,
       recommendations,
       priorityLevels,
-      executiveSummary: `Analysis showing ${posPercent}% positive sentiment and an average satisfaction rating of ${avgRating.toFixed(1)}/5.`,
       positive,
       negative,
       common

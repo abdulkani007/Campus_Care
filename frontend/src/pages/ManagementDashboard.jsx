@@ -608,6 +608,10 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
     downloadCSV('CampusCare_Feedback_Campaigns_Report', headers, rows);
   };
 
+  const campaignResponses = selectedMgtCampaignModal 
+    ? feedbackResponses.filter(r => r.feedbackRequestId === (selectedMgtCampaignModal._id || selectedMgtCampaignModal.id))
+    : [];
+
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   return (
@@ -1571,6 +1575,8 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
                           <button
                             onClick={() => {
+                              setMgtAiAnalysis(null);
+                              setMgtAnalysisTab('raw');
                               setSelectedMgtCampaignModal(req);
                               setShowMgtCampaignResponsesModal(true);
                             }}
@@ -2386,7 +2392,12 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
             zIndex: 9999,
             padding: '1.5rem'
           }}
-          onClick={() => setShowMgtCampaignResponsesModal(false)}
+          onClick={() => {
+            setMgtAiAnalysis(null);
+            setMgtAnalysisTab('raw');
+            setSelectedMgtCampaignModal(null);
+            setShowMgtCampaignResponsesModal(false);
+          }}
         >
           <div 
             style={{
@@ -2413,7 +2424,12 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 </p>
               </div>
               <button 
-                onClick={() => setShowMgtCampaignResponsesModal(false)}
+                onClick={() => {
+                  setMgtAiAnalysis(null);
+                  setMgtAnalysisTab('raw');
+                  setSelectedMgtCampaignModal(null);
+                  setShowMgtCampaignResponsesModal(false);
+                }}
                 style={{ background: 'none', border: 'none', fontSize: '1.5rem', color: '#64748b', cursor: 'pointer', lineHeight: 1 }}
               >
                 &times;
@@ -2427,13 +2443,13 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
                 <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
                   <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>Total Submissions</span>
-                  <h4 style={{ margin: '0.25rem 0 0', fontSize: '1.4rem', color: '#0f172a', fontWeight: 800 }}>{feedbackResponses.length}</h4>
+                  <h4 style={{ margin: '0.25rem 0 0', fontSize: '1.4rem', color: '#0f172a', fontWeight: 800 }}>{campaignResponses.length}</h4>
                 </div>
                 <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
                   <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>Average Rating</span>
                   <h4 style={{ margin: '0.25rem 0 0', fontSize: '1.4rem', color: '#eab308', fontWeight: 800 }}>
-                    {feedbackResponses.length > 0
-                      ? (feedbackResponses.reduce((acc, r) => acc + (r.rating || 0), 0) / feedbackResponses.length).toFixed(1) + ' / 5.0 ⭐'
+                    {campaignResponses.length > 0
+                      ? (campaignResponses.reduce((acc, r) => acc + (r.rating || 0), 0) / campaignResponses.length).toFixed(1) + ' / 5.0 ⭐'
                       : 'N/A'}
                   </h4>
                 </div>
@@ -2455,7 +2471,7 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                       cursor: 'pointer'
                     }}
                   >
-                    Raw Submissions ({feedbackResponses.length})
+                    Raw Submissions ({campaignResponses.length})
                   </button>
                   <button
                     onClick={() => {
@@ -2501,11 +2517,11 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
 
               {/* Content List */}
               {mgtAnalysisTab === 'raw' ? (
-                feedbackResponses.length === 0 ? (
+                campaignResponses.length === 0 ? (
                   <p style={{ color: '#64748b', textAlign: 'center', padding: '2rem 0' }}>No responses recorded yet.</p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {feedbackResponses.map((fb, idx) => (
+                    {campaignResponses.map((fb, idx) => (
                       <div key={fb._id || idx} style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
@@ -2532,8 +2548,8 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
               ) : mgtAiAnalysis ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', fontFamily: "'Outfit', 'Inter', sans-serif", color: '#1e293b' }}>
                   
-                  {/* Row 1: Sentiment & Summary */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+                  {/* Row 1: Sentiment */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.25rem' }}>
                     
                     {/* Sentiment Analysis Card */}
                     <div style={{ padding: '1.25rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
@@ -2591,24 +2607,6 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                             <div style={{ width: `${mgtAiAnalysis.overallSentiment?.negativePercentage || 0}%`, height: '100%', backgroundColor: '#dc2626', borderRadius: '4px' }}></div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                    
-                    {/* Executive Summary Card */}
-                    <div style={{ padding: '1.25rem', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', color: '#1d4ed8' }}>
-                          <svg style={{ width: '20px', height: '20px' }} fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800 }}>Executive Summary</h4>
-                        </div>
-                        <p style={{ margin: 0, fontSize: '0.88rem', color: '#1e3a8a', lineHeight: '1.5', fontStyle: 'italic' }}>
-                          "{mgtAiAnalysis.executiveSummary || 'No summary generated.'}"
-                        </p>
-                      </div>
-                      <div style={{ marginTop: '1rem', borderTop: '1px solid #dbeafe', paddingTop: '0.75rem', fontSize: '0.78rem', color: '#1d4ed8', fontWeight: 600 }}>
-                        Generated dynamically using Llama 3.3 model.
                       </div>
                     </div>
                   </div>
