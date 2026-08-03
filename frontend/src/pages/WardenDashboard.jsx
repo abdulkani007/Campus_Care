@@ -4403,7 +4403,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
       {/* FEEDBACK RESPONSES MODAL */}
       {showResponsesModal && selectedFeedbackRequest && (
         <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: '750px', width: '95%', borderRadius: '12px', padding: '2rem', backgroundColor: '#fff', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+          <div className="modal-content" style={{ maxWidth: '900px', width: '95%', borderRadius: '12px', padding: '2rem', backgroundColor: '#fff', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem', marginBottom: '1rem' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a', fontWeight: 700 }}>{selectedFeedbackRequest.title}</h3>
@@ -4508,7 +4508,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
               </button>
             </div>
 
-            <div style={{ maxHeight: '48vh', overflowY: 'auto', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '0.75rem', paddingRight: '0.25rem' }}>
+            <div style={{ maxHeight: '70vh', overflowY: 'auto', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '0.75rem', paddingRight: '0.25rem' }}>
               {analysisTab === 'raw' ? (
                 selectedFeedbackResponses.length === 0 ? (
                   <p style={{ color: '#64748b', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>No responses submitted yet.</p>
@@ -4537,79 +4537,268 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 0', gap: '1rem' }}>
                   <div className="analyzing-spinner" style={{ width: '40px', height: '40px', border: '3px solid #f3f3f3', borderTop: '3px solid #2563eb', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
                   <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-                  <p style={{ color: '#475569', fontSize: '0.9rem', fontWeight: 600, margin: 0 }}>Gemini is clustering and categorizing student feedbacks...</p>
+                  <p style={{ color: '#475569', fontSize: '0.9rem', fontWeight: 600, margin: 0 }}>Groq AI is analyzing and categorizing student feedbacks...</p>
                 </div>
               ) : aiAnalysis ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {/* Common Duplicate Feedback */}
-                  <div>
-                    <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem', fontWeight: 700, color: '#e11d48', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                      🚨 Common Repeating Feedback
-                    </h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      {(!aiAnalysis.common || aiAnalysis.common.length === 0) ? (
-                        <p style={{ color: '#64748b', fontSize: '0.82rem', fontStyle: 'italic', margin: 0 }}>No matching clusters or repeat concerns found.</p>
-                      ) : (
-                        aiAnalysis.common.map((item, idx) => (
-                          <div key={idx} style={{ padding: '0.85rem 1rem', border: '1px solid #fda4af', borderRadius: '8px', backgroundColor: '#fff5f5', borderLeft: '4px solid #f43f5e' }}>
-                            <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#9f1239', display: 'block' }}>"{item.issue}"</span>
-                            <span style={{ fontSize: '0.78rem', color: '#be123c', marginTop: '0.25rem', display: 'block' }}>
-                              Affected by <strong>{item.count}</strong> students: {item.students?.join(', ') || 'Anonymous'}
-                            </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', fontFamily: "'Outfit', 'Inter', sans-serif", color: '#1e293b' }}>
+                  
+                  {/* Row 1: Sentiment & Summary */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+                    
+                    {/* Sentiment Analysis Card */}
+                    <div style={{ padding: '1.25rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: '#1e5bbf' }}>
+                        <svg style={{ width: '20px', height: '20px' }} fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800 }}>Overall Sentiment</h4>
+                      </div>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px dashed #e2e8f0', paddingBottom: '0.75rem' }}>
+                        <div>
+                          <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', fontWeight: 600, textTransform: 'uppercase' }}>Overall Satisfaction</span>
+                          <strong style={{ fontSize: '1.75rem', color: '#1e5bbf', fontWeight: 800 }}>{aiAnalysis.overallSentiment?.satisfactionRating || 'N/A'}</strong>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', fontWeight: 600, textTransform: 'uppercase' }}>Average Rating</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', justifyContent: 'flex-end', marginTop: '0.25rem' }}>
+                            <span style={{ color: '#eab308', fontWeight: 800, fontSize: '1.1rem' }}>★</span>
+                            <strong style={{ fontSize: '1.25rem', color: '#0f172a', fontWeight: 800 }}>{aiAnalysis.overallSentiment?.averageRating || '0'}/5</strong>
                           </div>
-                        ))
-                      )}
+                        </div>
+                      </div>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                        {/* Positive Sentiment % */}
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.25rem' }}>
+                            <span style={{ color: '#16a34a' }}>Positive</span>
+                            <span>{aiAnalysis.overallSentiment?.positivePercentage || 0}%</span>
+                          </div>
+                          <div style={{ width: '100%', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ width: `${aiAnalysis.overallSentiment?.positivePercentage || 0}%`, height: '100%', backgroundColor: '#16a34a', borderRadius: '4px' }}></div>
+                          </div>
+                        </div>
+                        
+                        {/* Neutral Sentiment % */}
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.25rem' }}>
+                            <span style={{ color: '#64748b' }}>Neutral</span>
+                            <span>{aiAnalysis.overallSentiment?.neutralPercentage || 0}%</span>
+                          </div>
+                          <div style={{ width: '100%', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ width: `${aiAnalysis.overallSentiment?.neutralPercentage || 0}%`, height: '100%', backgroundColor: '#64748b', borderRadius: '4px' }}></div>
+                          </div>
+                        </div>
+                        
+                        {/* Negative Sentiment % */}
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.25rem' }}>
+                            <span style={{ color: '#dc2626' }}>Negative</span>
+                            <span>{aiAnalysis.overallSentiment?.negativePercentage || 0}%</span>
+                          </div>
+                          <div style={{ width: '100%', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ width: `${aiAnalysis.overallSentiment?.negativePercentage || 0}%`, height: '100%', backgroundColor: '#dc2626', borderRadius: '4px' }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Executive Summary Card */}
+                    <div style={{ padding: '1.25rem', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', color: '#1d4ed8' }}>
+                          <svg style={{ width: '20px', height: '20px' }} fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800 }}>Executive Summary</h4>
+                        </div>
+                        <p style={{ margin: 0, fontSize: '0.88rem', color: '#1e3a8a', lineHeight: '1.5', fontStyle: 'italic' }}>
+                          "{aiAnalysis.executiveSummary || 'No summary generated.'}"
+                        </p>
+                      </div>
+                      <div style={{ marginTop: '1rem', borderTop: '1px solid #dbeafe', paddingTop: '0.75rem', fontSize: '0.78rem', color: '#1d4ed8', fontWeight: 600 }}>
+                        Generated dynamically using Llama 3.3 model.
+                      </div>
                     </div>
                   </div>
-
-                  <hr style={{ border: 'none', borderBottom: '1px solid #f1f5f9', margin: '0.25rem 0' }} />
-
-                  {/* Positive vs Negative Splits */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
-                    {/* Negative feedbacks list */}
-                    <div>
-                      <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.92rem', fontWeight: 700, color: '#dc2626', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                        👎 Negative Sentiment ({aiAnalysis.negative?.length || 0})
-                      </h4>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        {(!aiAnalysis.negative || aiAnalysis.negative.length === 0) ? (
-                          <p style={{ color: '#64748b', fontSize: '0.82rem', fontStyle: 'italic', margin: 0 }}>No negative remarks found.</p>
+                  
+                  {/* Row 2: Common Issues & Categories */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+                    
+                    {/* Common Repeating Issues */}
+                    <div style={{ padding: '1.25rem', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: '#b91c1c' }}>
+                        <svg style={{ width: '20px', height: '20px' }} fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800 }}>Common Repeating Issues</h4>
+                      </div>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {(!aiAnalysis.commonRepeatingIssues || aiAnalysis.commonRepeatingIssues.length === 0) ? (
+                          <p style={{ color: '#64748b', fontSize: '0.85rem', fontStyle: 'italic', margin: 0 }}>No repeating concerns detected.</p>
                         ) : (
-                          aiAnalysis.negative.map((item, idx) => (
-                            <div key={idx} style={{ padding: '0.65rem 0.85rem', border: '1px solid #fecaca', borderRadius: '8px', backgroundColor: '#fef2f2' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#991b1b', fontWeight: 700, marginBottom: '0.2rem' }}>
-                                <span>{item.studentName}</span>
-                                <span>{item.rating}★</span>
+                          aiAnalysis.commonRepeatingIssues.map((item, idx) => (
+                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.65rem 0.85rem', backgroundColor: '#fff5f5', border: '1px solid #fee2e2', borderRadius: '8px' }}>
+                              <div>
+                                <span style={{ fontWeight: 700, fontSize: '0.85rem', color: '#9f1239' }}>{item.issue}</span>
+                                <span style={{ display: 'block', fontSize: '0.72rem', color: '#be123c', marginTop: '0.15rem' }}>
+                                  Students: {item.studentNames?.join(', ') || 'Anonymous'}
+                                </span>
                               </div>
-                              <p style={{ margin: 0, fontSize: '0.8rem', color: '#7f1d1d', fontStyle: 'italic' }}>"{item.comments}"</p>
+                              <span style={{ backgroundColor: '#fecaca', color: '#991b1b', padding: '0.2rem 0.5rem', borderRadius: '99px', fontSize: '0.75rem', fontWeight: 700 }}>
+                                {item.count} Students
+                              </span>
                             </div>
                           ))
                         )}
                       </div>
                     </div>
-
-                    {/* Positive feedbacks list */}
-                    <div>
-                      <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.92rem', fontWeight: 700, color: '#16a34a', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                        👍 Positive Sentiment ({aiAnalysis.positive?.length || 0})
-                      </h4>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        {(!aiAnalysis.positive || aiAnalysis.positive.length === 0) ? (
-                          <p style={{ color: '#64748b', fontSize: '0.82rem', fontStyle: 'italic', margin: 0 }}>No positive remarks found.</p>
+                    
+                    {/* Category distribution */}
+                    <div style={{ padding: '1.25rem', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: '#475569' }}>
+                        <svg style={{ width: '20px', height: '20px' }} fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z" />
+                        </svg>
+                        <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800 }}>Category Breakdown</h4>
+                      </div>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '200px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+                        {(!aiAnalysis.categoryDistribution || aiAnalysis.categoryDistribution.length === 0) ? (
+                          <p style={{ color: '#64748b', fontSize: '0.85rem', fontStyle: 'italic', margin: 0 }}>No categories processed.</p>
                         ) : (
-                          aiAnalysis.positive.map((item, idx) => (
-                            <div key={idx} style={{ padding: '0.65rem 0.85rem', border: '1px solid #bbf7d0', borderRadius: '8px', backgroundColor: '#f0fdf4' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#166534', fontWeight: 700, marginBottom: '0.2rem' }}>
-                                <span>{item.studentName}</span>
-                                <span>{item.rating}★</span>
+                          aiAnalysis.categoryDistribution.map((item, idx) => (
+                            <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 600 }}>
+                                <span style={{ color: '#334155' }}>{item.category}</span>
+                                <span style={{ color: '#64748b' }}>{item.mentions} mentions ({item.percentage}%)</span>
                               </div>
-                              <p style={{ margin: 0, fontSize: '0.8rem', color: '#14532d', fontStyle: 'italic' }}>"{item.comments}"</p>
+                              <div style={{ width: '100%', height: '6px', backgroundColor: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
+                                <div style={{ width: `${item.percentage}%`, height: '100%', backgroundColor: '#cbd5e1', borderRadius: '3px' }}></div>
+                              </div>
                             </div>
                           ))
                         )}
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Row 3: Recommendations & Priorities */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+                    
+                    {/* Actionable Recommendations */}
+                    <div style={{ padding: '1.25rem', backgroundColor: '#fefcf0', border: '1px solid #fef08a', borderRadius: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: '#a16207' }}>
+                        <svg style={{ width: '20px', height: '20px' }} fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                        <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800 }}>AI Recommendations</h4>
+                      </div>
+                      
+                      <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.86rem', color: '#713f12', display: 'flex', flexDirection: 'column', gap: '0.5rem', lineHeight: '1.4' }}>
+                        {(!aiAnalysis.recommendations || aiAnalysis.recommendations.length === 0) ? (
+                          <li style={{ fontStyle: 'italic' }}>No recommendations generated.</li>
+                        ) : (
+                          aiAnalysis.recommendations.map((rec, idx) => (
+                            <li key={idx} style={{ marginBottom: '0.25rem' }}>{rec}</li>
+                          ))
+                        )}
+                      </ul>
+                    </div>
+                    
+                    {/* Priority Levels Grid */}
+                    <div style={{ padding: '1.25rem', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: '#7c3aed' }}>
+                        <svg style={{ width: '20px', height: '20px' }} fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800 }}>Priority Breakdown</h4>
+                      </div>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.8rem' }}>
+                        {/* High Priority */}
+                        <div style={{ padding: '0.65rem 0.85rem', backgroundColor: '#fef2f2', borderLeft: '4px solid #ef4444', borderRadius: '6px' }}>
+                          <span style={{ fontWeight: 700, color: '#ef4444', display: 'block', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.02em', marginBottom: '0.2rem' }}>High Priority</span>
+                          {(!aiAnalysis.priorityLevels?.high || aiAnalysis.priorityLevels.high.length === 0) ? (
+                            <span style={{ color: '#64748b', fontStyle: 'italic' }}>None</span>
+                          ) : (
+                            aiAnalysis.priorityLevels.high.map((h, i) => (
+                              <div key={i} style={{ color: '#991b1b', fontWeight: 600 }}>• {h.issue} ({h.count} mentions)</div>
+                            ))
+                          )}
+                        </div>
+                        
+                        {/* Medium Priority */}
+                        <div style={{ padding: '0.65rem 0.85rem', backgroundColor: '#fffbeb', borderLeft: '4px solid #f59e0b', borderRadius: '6px' }}>
+                          <span style={{ fontWeight: 700, color: '#d97706', display: 'block', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.02em', marginBottom: '0.2rem' }}>Medium Priority</span>
+                          {(!aiAnalysis.priorityLevels?.medium || aiAnalysis.priorityLevels.medium.length === 0) ? (
+                            <span style={{ color: '#64748b', fontStyle: 'italic' }}>None</span>
+                          ) : (
+                            aiAnalysis.priorityLevels.medium.map((m, i) => (
+                              <div key={i} style={{ color: '#92400e', fontWeight: 600 }}>• {m.issue} ({m.count} mentions)</div>
+                            ))
+                          )}
+                        </div>
+                        
+                        {/* Low Priority */}
+                        <div style={{ padding: '0.65rem 0.85rem', backgroundColor: '#f0fdf4', borderLeft: '4px solid #22c55e', borderRadius: '6px' }}>
+                          <span style={{ fontWeight: 700, color: '#16a34a', display: 'block', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.02em', marginBottom: '0.2rem' }}>Low Priority</span>
+                          {(!aiAnalysis.priorityLevels?.low || aiAnalysis.priorityLevels.low.length === 0) ? (
+                            <span style={{ color: '#64748b', fontStyle: 'italic' }}>None</span>
+                          ) : (
+                            aiAnalysis.priorityLevels.low.map((l, i) => (
+                              <div key={i} style={{ color: '#166534', fontWeight: 600 }}>• {l.issue} ({l.count} mentions)</div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Row 4: Sentiment Details Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+                    
+                    {/* Positive Feedback Summaries */}
+                    <div style={{ padding: '1.25rem', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: '#16a34a' }}>
+                        <svg style={{ width: '20px', height: '20px' }} fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800 }}>Positive Feedback Summary</h4>
+                      </div>
+                      <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.84rem', color: '#14532d', display: 'flex', flexDirection: 'column', gap: '0.4rem', lineHeight: '1.4' }}>
+                        {(!aiAnalysis.positiveSummary || aiAnalysis.positiveSummary.length === 0) ? (
+                          <li style={{ fontStyle: 'italic', color: '#64748b' }}>No summaries available.</li>
+                        ) : (
+                          aiAnalysis.positiveSummary.map((p, idx) => (
+                            <li key={idx} style={{ marginBottom: '0.2rem' }}>{p}</li>
+                          ))
+                        )}
+                      </ul>
+                    </div>
+                    
+                    {/* Negative Feedback Summaries */}
+                    <div style={{ padding: '1.25rem', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: '#dc2626' }}>
+                        <svg style={{ width: '20px', height: '20px' }} fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800 }}>Negative Feedback Summary</h4>
+                      </div>
+                      <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.84rem', color: '#7f1d1d', display: 'flex', flexDirection: 'column', gap: '0.4rem', lineHeight: '1.4' }}>
+                        {(!aiAnalysis.negativeSummary || aiAnalysis.negativeSummary.length === 0) ? (
+                          <li style={{ fontStyle: 'italic', color: '#64748b' }}>No summaries available.</li>
+                        ) : (
+                          aiAnalysis.negativeSummary.map((n, idx) => (
+                            <li key={idx} style={{ marginBottom: '0.2rem' }}>{n}</li>
+                          ))
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+                  
                 </div>
               ) : (
                 <div style={{ textAlign: 'center', padding: '2rem 0', color: '#64748b' }}>

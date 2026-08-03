@@ -2638,42 +2638,76 @@ app.post('/api/feedback-requests/:id/analyze', async (req, res) => {
 
     const responses = await FeedbackResponse.find({ feedbackRequestId: id });
     if (responses.length === 0) {
-      return res.json({ positive: [], negative: [], common: [] });
+      return res.json({
+        overallSentiment: { satisfactionRating: "0%", averageRating: 0, positivePercentage: 0, neutralPercentage: 0, negativePercentage: 0 },
+        positiveSummary: [],
+        negativeSummary: [],
+        commonRepeatingIssues: [],
+        categoryDistribution: [],
+        recommendations: [],
+        priorityLevels: { high: [], medium: [], low: [] },
+        executiveSummary: "No responses submitted yet.",
+        positive: [],
+        negative: [],
+        common: []
+      });
     }
+
+    const formattedSubmissions = responses.map(r => ({
+      studentName: r.studentName,
+      rating: r.rating,
+      comments: r.comments || ''
+    }));
+
+    const prompt = `Analyze the following list of student feedback submissions.
+Submissions:
+${JSON.stringify(formattedSubmissions, null, 2)}
+
+Produce a thorough analysis of this feedback campaign. You must return a JSON object containing the following keys:
+1. "overallSentiment": Object with:
+   - "satisfactionRating": Overall satisfaction rating as text (e.g. "82%" or "4.1 / 5")
+   - "averageRating": Numeric average rating (e.g. 4.1) based on the ratings in the submissions.
+   - "positivePercentage": Percentage of feedback submissions categorized as positive (number).
+   - "neutralPercentage": Percentage of feedback submissions categorized as neutral (number).
+   - "negativePercentage": Percentage of feedback submissions categorized as negative (number).
+2. "positiveSummary": Array of strings representing common positive comments, strengths, or things students appreciated (e.g. ["Food taste is good", "Clean dining hall"]).
+3. "negativeSummary": Array of strings representing key complaints, concerns, or critical repeated problems.
+4. "commonRepeatingIssues": Array of objects representing issues mentioned repeatedly. Each object must have:
+   - "issue": Short title describing the repeated issue.
+   - "count": Number of students who mentioned or had similar complaints.
+   - "studentNames": Array of student names who mentioned this issue.
+5. "categoryDistribution": Array of objects classifying the responses into categories. Use standard categories: "Food Quality", "Food Taste", "Quantity", "Cleanliness", "Hygiene", "Staff Behaviour", "Waiting Time", "Maintenance", "Water", "Electricity", "Internet", "Others". Each object must contain:
+   - "category": The category name.
+   - "mentions": Number of times this category was mentioned.
+   - "percentage": Percentage of total submissions that mention this category.
+6. "recommendations": Array of actionable, concise improvement suggestions.
+7. "priorityLevels": Object containing:
+   - "high": Array of objects with "issue" and "count" for high priority items (repeated by many students or critical safety/hygiene concerns).
+   - "medium": Array of objects with "issue" and "count" for medium priority items.
+   - "low": Array of objects with "issue" and "count" for low priority items.
+8. "executiveSummary": A final executive summary text summarizing the feedback trends and immediate action areas.
+
+To maintain backward compatibility, you must also include these root-level fields mapping the original structure:
+9. "positive": Array of objects representing all positive feedback submissions:
+   - "studentName": String
+   - "comments": String
+   - "rating": Number
+10. "negative": Array of objects representing all negative feedback submissions:
+   - "studentName": String
+   - "comments": String
+   - "rating": Number
+11. "common": Array of objects matching "commonRepeatingIssues" but mapped exactly to:
+   - "issue": String
+   - "count": Number
+   - "students": Array of student names (matches studentNames).
+
+Return the response STRICTLY as a valid JSON object matching this structure (no markdown wrapper, no backticks, no wrap, just clean JSON).`;
 
     const groqApiKey = (process.env.GROQ_API_KEY || '').trim();
     const geminiApiKey = (process.env.GEMINI_API_KEY || '').trim();
 
     if (groqApiKey) {
       try {
-        const formattedSubmissions = responses.map(r => ({
-          studentName: r.studentName,
-          rating: r.rating,
-          comments: r.comments
-        }));
-
-        const prompt = `Analyze the following list of student feedback submissions.
-Submissions:
-${JSON.stringify(formattedSubmissions, null, 2)}
-
-Group and categorize them into:
-1. Positive Feedbacks (list of studentName, rating, and comments)
-2. Negative Feedbacks (list of studentName, rating, and comments)
-3. Common / Duplicate Feedbacks (grouped by common complaints/issues, showing the common summary/issue description, a list of student names affected by it, and the count of students). For example, if two students complain "chapati is too hard" and "chappati is not perfect", group them under one common issue like "chappati is not perfect" showing 2 students affected.
-
-Return the response STRICTLY as a valid JSON object matching the following structure:
-{
-  "positive": [
-    { "studentName": "...", "comments": "...", "rating": 5 }
-  ],
-  "negative": [
-    { "studentName": "...", "comments": "...", "rating": 2 }
-  ],
-  "common": [
-    { "issue": "chappati is not perfect", "count": 2, "students": ["Rahul", "Vikas"] }
-  ]
-}`;
-
         let groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -2726,34 +2760,6 @@ Return the response STRICTLY as a valid JSON object matching the following struc
         const { GoogleGenerativeAI } = require("@google/generative-ai");
         const genAI = new GoogleGenerativeAI(geminiApiKey);
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-        const formattedSubmissions = responses.map(r => ({
-          studentName: r.studentName,
-          rating: r.rating,
-          comments: r.comments
-        }));
-
-        const prompt = `Analyze the following list of student feedback submissions.
-Submissions:
-${JSON.stringify(formattedSubmissions, null, 2)}
-
-Group and categorize them into:
-1. Positive Feedbacks (list of studentName, rating, and comments)
-2. Negative Feedbacks (list of studentName, rating, and comments)
-3. Common / Duplicate Feedbacks (grouped by common complaints/issues, showing the common summary/issue description, a list of student names affected by it, and the count of students). For example, if two students complain "chapati is too hard" and "chappati is not perfect", group them under one common issue like "chappati is not perfect" showing 2 students affected.
-
-Return the response STRICTLY as a valid JSON object matching the following structure (no markdown, no backticks, no wrap, just clean JSON):
-{
-  "positive": [
-    { "studentName": "...", "comments": "...", "rating": 5 }
-  ],
-  "negative": [
-    { "studentName": "...", "comments": "...", "rating": 2 }
-  ],
-  "common": [
-    { "issue": "chappati is not perfect", "count": 2, "students": ["Rahul", "Vikas"] }
-  ]
-}`;
 
         const result = await model.generateContent(prompt);
         const text = result.response.text().trim();
@@ -2813,7 +2819,65 @@ Return the response STRICTLY as a valid JSON object matching the following struc
     const common = Object.values(commonMap)
       .sort((a, b) => b.count - a.count);
 
-    res.json({ positive, negative, common });
+    // Compute rich JSON fields for fallback structure
+    const totalResponses = responses.length || 1;
+    const avgRating = responses.reduce((sum, r) => sum + (r.rating || 0), 0) / totalResponses;
+    const posPercent = Math.round((positive.length / totalResponses) * 100);
+    const negPercent = Math.round((negative.length / totalResponses) * 100);
+    const neuPercent = 100 - posPercent - negPercent;
+
+    const commonRepeatingIssues = common.map(c => ({
+      issue: c.issue,
+      count: c.count,
+      studentNames: c.students
+    }));
+
+    const recommendations = [];
+    if (negPercent > 20) {
+      recommendations.push("Investigate key student complaints and resolve immediately.");
+    }
+    recommendations.push("Monitor daily services and request regular student reviews.");
+    recommendations.push("Ensure consistency in overall satisfaction.");
+
+    const priorityLevels = {
+      high: commonRepeatingIssues.filter(c => c.count >= 3).map(c => ({ issue: c.issue, count: c.count })),
+      medium: commonRepeatingIssues.filter(c => c.count === 2).map(c => ({ issue: c.issue, count: c.count })),
+      low: commonRepeatingIssues.filter(c => c.count <= 1).map(c => ({ issue: c.issue, count: c.count }))
+    };
+
+    const categoryDistribution = [
+      { category: "Food Quality", mentions: responses.filter(r => /food|taste|dinner|lunch|break|spicy/i.test(r.comments || '')).length, percentage: 0 },
+      { category: "Cleanliness", mentions: responses.filter(r => /clean|hygiene|dirty|sweep/i.test(r.comments || '')).length, percentage: 0 },
+      { category: "Maintenance", mentions: responses.filter(r => /wifi|internet|water|power|electricity/i.test(r.comments || '')).length, percentage: 0 },
+    ];
+    categoryDistribution.forEach(cat => {
+      cat.percentage = Math.round((cat.mentions / totalResponses) * 100);
+    });
+
+    const overallSentiment = {
+      satisfactionRating: `${posPercent}%`,
+      averageRating: parseFloat(avgRating.toFixed(1)),
+      positivePercentage: posPercent,
+      neutralPercentage: neuPercent >= 0 ? neuPercent : 0,
+      negativePercentage: negPercent
+    };
+
+    const positiveSummary = positive.slice(0, 3).map(p => p.comments);
+    const negativeSummary = negative.slice(0, 3).map(n => n.comments);
+
+    res.json({
+      overallSentiment,
+      positiveSummary,
+      negativeSummary,
+      commonRepeatingIssues,
+      categoryDistribution,
+      recommendations,
+      priorityLevels,
+      executiveSummary: `Analysis showing ${posPercent}% positive sentiment and an average satisfaction rating of ${avgRating.toFixed(1)}/5.`,
+      positive,
+      negative,
+      common
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Feedback analysis failed' });
