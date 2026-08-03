@@ -217,7 +217,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [wardenFormName, setWardenFormName] = useState('');
   const [wardenFormPhone, setWardenFormPhone] = useState('');
   const [wardenFormEmail, setWardenFormEmail] = useState('');
-  const [wardenFormBlock, setWardenFormBlock] = useState('ABC Block');
+  const [wardenFormBlock, setWardenFormBlock] = useState(user?.hostelType === 'Girls Hostel' ? 'A Block' : 'ABC Block');
   const [wardenFormPassword, setWardenFormPassword] = useState('');
   const [wardenFormConfirmPassword, setWardenFormConfirmPassword] = useState('');
   const [wardenFormStatus, setWardenFormStatus] = useState('Active');
@@ -3237,7 +3237,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                     setWardenFormName('');
                     setWardenFormPhone('');
                     setWardenFormEmail('');
-                    setWardenFormBlock('ABC Block');
+                    setWardenFormBlock(user?.hostelType === 'Girls Hostel' ? 'A Block' : 'ABC Block');
                     setWardenFormPassword('');
                     setWardenFormConfirmPassword('');
                     setWardenFormStatus('Active');
@@ -5064,10 +5064,21 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                     className="modal-input-field"
                     style={{ height: '42px', padding: '0 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
                   >
-                    <option value="ABC Block">ABC Block</option>
-                    <option value="D Block">D Block</option>
-                    <option value="E Block">E Block</option>
-                    <option value="F Block">F Block</option>
+                    {user?.hostelType === 'Girls Hostel' ? (
+                      <>
+                        <option value="A Block">A Block</option>
+                        <option value="B Block">B Block</option>
+                        <option value="C Block">C Block</option>
+                        <option value="D Block">D Block</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="ABC Block">ABC Block</option>
+                        <option value="D Block">D Block</option>
+                        <option value="E Block">E Block</option>
+                        <option value="F Block">F Block</option>
+                      </>
+                    )}
                   </select>
                 </div>
                 <div className="form-group">
@@ -5182,10 +5193,21 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                     className="modal-input-field"
                     style={{ height: '42px', padding: '0 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
                   >
-                    <option value="ABC Block">ABC Block</option>
-                    <option value="D Block">D Block</option>
-                    <option value="E Block">E Block</option>
-                    <option value="F Block">F Block</option>
+                    {user?.hostelType === 'Girls Hostel' ? (
+                      <>
+                        <option value="A Block">A Block</option>
+                        <option value="B Block">B Block</option>
+                        <option value="C Block">C Block</option>
+                        <option value="D Block">D Block</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="ABC Block">ABC Block</option>
+                        <option value="D Block">D Block</option>
+                        <option value="E Block">E Block</option>
+                        <option value="F Block">F Block</option>
+                      </>
+                    )}
                   </select>
                 </div>
                 <div className="form-group">
