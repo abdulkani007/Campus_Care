@@ -2352,7 +2352,7 @@ app.post('/api/admin/wardens', isAdmin, async (req, res) => {
     await BlockAssignment.findOneAndUpdate(
       { wardenEmail: cleanEmail },
       { wardenEmail: cleanEmail, wardenName: name, blocks: blocksArr, role: 'warden' },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     res.status(201).json({ success: true, warden: newWarden });
@@ -2396,7 +2396,7 @@ app.put('/api/admin/wardens/:id/status', isAdmin, async (req, res) => {
       await BlockAssignment.findOneAndUpdate(
         { wardenEmail: warden.email },
         { wardenEmail: warden.email, wardenName: warden.name, blocks: blocksArr, role: 'warden' },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
       );
     } else {
       await BlockAssignment.deleteOne({ wardenEmail: warden.email });
@@ -2488,7 +2488,7 @@ app.put('/api/admin/wardens/:id', isAdmin, async (req, res) => {
     await BlockAssignment.findOneAndUpdate(
       { wardenEmail: cleanEmail },
       { wardenEmail: cleanEmail, wardenName: name, blocks: blocksArr, role: 'warden' },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     res.json({ success: true, warden });
@@ -3354,7 +3354,7 @@ Return the response STRICTLY as a valid JSON object matching the requested struc
         activeStudentsCount,
         lastUpdated: new Date()
       },
-      { new: true, upsert: true }
+      { returnDocument: 'after', upsert: true }
     );
 
     res.json(insight);
