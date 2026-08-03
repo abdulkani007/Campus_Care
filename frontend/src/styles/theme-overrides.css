@@ -1547,23 +1547,26 @@ body.modal-open {
     margin: 0 !important;
   }
 
-  /* Secure dropdown positioning so they never slide off-screen */
+  /* Secure dropdown positioning centered on mobile viewport so they never slide off-screen */
   .profile-dropdown-menu,
   .header-dropdown-menu,
   .dropdown-notifications,
   .avatar-dropdown-links,
   .profile-dropdown-links,
-  .header-notifications-dropdown {
-    position: absolute !important;
-    top: 45px !important;
-    right: 0 !important;
-    left: auto !important;
-    width: 280px !important;
-    max-width: 90vw !important;
-    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15) !important;
+  .header-notifications-dropdown,
+  .worker-user-profile > div:last-child {
+    position: fixed !important;
+    top: 70px !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    width: 290px !important;
+    max-width: 92vw !important;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.2) !important;
     border: 1px solid #e2e8f0 !important;
     border-radius: 12px !important;
     box-sizing: border-box !important;
+    z-index: 999999 !important;
   }
 }
 
