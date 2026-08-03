@@ -1406,7 +1406,9 @@ body.modal-open {
   justify-content: space-between !important;
   gap: 0.75rem !important;
   width: 100% !important;
+  height: auto !important;
   box-sizing: border-box !important;
+  padding: 0.75rem 1rem !important;
 }
 
 /* Header action items flow wrapper */
@@ -1446,6 +1448,68 @@ body.modal-open {
 
 /* Mobile responsive constraints (screen <= 768px) */
 @media (max-width: 768px) {
+  .student-header,
+  .dashboard-header,
+  .worker-header,
+  .management-header {
+    flex-wrap: wrap !important;
+    justify-content: space-between !important;
+  }
+
+  /* Flatten subcontainers using display: contents to let items wrap directly in grid */
+  .header-meta-right,
+  .header-right,
+  .header-actions-group,
+  .header-actions-right {
+    display: contents !important;
+  }
+
+  /* Row 1 Left: Brand Logo / Heading Title */
+  .header-meta-left,
+  .header-left,
+  .header-left-heading,
+  .worker-brand {
+    order: 1 !important;
+    width: auto !important;
+    flex: 0 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  /* Row 1 Right: Icons and Avatar Trigger buttons */
+  .header-action-bell,
+  .icon-badge-btn,
+  .header-icon-btn,
+  .bell-action-wrapper,
+  .student-avatar-card,
+  .user-profile-menu-trigger,
+  .worker-user-profile,
+  .user-profile-widget {
+    order: 2 !important;
+    flex: 0 0 auto !important;
+    margin: 0 !important;
+  }
+
+  /* Row 2: Search bar wrapper takes 100% full width */
+  .search-wrapper,
+  .header-search,
+  .header-search-container {
+    order: 3 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 1 1 100% !important;
+    margin-top: 0.5rem !important;
+  }
+
+  /* Row 3: Segmented building/hostel switchers sit below search */
+  .hostel-type-segmented-control {
+    order: 4 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0.5rem 0 0 !important;
+    flex: 1 1 100% !important;
+  }
+
   /* Hide details and chevron icons to ensure avatar only is visible */
   .student-avatar-card .avatar-meta,
   .user-profile-menu-trigger .user-details-text,
@@ -1500,15 +1564,6 @@ body.modal-open {
     border: 1px solid #e2e8f0 !important;
     border-radius: 12px !important;
     box-sizing: border-box !important;
-  }
-
-  /* Segmented building/hostel switchers sit below title */
-  .hostel-type-segmented-control {
-    order: 4 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0.5rem 0 0 !important;
-    flex: 1 1 100% !important;
   }
 }
 
