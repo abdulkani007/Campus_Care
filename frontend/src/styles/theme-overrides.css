@@ -1389,3 +1389,143 @@ button[type="submit"]:active {
 body.modal-open {
   overflow: hidden !important;
 }
+
+/* ==========================================================================
+   FINAL PREMIUM HEADER RESPONSIVENESS & ALIGNMENT OVERRIDES (ALL SCREENS)
+   ========================================================================== */
+
+/* Spacing and flex structures on headers */
+.student-header,
+.dashboard-header,
+.worker-header,
+.management-header {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 0.75rem !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Header action items flow wrapper */
+.header-meta-right,
+.header-right,
+.header-actions-group,
+.header-actions-right {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 0.65rem !important;
+  flex-shrink: 0 !important;
+  min-width: 0 !important;
+}
+
+/* Keep badge count attached securely to icons */
+.icon-badge-btn,
+.header-action-bell,
+.header-icon-btn,
+.bell-action-wrapper {
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+}
+
+.bell-badge-count,
+.badge-count,
+.bell-badge,
+.header-dot-badge {
+  position: absolute !important;
+  top: -4px !important;
+  right: -4px !important;
+  z-index: 10 !important;
+}
+
+/* Mobile responsive constraints (screen <= 768px) */
+@media (max-width: 768px) {
+  /* Hide details and chevron icons to ensure avatar only is visible */
+  .student-avatar-card .avatar-meta,
+  .user-profile-menu-trigger .user-details-text,
+  .user-profile-menu-trigger .chevron-icon,
+  .worker-user-profile .worker-info,
+  .worker-user-profile > svg,
+  .user-profile-widget .avatar-details,
+  .user-profile-widget .chevron-down {
+    display: none !important;
+  }
+
+  /* Make triggers small, compact, and touch friendly */
+  .student-avatar-card,
+  .user-profile-menu-trigger,
+  .worker-user-profile,
+  .user-profile-widget {
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 50% !important;
+    position: relative !important;
+  }
+
+  .avatar-circle,
+  .user-avatar-circle,
+  .worker-avatar {
+    width: 36px !important;
+    height: 36px !important;
+    margin: 0 !important;
+  }
+
+  /* Secure dropdown positioning so they never slide off-screen */
+  .profile-dropdown-menu,
+  .header-dropdown-menu,
+  .dropdown-notifications,
+  .avatar-dropdown-links,
+  .profile-dropdown-links,
+  .header-notifications-dropdown {
+    position: absolute !important;
+    top: 45px !important;
+    right: 0 !important;
+    left: auto !important;
+    width: 280px !important;
+    max-width: 90vw !important;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15) !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Segmented building/hostel switchers sit below title */
+  .hostel-type-segmented-control {
+    order: 4 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0.5rem 0 0 !important;
+    flex: 1 1 100% !important;
+  }
+}
+
+/* Extra small mobile responsive constraints (screen <= 480px) */
+@media (max-width: 480px) {
+  /* Hide text logo title on very small phones to reclaim navbar space */
+  .brand-logo-container .brand-name,
+  .worker-brand-title,
+  .worker-brand-badge,
+  .student-header .header-greeting {
+    display: none !important;
+  }
+
+  /* Center headers logo elements */
+  .header-left,
+  .header-meta-left,
+  .worker-brand {
+    gap: 0.5rem !important;
+  }
+}
