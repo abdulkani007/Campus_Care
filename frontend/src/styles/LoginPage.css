@@ -378,9 +378,26 @@
   }
 }
 
+@media (max-width: 768px) {
+  .login-form-panel {
+    justify-content: flex-start !important;
+    padding-top: 2.5rem !important;
+    padding-bottom: 2.5rem !important;
+  }
+
+  .signup-grid-layout {
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem !important;
+  }
+
+  .signup-grid-layout > div {
+    grid-column: span 1 !important;
+  }
+}
+
 @media (max-width: 640px) {
   .login-form-panel {
-    padding: 4.5rem 1rem 2rem 1rem;
+    padding: 2.5rem 1rem 2rem 1rem !important;
   }
 
   .back-home-btn {
@@ -397,11 +414,6 @@
 
   .login-card.signup-card-expanded {
     padding: 1.75rem 1.25rem;
-  }
-
-  .signup-grid-layout {
-    grid-template-columns: 1fr;
-    gap: 0.85rem;
   }
 
   .role-grid {
