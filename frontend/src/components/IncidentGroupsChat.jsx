@@ -302,7 +302,9 @@ export default function IncidentGroupsChat({ user, hostelType }) {
                     onClick={() => handleGroupSelect(group)}
                   >
                     <div className="group-avatar" style={{ backgroundColor: getAvatarColor(group.name) }}>
-                      <span>{group.id.replace('girls_', '').toUpperCase()}</span>
+                      <span style={{ fontSize: group.id.replace('boys_', '').replace('girls_', '').length > 2 ? '0.82rem' : '1.1rem' }}>
+                        {group.id.replace('boys_', '').replace('girls_', '').toUpperCase()}
+                      </span>
                     </div>
                     <div className="group-item-details">
                       <div className="group-item-row">
@@ -352,7 +354,9 @@ export default function IncidentGroupsChat({ user, hostelType }) {
                   className="chat-header-avatar" 
                   style={{ backgroundColor: getAvatarColor(selectedGroup.name) }}
                 >
-                  {selectedGroup.id.replace('girls_', '').toUpperCase()}
+                  <span style={{ fontSize: selectedGroup.id.replace('boys_', '').replace('girls_', '').length > 2 ? '0.78rem' : '1rem', fontWeight: 700 }}>
+                    {selectedGroup.id.replace('boys_', '').replace('girls_', '').toUpperCase()}
+                  </span>
                 </div>
 
                 <div className="chat-header-info">
