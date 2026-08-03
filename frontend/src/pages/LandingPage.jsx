@@ -50,6 +50,7 @@ const LandingPage = ({ onLoginClick }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [openFaqIndex, setOpenFaqIndex] = useState(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Scroll to top visibility toggle
   useEffect(() => {
@@ -219,6 +220,23 @@ const LandingPage = ({ onLoginClick }) => {
               <span>HOSTEL CODE:</span> <strong>SECE-H01</strong>
             </div>
           </div>
+
+          {/* Three-line Menu/Hamburger toggle button on mobile */}
+          <button 
+            className="mobile-menu-toggle-btn" 
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label="Toggle Navigation Menu"
+          >
+            {isMobileMenuOpen ? (
+              <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
         </div>
 
         {/* Bottom Deep Blue Row */}
@@ -274,6 +292,52 @@ const LandingPage = ({ onLoginClick }) => {
           </div>
         </div>
       </header>
+
+      {/* Mobile Drawer Overlay */}
+      {isMobileMenuOpen && (
+        <div className="mobile-drawer-overlay" onClick={() => setIsMobileMenuOpen(false)}>
+          <div className="mobile-drawer-menu" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-header">
+              <span className="drawer-title">CampusCare Menu</span>
+              <button className="drawer-close-btn" onClick={() => setIsMobileMenuOpen(false)}>
+                <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <nav className="drawer-nav">
+              <button className="drawer-nav-item" onClick={() => { scrollToSection(overviewRef, 'overview'); setIsMobileMenuOpen(false); }}>
+                <span className="item-icon">🏠</span> Overview
+              </button>
+              <button className="drawer-nav-item" onClick={() => { scrollToSection(featuresRef, 'features'); setIsMobileMenuOpen(false); }}>
+                <span className="item-icon">🔧</span> Complaint Types
+              </button>
+              <button className="drawer-nav-item" onClick={() => { scrollToSection(duplicateRef, 'duplicate'); setIsMobileMenuOpen(false); }}>
+                <span className="item-icon">🧠</span> Smart Detection
+              </button>
+              <button className="drawer-nav-item" onClick={() => { scrollToSection(statsRef, 'stats'); setIsMobileMenuOpen(false); }}>
+                <span className="item-icon">📊</span> Hostel Stats
+              </button>
+            </nav>
+
+            <div className="drawer-footer">
+              <SpecularButton
+                size="lg"
+                radius={8}
+                tint="#f8b400"
+                tintOpacity={1}
+                textColor="#1e293b"
+                lineColor="#ffffff"
+                baseColor="#e0a300"
+                onClick={() => { onLoginClick(); setIsMobileMenuOpen(false); }}
+              >
+                Portal Login
+              </SpecularButton>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hero Section with 1s Slideshow */}
       <section ref={overviewRef} className="hero-section">
