@@ -305,6 +305,15 @@ const GroupInsightSchema = new mongoose.Schema({
 });
 const GroupInsight = mongoose.model('GroupInsight', GroupInsightSchema);
 
+const IncidentGroupSchema = new mongoose.Schema({
+  groupId: { type: String, required: true, unique: true }, // e.g. 'boys_ABC', 'boys_D', 'girls_A', etc.
+  name: { type: String, required: true },
+  description: { type: String },
+  chatEnabled: { type: Boolean, default: true },
+  hostelType: { type: String, enum: ['Boys Hostel', 'Girls Hostel'], default: 'Boys Hostel' }
+});
+const IncidentGroup = mongoose.model('IncidentGroup', IncidentGroupSchema);
+
 
 // Dynamic Block Warden Assignment helper
 const getAssignedWardenForBlock = async (studentBlock, hostelType = 'Boys Hostel') => {
@@ -843,6 +852,23 @@ const seedDefaults = async () => {
         }
       ]);
       console.log('Seeded default incident group messages for Boys Hostel.');
+    }
+
+    // Seed default IncidentGroups config if empty
+    const groupCount = await IncidentGroup.countDocuments();
+    if (groupCount === 0) {
+      const defaultGroups = [
+        { groupId: 'boys_ABC', name: 'Boys ABC Block Group', description: 'Discussion group for Boys ABC Block residents', chatEnabled: true, hostelType: 'Boys Hostel' },
+        { groupId: 'boys_D', name: 'Boys D Block Group', description: 'Discussion group for Boys D Block residents', chatEnabled: true, hostelType: 'Boys Hostel' },
+        { groupId: 'boys_E', name: 'Boys E Block Group', description: 'Discussion group for Boys E Block residents', chatEnabled: true, hostelType: 'Boys Hostel' },
+        { groupId: 'boys_F', name: 'Boys F Block Group', description: 'Discussion group for Boys F Block residents', chatEnabled: true, hostelType: 'Boys Hostel' },
+        { groupId: 'girls_A', name: 'Girls A Incident Group', description: 'Discussion group for Girls A Block residents', chatEnabled: true, hostelType: 'Girls Hostel' },
+        { groupId: 'girls_B', name: 'Girls B Incident Group', description: 'Discussion group for Girls B Block residents', chatEnabled: true, hostelType: 'Girls Hostel' },
+        { groupId: 'girls_C', name: 'Girls C Incident Group', description: 'Discussion group for Girls C Block residents', chatEnabled: true, hostelType: 'Girls Hostel' },
+        { groupId: 'girls_D', name: 'Girls D Incident Group', description: 'Discussion group for Girls D Block residents', chatEnabled: true, hostelType: 'Girls Hostel' }
+      ];
+      await IncidentGroup.insertMany(defaultGroups);
+      console.log('Seeded default IncidentGroups configuration.');
     }
   } catch (err) {
     console.error('Error seeding default data:', err);
@@ -3027,19 +3053,14 @@ app.get('/api/incident-groups', async (req, res) => {
     const prefix = computedHostelType === 'Girls Hostel' ? 'girls_' : 'boys_';
     const prefixName = computedHostelType === 'Girls Hostel' ? 'Girls ' : 'Boys ';
 
-    const boysGroups = [
-      { id: 'boys_ABC', name: 'Boys ABC Block Group', description: 'Discussion group for Boys ABC Block residents' },
-      { id: 'boys_D', name: 'Boys D Block Group', description: 'Discussion group for Boys D Block residents' },
-      { id: 'boys_E', name: 'Boys E Block Group', description: 'Discussion group for Boys E Block residents' },
-      { id: 'boys_F', name: 'Boys F Block Group', description: 'Discussion group for Boys F Block residents' }
-    ];
+    const dbGroups = await IncidentGroup.find();
+    const boysGroups = dbGroups
+      .filter(g => g.hostelType === 'Boys Hostel')
+      .map(g => ({ id: g.groupId, name: g.name, description: g.description, chatEnabled: g.chatEnabled }));
 
-    const girlsGroups = [
-      { id: 'girls_A', name: 'Girls A Incident Group', description: 'Discussion group for Girls A Block residents' },
-      { id: 'girls_B', name: 'Girls B Incident Group', description: 'Discussion group for Girls B Block residents' },
-      { id: 'girls_C', name: 'Girls C Incident Group', description: 'Discussion group for Girls C Block residents' },
-      { id: 'girls_D', name: 'Girls D Incident Group', description: 'Discussion group for Girls D Block residents' }
-    ];
+    const girlsGroups = dbGroups
+      .filter(g => g.hostelType === 'Girls Hostel')
+      .map(g => ({ id: g.groupId, name: g.name, description: g.description, chatEnabled: g.chatEnabled }));
 
     let allGroups = [];
     if (computedHostelType === 'All Hostels') {
@@ -3162,6 +3183,15 @@ app.post('/api/incident-groups/messages', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // Security check: if group chat is locked, block non-warden messages
+    const groupConfig = await IncidentGroup.findOne({ groupId: blockGroup });
+    if (groupConfig && groupConfig.chatEnabled === false) {
+      const role = (senderRole || '').toLowerCase().trim();
+      if (role !== 'warden' && role !== 'headwarden') {
+        return res.status(403).json({ error: 'Group chat is currently locked by the Warden.' });
+      }
+    }
+
     const hostelType = await getRequestHostelType(req);
 
     const newMessage = await IncidentGroupMessage.create({
@@ -3183,6 +3213,40 @@ app.post('/api/incident-groups/messages', async (req, res) => {
   } catch (err) {
     console.error('Error posting message:', err);
     res.status(500).json({ error: 'Failed to post message' });
+  }
+});
+
+// Toggle chat lock status for an incident group (Warden / Head Warden only)
+app.post('/api/incident-groups/:groupId/lock', async (req, res) => {
+  const { groupId } = req.params;
+  const { chatEnabled, userRole } = req.body;
+  try {
+    const role = (userRole || '').toLowerCase().trim();
+    if (role !== 'warden' && role !== 'headwarden') {
+      return res.status(403).json({ error: 'Only Wardens and Head Wardens can lock or unlock chat groups.' });
+    }
+
+    const computedHostelType = await getRequestHostelType(req);
+    const group = await IncidentGroup.findOne({ groupId });
+    if (!group) {
+      return res.status(404).json({ error: 'Incident Group not found' });
+    }
+
+    // Secure hostel isolation validation
+    if (group.hostelType !== computedHostelType) {
+      return res.status(403).json({ error: 'You do not have permission to manage this hostel\'s group' });
+    }
+
+    group.chatEnabled = !!chatEnabled;
+    await group.save();
+
+    // Broadcast lock change real-time using Socket.IO
+    io.to(`group_${groupId}`).emit('chat_lock_state_changed', { groupId, chatEnabled: group.chatEnabled });
+
+    res.json(group);
+  } catch (err) {
+    console.error('Error locking/unlocking group:', err);
+    res.status(500).json({ error: 'Failed to lock/unlock group' });
   }
 });
 

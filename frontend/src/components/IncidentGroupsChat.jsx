@@ -61,6 +61,71 @@ export default function IncidentGroupsChat({ user, hostelType }) {
   // Emoji Popover State
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
+  // Chat lock status notification banner states
+  const [showUnlockBanner, setShowUnlockBanner] = useState(false);
+  const prevLockStateRef = useRef(true);
+
+  // Real-time group lock state listener
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleLockStateChange = ({ groupId, chatEnabled }) => {
+      setGroups(prev => prev.map(g => g.id === groupId ? { ...g, chatEnabled } : g));
+      setSelectedGroup(prev => prev && prev.id === groupId ? { ...prev, chatEnabled } : prev);
+    };
+
+    socket.on('chat_lock_state_changed', handleLockStateChange);
+
+    return () => {
+      socket.off('chat_lock_state_changed', handleLockStateChange);
+    };
+  }, [socket]);
+
+  // Manage unlocked transient banner timeout (4 seconds)
+  useEffect(() => {
+    if (!selectedGroup) {
+      setShowUnlockBanner(false);
+      return;
+    }
+    const currentEnabled = selectedGroup.chatEnabled !== false;
+    const prevEnabled = prevLockStateRef.current;
+
+    if (currentEnabled && !prevEnabled) {
+      setShowUnlockBanner(true);
+      const timer = setTimeout(() => {
+        setShowUnlockBanner(false);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+
+    prevLockStateRef.current = currentEnabled;
+  }, [selectedGroup?.chatEnabled]);
+
+  const handleToggleChatLock = async (chatEnabled) => {
+    if (!selectedGroup) return;
+    try {
+      const res = await fetch(`/api/incident-groups/${selectedGroup.id}/lock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chatEnabled,
+          userRole,
+          userEmail: user?.email
+        })
+      });
+      if (res.ok) {
+        const updatedGroup = await res.json();
+        setGroups(prev => prev.map(g => g.id === selectedGroup.id ? { ...g, chatEnabled: updatedGroup.chatEnabled } : g));
+        setSelectedGroup(prev => prev && prev.id === selectedGroup.id ? { ...prev, chatEnabled: updatedGroup.chatEnabled } : prev);
+      } else {
+        alert('Failed to update group lock state.');
+      }
+    } catch (err) {
+      console.error('Error toggling lock:', err);
+      alert('Failed to update group lock state.');
+    }
+  };
+
   const messagesEndRef = useRef(null);
   const pollIntervalRef = useRef(null);
 
@@ -382,6 +447,23 @@ export default function IncidentGroupsChat({ user, hostelType }) {
                     </div>
                   )}
 
+                  {(userRole === 'warden' || userRole === 'headwarden') && (
+                    <div className="chat-lock-toggle-wrapper" title="Toggle student messaging lock status for this group">
+                      <span className="toggle-label">Students Can Chat</span>
+                      <label className="ios-toggle-switch">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedGroup.chatEnabled !== false}
+                          onChange={(e) => handleToggleChatLock(e.target.checked)}
+                        />
+                        <span className="slider round"></span>
+                      </label>
+                      <span className={`toggle-status-text ${selectedGroup.chatEnabled !== false ? 'on' : 'off'}`}>
+                        {selectedGroup.chatEnabled !== false ? 'ON' : 'OFF'}
+                      </span>
+                    </div>
+                  )}
+
                   <button className="ai-summarize-btn" onClick={handleSummarize}>
                     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 21L8.188 15.904L3 15L8.188 14.096L9 9L9.813 14.096L15 15L9.813 15.904ZM19.071 7.071L18.5 10.5L17.929 7.071L14.5 6.5L17.929 5.929L18.5 2.5L19.071 5.929L22.5 6.5L19.071 7.071ZM19.071 18.571L18.5 22L17.929 18.571L14.5 18L17.929 17.429L18.5 14L19.071 17.429L22.5 18L19.071 18.571Z" />
@@ -452,61 +534,84 @@ export default function IncidentGroupsChat({ user, hostelType }) {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* CHAT INPUT AREA */}
-              <form className="chat-input-bar" onSubmit={handleSendMessage}>
-                <div className="emoji-picker-container">
-                  <button 
-                    type="button" 
-                    className="emoji-toggle-btn"
-                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  >
-                    😊
-                  </button>
-                  {showEmojiPicker && (
-                    <div className="emoji-popover-menu">
-                      {commonEmojis.map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          className="emoji-item-btn"
-                          onClick={() => handleEmojiClick(emoji)}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
+              {/* Lock warning persistent banner or transient unlock confirmation banner */}
+              {selectedGroup.chatEnabled === false ? (
+                <div className="chat-lock-banner locked-banner">
+                  <span className="banner-icon">🔒</span>
+                  <span className="banner-text">Student messaging has been temporarily disabled by your Warden. You can still view all previous messages.</span>
+                </div>
+              ) : showUnlockBanner ? (
+                <div className="chat-lock-banner unlocked-banner">
+                  <span className="banner-icon">✅</span>
+                  <span className="banner-text">Student messaging has been enabled.</span>
+                </div>
+              ) : null}
+
+              {/* CHAT INPUT AREA (Hidden for Management Read-only view) */}
+              {userRole !== 'management' && (
+                <form className="chat-input-bar" onSubmit={handleSendMessage}>
+                  <div className="emoji-picker-container">
+                    <button 
+                      type="button" 
+                      className="emoji-toggle-btn"
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      disabled={selectedGroup.chatEnabled === false && !['warden', 'headwarden'].includes(userRole)}
+                    >
+                      😊
+                    </button>
+                    {showEmojiPicker && (
+                      <div className="emoji-popover-menu">
+                        {commonEmojis.map((emoji) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            className="emoji-item-btn"
+                            onClick={() => handleEmojiClick(emoji)}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {activeTypingUser && (
+                    <div style={{ padding: '0.4rem 1.25rem', backgroundColor: '#eff6ff', borderTop: '1px solid #dbeafe', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ fontSize: '0.82rem', color: '#0F4FA8', fontWeight: 600 }}>
+                        ✍️ {activeTypingUser} is typing...
+                      </span>
                     </div>
                   )}
-                </div>
 
-                {activeTypingUser && (
-                  <div style={{ padding: '0.4rem 1.25rem', backgroundColor: '#eff6ff', borderTop: '1px solid #dbeafe', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '0.82rem', color: '#0F4FA8', fontWeight: 600 }}>
-                      ✍️ {activeTypingUser} is typing...
-                    </span>
-                  </div>
-                )}
+                  {selectedGroup.chatEnabled === false && !['warden', 'headwarden'].includes(userRole) ? (
+                    <div className="locked-input-replacement">
+                      <span className="lock-icon">🔒</span>
+                      <span>This group has been temporarily locked by the Warden.</span>
+                    </div>
+                  ) : (
+                    <input 
+                      type="text" 
+                      placeholder="Type a message to discuss hostel problems..."
+                      value={newMessage}
+                      onChange={(e) => {
+                        setNewMessage(e.target.value);
+                        if (selectedGroup && startTyping) {
+                          startTyping(`group_${selectedGroup.id}`, null, user?.name || 'User');
+                        }
+                      }}
+                      maxLength={1000}
+                    />
+                  )}
 
-                <input 
-                  type="text" 
-                  placeholder="Type a message to discuss hostel problems..."
-                  value={newMessage}
-                  onChange={(e) => {
-                    setNewMessage(e.target.value);
-                    if (selectedGroup && startTyping) {
-                      startTyping(`group_${selectedGroup.id}`, null, user?.name || 'User');
-                    }
-                  }}
-                  maxLength={1000}
-                />
-
-                <button 
-                  type="submit" 
-                  className="send-message-btn" 
-                  disabled={!newMessage.trim()}
-                >
-                  Send
-                </button>
-              </form>
+                  <button 
+                    type="submit" 
+                    className="send-message-btn" 
+                    disabled={(selectedGroup.chatEnabled === false && !['warden', 'headwarden'].includes(userRole)) || !newMessage.trim()}
+                  >
+                    Send
+                  </button>
+                </form>
+              )}
             </>
           ) : (
             <div className="no-selected-group-state">
