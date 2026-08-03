@@ -82,6 +82,71 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [feedbackComments, setFeedbackComments] = useState('');
   const [newMsgText, setNewMsgText] = useState('');
   const [selectedComplaint, setSelectedComplaint] = useState(null);
+
+  // Edit Complaint States
+  const [editingComplaint, setEditingComplaint] = useState(null);
+  const [editForm, setEditForm] = useState({
+    title: '',
+    category: 'Electrical',
+    priority: 'Medium',
+    location: '',
+    description: '',
+    phone: '',
+    proof: null,
+    proofName: null
+  });
+
+  const handleEditFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditForm(prev => ({
+          ...prev,
+          proof: reader.result,
+          proofName: file.name
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleEditComplaintSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingComplaint) return;
+
+    try {
+      const res = await fetch(`/api/complaints/${editingComplaint._id || editingComplaint.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editForm.title,
+          category: editForm.category,
+          priority: editForm.priority,
+          location: editForm.location,
+          description: editForm.description,
+          phone: editForm.phone,
+          proof: editForm.proof,
+          proofName: editForm.proofName,
+          studentEmail: profile.email
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Update local state list
+        setComplaints(prev => prev.map(c => (c._id === data.complaint._id || c.id === data.complaint.id) ? data.complaint : c));
+        setEditingComplaint(null);
+        alert('Complaint ticket updated successfully!');
+      } else {
+        const errData = await res.json();
+        alert(`Failed to update complaint: ${errData.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Error updating complaint:', err);
+      alert('Failed to update complaint.');
+    }
+  };
   const [zoomImage, setZoomImage] = useState(null);
   const [eventBanner, setEventBanner] = useState(null);
   const [editingMessageId, setEditingMessageId] = useState(null);
@@ -2065,6 +2130,38 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 </div>
               )}
 
+              {/* Edit Complaint Button (Visible only when Status is Open/High Priority) */}
+              {(selectedComplaint.status === 'Open' || selectedComplaint.status === 'High Priority' || selectedComplaint.status === 'Pending') && (
+                <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '0.75rem' }}>
+                  <SpecularButton
+                    onClick={() => {
+                      setEditForm({
+                        title: selectedComplaint.title,
+                        category: selectedComplaint.category,
+                        priority: selectedComplaint.priority,
+                        location: selectedComplaint.location || '',
+                        description: selectedComplaint.description || '',
+                        phone: selectedComplaint.studentPhone || profile.phoneNo || '',
+                        proof: selectedComplaint.proof || null,
+                        proofName: selectedComplaint.proofName || null
+                      });
+                      setEditingComplaint(selectedComplaint);
+                      setSelectedComplaint(null); // Close details modal
+                    }}
+                    size="md"
+                    radius={8}
+                    tint="#2563eb"
+                    tintOpacity={1}
+                    textColor="#ffffff"
+                    lineColor="#ffffff"
+                    baseColor="#1d4ed8"
+                    style={{ width: '100%' }}
+                  >
+                    ✏️ Edit Complaint Details
+                  </SpecularButton>
+                </div>
+              )}
+
             </div>
           </div>
         </div>
@@ -2081,6 +2178,155 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
             >
               &times;
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT COMPLAINT MODAL */}
+      {editingComplaint && (
+        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+          <div className="modal-content-card" style={{ maxWidth: '600px', width: '90%', borderRadius: '16px', backgroundColor: '#fff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)', overflow: 'hidden' }}>
+            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.5rem', borderBottom: '1px solid #f1f5f9' }}>
+              <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700 }}>Edit Complaint Ticket</h3>
+              <button 
+                className="close-modal-btn" 
+                onClick={() => setEditingComplaint(null)}
+                style={{ background: 'none', border: 'none', fontSize: '1.75rem', cursor: 'pointer', color: '#94a3b8' }}
+              >×</button>
+            </div>
+            
+            <form onSubmit={handleEditComplaintSubmit} className="modal-form-body" style={{ padding: '1.5rem', textAlign: 'left' }}>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.4rem' }}>Ticket Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.title}
+                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                  className="modal-input-field"
+                  style={{ width: '100%', padding: '0.65rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.4rem' }}>Category *</label>
+                  <select
+                    value={editForm.category}
+                    onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                    className="modal-select-field"
+                    style={{ width: '100%', padding: '0.65rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box', backgroundColor: '#fff' }}
+                  >
+                    <option value="Electrical">Electrical</option>
+                    <option value="Plumbing">Plumbing</option>
+                    <option value="Water Supply">Water Supply</option>
+                    <option value="Internet">Internet</option>
+                    <option value="Cleaning">Cleaning</option>
+                    <option value="Food">Food</option>
+                    <option value="Others">Others</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.4rem' }}>Priority Level *</label>
+                  <select
+                    value={editForm.priority}
+                    onChange={(e) => setEditForm({ ...editForm, priority: e.target.value })}
+                    className="modal-select-field"
+                    style={{ width: '100%', padding: '0.65rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box', backgroundColor: '#fff' }}
+                  >
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.4rem' }}>Specific Location</label>
+                <input
+                  type="text"
+                  placeholder={`e.g. Room ${profile.roomNo}, Block ${profile.block} Corridor`}
+                  value={editForm.location}
+                  onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                  className="modal-input-field"
+                  style={{ width: '100%', padding: '0.65rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.4rem' }}>Detailed Description *</label>
+                <textarea
+                  rows="4"
+                  required
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  className="modal-textarea-field"
+                  style={{ width: '100%', padding: '0.65rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                ></textarea>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+                <div className="form-group">
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.4rem' }}>Contact Phone Number *</label>
+                  <input
+                    type="tel"
+                    required
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                    className="modal-input-field"
+                    style={{ width: '100%', padding: '0.65rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.4rem' }}>Upload New Proof (Optional)</label>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={handleEditFileChange}
+                    className="modal-input-field"
+                    style={{ width: '100%', padding: '4px', boxSizing: 'border-box' }}
+                  />
+                  {editForm.proofName && (
+                    <p style={{ fontSize: '0.8rem', color: '#10b981', marginTop: '4px', margin: 0 }}>
+                      ✓ Selected: {editForm.proofName}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="modal-footer-actions" style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: '1rem' }}>
+                <SpecularButton 
+                  type="button" 
+                  size="md" 
+                  radius={8} 
+                  tint="#e2e8f0" 
+                  tintOpacity={1} 
+                  textColor="#475569" 
+                  lineColor="#cbd5e1" 
+                  baseColor="#cbd5e1" 
+                  className="cancel-btn" 
+                  onClick={() => setEditingComplaint(null)}
+                >
+                  Cancel
+                </SpecularButton>
+
+                <SpecularButton 
+                  type="submit" 
+                  size="md" 
+                  radius={8} 
+                  tint="#2563eb" 
+                  tintOpacity={1} 
+                  textColor="#ffffff" 
+                  lineColor="#3b82f6" 
+                  baseColor="#1d4ed8" 
+                  className="submit-btn"
+                >
+                  Save Changes
+                </SpecularButton>
+              </div>
+            </form>
           </div>
         </div>
       )}

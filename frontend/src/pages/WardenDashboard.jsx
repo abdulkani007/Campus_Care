@@ -285,6 +285,32 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
     };
   }, [socket, user?.email, profile.email, selectedWardenChat]);
 
+  // Real-time socket complaints listener
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleRealtimeComplaintChange = async () => {
+      const email = encodeURIComponent(user?.email || profile.email);
+      const role = encodeURIComponent(user?.role || 'warden');
+      try {
+        const res = await fetch(`/api/complaints?userEmail=${email}&userRole=${role}`);
+        if (res.ok) {
+          setComplaints(await res.json());
+        }
+      } catch (err) {
+        console.error('Error auto-syncing complaints:', err);
+      }
+    };
+
+    socket.on('complaint_created', handleRealtimeComplaintChange);
+    socket.on('complaint_updated', handleRealtimeComplaintChange);
+
+    return () => {
+      socket.off('complaint_created', handleRealtimeComplaintChange);
+      socket.off('complaint_updated', handleRealtimeComplaintChange);
+    };
+  }, [socket, user?.email, profile.email, user?.role]);
+
   // Fetch all data from API in parallel on mount
   useEffect(() => {
     const fetchData = async () => {

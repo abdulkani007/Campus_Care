@@ -1396,6 +1396,66 @@ app.patch('/api/complaints/:id/status', async (req, res) => {
   }
 });
 
+// Edit a specific complaint by ID (Student only, when pending/open)
+app.put('/api/complaints/:id', async (req, res) => {
+  const { id } = req.params;
+  const { title, category, priority, location, description, phone, proof, proofName } = req.body;
+  try {
+    let complaint = null;
+    const updateFields = {
+      title,
+      category,
+      priority,
+      location,
+      description,
+      studentPhone: phone,
+      proof,
+      proofName,
+      status: priority === 'High' ? 'High Priority' : 'Open'
+    };
+
+    // Clean up undefined parameters
+    Object.keys(updateFields).forEach(key => {
+      if (updateFields[key] === undefined) delete updateFields[key];
+    });
+
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      complaint = await Complaint.findByIdAndUpdate(id, { $set: updateFields }, { returnDocument: 'after' });
+    }
+
+    if (!complaint) {
+      complaint = await Complaint.findOneAndUpdate({ _id: id }, { $set: updateFields }, { returnDocument: 'after' });
+    }
+
+    if (!complaint) {
+      const parsedId = parseInt(id);
+      if (!isNaN(parsedId)) {
+        complaint = await Complaint.findOneAndUpdate({ _id: parsedId }, { $set: updateFields }, { returnDocument: 'after' });
+      }
+    }
+
+    if (!complaint) {
+      const parsedId = parseInt(id);
+      if (!isNaN(parsedId)) {
+        complaint = await Complaint.findOneAndUpdate({ id: parsedId }, { $set: updateFields }, { returnDocument: 'after' });
+      }
+    }
+
+    if (!complaint) {
+      return res.status(404).json({ error: 'Complaint not found' });
+    }
+
+    if (io) {
+      io.to('management_room').emit('complaint_updated', complaint.toJSON());
+    }
+
+    res.json({ success: true, complaint });
+  } catch (err) {
+    console.error('Error editing complaint:', err);
+    res.status(500).json({ error: 'Failed to update complaint' });
+  }
+});
+
 // Delete a specific complaint by ID
 app.delete('/api/complaints/:id', async (req, res) => {
   const { id } = req.params;
