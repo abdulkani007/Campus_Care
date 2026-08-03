@@ -3322,10 +3322,21 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                     style={{ padding: '0.65rem 1.5rem 0.65rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, cursor: 'pointer' }}
                   >
                     <option value="All">All Blocks</option>
-                    <option value="ABC Block">ABC Block</option>
-                    <option value="D Block">D Block</option>
-                    <option value="E Block">E Block</option>
-                    <option value="F Block">F Block</option>
+                    {(user?.hostelType === 'Girls Hostel' 
+                      ? ['A Block', 'B Block', 'C Block', 'D Block'] 
+                      : ['ABC Block', 'D Block', 'E Block', 'F Block']
+                    ).concat(
+                      Array.from(new Set(
+                        wardensList
+                          .map(w => w.block)
+                          .filter(b => b && !(user?.hostelType === 'Girls Hostel' 
+                            ? ['A Block', 'B Block', 'C Block', 'D Block'] 
+                            : ['ABC Block', 'D Block', 'E Block', 'F Block']
+                          ).includes(b))
+                      ))
+                    ).map(blockOpt => (
+                      <option key={blockOpt} value={blockOpt}>{blockOpt}</option>
+                    ))}
                   </select>
                 </div>
               </div>
