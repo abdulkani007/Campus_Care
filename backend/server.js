@@ -311,35 +311,39 @@ const getAssignedWardenForBlock = async (studentBlock, hostelType = 'Boys Hostel
   if (!studentBlock) {
     const headW = await BlockAssignment.findOne({ role: 'headwarden', hostelType });
     return {
-      wardenEmail: headW ? headW.wardenEmail : 'headwarden@campuscare.com',
+      wardenEmail: headW ? headW.wardenEmail : (hostelType === 'Girls Hostel' ? 'gheadwarden@campuscare.com' : 'headwarden@campuscare.com'),
       wardenName: headW ? headW.wardenName : 'Head Warden'
     };
   }
 
-  let cleanBlock = studentBlock.trim().toUpperCase();
-  const match = cleanBlock.match(/\b([A-F])\b/);
+  const cleanBlock = studentBlock.trim();
+  let letter = cleanBlock.toUpperCase();
+  const match = letter.match(/\b([A-F])\b/);
   if (match) {
-    cleanBlock = match[1];
-  } else if (cleanBlock.length > 0) {
-    cleanBlock = cleanBlock.charAt(0);
+    letter = match[1];
+  } else if (letter.length > 0) {
+    letter = letter.charAt(0);
   }
 
-  // Find block assignment in DB dynamically
+  // Find block assignment in DB dynamically by matching either the short letter "A" or the full "A Block"
   let assignment = await BlockAssignment.findOne({
-    blocks: cleanBlock,
+    blocks: { $in: [letter, `${letter} Block`] },
     role: 'warden',
     hostelType
   });
 
   if (!assignment) {
-    assignment = await BlockAssignment.findOne({ blocks: cleanBlock, hostelType });
+    assignment = await BlockAssignment.findOne({
+      blocks: { $in: [letter, `${letter} Block`] },
+      hostelType
+    });
   }
 
   if (assignment) {
     return {
       wardenEmail: assignment.wardenEmail,
       wardenName: assignment.wardenName,
-      assignedBlock: cleanBlock
+      assignedBlock: letter
     };
   }
 
@@ -347,7 +351,7 @@ const getAssignedWardenForBlock = async (studentBlock, hostelType = 'Boys Hostel
   return {
     wardenEmail: headW ? headW.wardenEmail : (hostelType === 'Girls Hostel' ? 'gheadwarden@campuscare.com' : 'headwarden@campuscare.com'),
     wardenName: headW ? headW.wardenName : 'Head Warden',
-    assignedBlock: cleanBlock
+    assignedBlock: letter
   };
 };
 
@@ -469,10 +473,10 @@ const seedDefaults = async () => {
         rollNo: 'EMP-G1',
         phoneNo: '9876543231',
         roomNo: 'Office-G1',
-        block: 'A',
+        block: 'A Block',
         password: 'sece123',
         role: 'warden',
-        blocks: ['A'],
+        blocks: ['A Block'],
         hostelType: 'Girls Hostel'
       },
       {
@@ -481,10 +485,10 @@ const seedDefaults = async () => {
         rollNo: 'EMP-G2',
         phoneNo: '9876543232',
         roomNo: 'Office-G2',
-        block: 'B',
+        block: 'B Block',
         password: 'sece123',
         role: 'warden',
-        blocks: ['B'],
+        blocks: ['B Block'],
         hostelType: 'Girls Hostel'
       },
       {
@@ -493,10 +497,22 @@ const seedDefaults = async () => {
         rollNo: 'EMP-G3',
         phoneNo: '9876543233',
         roomNo: 'Office-G3',
-        block: 'C',
+        block: 'C Block',
         password: 'sece123',
         role: 'warden',
-        blocks: ['C'],
+        blocks: ['C Block'],
+        hostelType: 'Girls Hostel'
+      },
+      {
+        name: 'G4 Warden',
+        email: 'g4warden@campuscare.com',
+        rollNo: 'EMP-G4',
+        phoneNo: '9876543234',
+        roomNo: 'Office-G4',
+        block: 'D Block',
+        password: 'sece123',
+        role: 'warden',
+        blocks: ['D Block'],
         hostelType: 'Girls Hostel'
       },
       {
@@ -505,10 +521,10 @@ const seedDefaults = async () => {
         rollNo: 'EMP-GHEAD',
         phoneNo: '9876543235',
         roomNo: 'Office-GHEAD',
-        block: 'A, B, C',
+        block: 'A Block, B Block, C Block, D Block',
         password: 'sece123',
         role: 'headwarden',
-        blocks: ['A', 'B', 'C'],
+        blocks: ['A Block', 'B Block', 'C Block', 'D Block'],
         hostelType: 'Girls Hostel'
       }
     ];
@@ -532,6 +548,7 @@ const seedDefaults = async () => {
         existingWarden.password = w.password;
         existingWarden.role = w.role;
         existingWarden.hostelType = w.hostelType;
+        existingWarden.block = w.block;
         await existingWarden.save();
       }
 
@@ -2806,15 +2823,23 @@ Return the response STRICTLY as a valid JSON object matching the following struc
 // ==================== INCIDENT GROUPS MODULE ====================
 
 const getUserBlockGroup = (block, hostelType) => {
-  if (!block) return hostelType === 'Girls Hostel' ? 'girls_ABC' : 'boys_ABC';
-  const b = block.trim().toUpperCase();
-  const prefix = hostelType === 'Girls Hostel' ? 'girls_' : 'boys_';
-  
-  if (b === 'ABC' || b === 'A' || b === 'B' || b === 'C') return `${prefix}ABC`;
-  if (b.startsWith('D')) return `${prefix}D`;
-  if (b.startsWith('E')) return `${prefix}E`;
-  if (b.startsWith('F')) return `${prefix}F`;
-  return `${prefix}ABC`; // fallback
+  if (hostelType === 'Girls Hostel') {
+    if (!block) return 'girls_A';
+    const b = block.trim().toUpperCase();
+    if (b.startsWith('A')) return 'girls_A';
+    if (b.startsWith('B')) return 'girls_B';
+    if (b.startsWith('C')) return 'girls_C';
+    if (b.startsWith('D')) return 'girls_D';
+    return 'girls_A';
+  } else {
+    if (!block) return 'boys_ABC';
+    const b = block.trim().toUpperCase();
+    if (b === 'ABC' || b === 'A' || b === 'B' || b === 'C') return 'boys_ABC';
+    if (b.startsWith('D')) return 'boys_D';
+    if (b.startsWith('E')) return 'boys_E';
+    if (b.startsWith('F')) return 'boys_F';
+    return 'boys_ABC';
+  }
 };
 
 // 1. Get accessible Incident Groups for user
@@ -2829,26 +2854,27 @@ app.get('/api/incident-groups', async (req, res) => {
     const prefix = computedHostelType === 'Girls Hostel' ? 'girls_' : 'boys_';
     const prefixName = computedHostelType === 'Girls Hostel' ? 'Girls ' : 'Boys ';
 
+    const boysGroups = [
+      { id: 'boys_ABC', name: 'Boys ABC Block Group', description: 'Discussion group for Boys ABC Block residents' },
+      { id: 'boys_D', name: 'Boys D Block Group', description: 'Discussion group for Boys D Block residents' },
+      { id: 'boys_E', name: 'Boys E Block Group', description: 'Discussion group for Boys E Block residents' },
+      { id: 'boys_F', name: 'Boys F Block Group', description: 'Discussion group for Boys F Block residents' }
+    ];
+
+    const girlsGroups = [
+      { id: 'girls_A', name: 'Girls A Incident Group', description: 'Discussion group for Girls A Block residents' },
+      { id: 'girls_B', name: 'Girls B Incident Group', description: 'Discussion group for Girls B Block residents' },
+      { id: 'girls_C', name: 'Girls C Incident Group', description: 'Discussion group for Girls C Block residents' },
+      { id: 'girls_D', name: 'Girls D Incident Group', description: 'Discussion group for Girls D Block residents' }
+    ];
+
     let allGroups = [];
     if (computedHostelType === 'All Hostels') {
-      allGroups = [
-        { id: 'boys_ABC', name: 'Boys ABC Block Group', description: 'Discussion group for Boys ABC Block residents' },
-        { id: 'boys_D', name: 'Boys D Block Group', description: 'Discussion group for Boys D Block residents' },
-        { id: 'boys_E', name: 'Boys E Block Group', description: 'Discussion group for Boys E Block residents' },
-        { id: 'boys_F', name: 'Boys F Block Group', description: 'Discussion group for Boys F Block residents' },
-        { id: 'girls_ABC', name: 'Girls ABC Block Group', description: 'Discussion group for Girls ABC Block residents' }
-      ];
+      allGroups = [...boysGroups, ...girlsGroups];
     } else if (computedHostelType === 'Girls Hostel') {
-      allGroups = [
-        { id: 'girls_ABC', name: 'Girls ABC Block Group', description: 'Discussion group for Girls ABC Block residents' }
-      ];
+      allGroups = girlsGroups;
     } else {
-      allGroups = [
-        { id: 'boys_ABC', name: 'Boys ABC Block Group', description: 'Discussion group for Boys ABC Block residents' },
-        { id: 'boys_D', name: 'Boys D Block Group', description: 'Discussion group for Boys D Block residents' },
-        { id: 'boys_E', name: 'Boys E Block Group', description: 'Discussion group for Boys E Block residents' },
-        { id: 'boys_F', name: 'Boys F Block Group', description: 'Discussion group for Boys F Block residents' }
-      ];
+      allGroups = boysGroups;
     }
 
     let accessibleGroups = [];
@@ -2885,15 +2911,16 @@ app.get('/api/incident-groups', async (req, res) => {
     for (const group of accessibleGroups) {
       // Member count
       let memberCount = 0;
+      const groupHostelType = group.id.startsWith('girls_') ? 'Girls Hostel' : 'Boys Hostel';
       const cleanGroupId = group.id.replace('boys_', '').replace('girls_', '').toUpperCase();
       if (cleanGroupId === 'ABC') {
         memberCount = await Student.countDocuments({
           block: { $in: ['ABC', 'A', 'B', 'C', 'abc', 'a', 'b', 'c'] },
-          hostelType: computedHostelType
+          hostelType: groupHostelType
         });
       } else {
         const regex = new RegExp(`^${cleanGroupId}`, 'i');
-        memberCount = await Student.countDocuments({ block: regex, hostelType: computedHostelType });
+        memberCount = await Student.countDocuments({ block: regex, hostelType: groupHostelType });
       }
 
       // Last message

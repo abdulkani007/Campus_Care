@@ -291,7 +291,7 @@ const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
                   <div className="hostel-type-segmented-control">
                     <div 
                       className={`hostel-type-segment ${hostelType === 'Boys Hostel' ? 'active' : ''}`}
-                      onClick={() => setHostelType('Boys Hostel')}
+                      onClick={() => { setHostelType('Boys Hostel'); setBlock(''); }}
                     >
                       <svg className="hostel-segment-icon" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l9-5-9-5-9 5 9 5z" />
@@ -301,7 +301,7 @@ const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
                     </div>
                     <div 
                       className={`hostel-type-segment ${hostelType === 'Girls Hostel' ? 'active' : ''}`}
-                      onClick={() => setHostelType('Girls Hostel')}
+                      onClick={() => { setHostelType('Girls Hostel'); setBlock(''); }}
                     >
                       <svg className="hostel-segment-icon" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
@@ -444,12 +444,23 @@ const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
                     style={{ paddingLeft: '3.2rem', paddingRight: '0.5rem', color: block ? '#1e293b' : '#94a3b8' }}
                   >
                     <option value="" disabled hidden>Hostel Block</option>
-                    <option value="A">A Block</option>
-                    <option value="B">B Block</option>
-                    <option value="C">C Block</option>
-                    <option value="D">D Block</option>
-                    <option value="E">E Block</option>
-                    <option value="F">F Block</option>
+                    {hostelType === 'Girls Hostel' ? (
+                      <>
+                        <option value="A Block">A Block</option>
+                        <option value="B Block">B Block</option>
+                        <option value="C Block">C Block</option>
+                        <option value="D Block">D Block</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="A">A Block</option>
+                        <option value="B">B Block</option>
+                        <option value="C">C Block</option>
+                        <option value="D">D Block</option>
+                        <option value="E">E Block</option>
+                        <option value="F">F Block</option>
+                      </>
+                    )}
                   </select>
                 </div>
 
