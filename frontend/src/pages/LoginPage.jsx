@@ -54,6 +54,27 @@ const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
     return () => clearTimeout(fadeTimer);
   }, []);
 
+  const [signupBlocks, setSignupBlocks] = useState([]);
+
+  useEffect(() => {
+    if (!hostelType) {
+      setSignupBlocks([]);
+      return;
+    }
+    const fetchSignupBlocks = async () => {
+      try {
+        const res = await fetch(`/api/blocks?hostelType=${encodeURIComponent(hostelType)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSignupBlocks(data.map(b => b.blockName));
+        }
+      } catch (err) {
+        console.error('Error fetching signup blocks:', err);
+      }
+    };
+    fetchSignupBlocks();
+  }, [hostelType]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -444,23 +465,11 @@ const LoginPage = ({ onBackToHome, onBackToWebsite, onLoginSuccess }) => {
                     style={{ paddingLeft: '3.2rem', paddingRight: '0.5rem', color: block ? '#1e293b' : '#94a3b8' }}
                   >
                     <option value="" disabled hidden>Hostel Block</option>
-                    {hostelType === 'Girls Hostel' ? (
-                      <>
-                        <option value="A Block">A Block</option>
-                        <option value="B Block">B Block</option>
-                        <option value="C Block">C Block</option>
-                        <option value="D Block">D Block</option>
-                      </>
-                    ) : (
-                      <>
-                        <option value="A">A Block</option>
-                        <option value="B">B Block</option>
-                        <option value="C">C Block</option>
-                        <option value="D">D Block</option>
-                        <option value="E">E Block</option>
-                        <option value="F">F Block</option>
-                      </>
-                    )}
+                    {signupBlocks.map(b => (
+                      <option key={b} value={hostelType === 'Girls Hostel' ? `${b} Block` : b}>
+                        {b} Block
+                      </option>
+                    ))}
                   </select>
                 </div>
 

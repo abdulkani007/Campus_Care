@@ -111,6 +111,15 @@ const BlockAssignmentSchema = new mongoose.Schema({
 });
 const BlockAssignment = mongoose.model('BlockAssignment', BlockAssignmentSchema);
 
+// Dynamic Hostel Blocks management model
+const HostelBlockSchema = new mongoose.Schema({
+  blockName: { type: String, required: true },
+  hostelType: { type: String, enum: ['Boys Hostel', 'Girls Hostel'], default: 'Boys Hostel' },
+  createdAt: { type: Date, default: Date.now }
+});
+HostelBlockSchema.index({ blockName: 1, hostelType: 1 }, { unique: true });
+const HostelBlock = mongoose.model('HostelBlock', HostelBlockSchema);
+
 const ComplaintSchema = new mongoose.Schema({
   title: { type: String, required: true },
   location: { type: String, required: true },
@@ -870,6 +879,25 @@ const seedDefaults = async () => {
       await IncidentGroup.insertMany(defaultGroups);
       console.log('Seeded default IncidentGroups configuration.');
     }
+
+    // Seed default HostelBlocks configuration if empty
+    const blockCount = await HostelBlock.countDocuments();
+    if (blockCount === 0) {
+      const defaultBlocks = [
+        { blockName: 'A', hostelType: 'Boys Hostel' },
+        { blockName: 'B', hostelType: 'Boys Hostel' },
+        { blockName: 'C', hostelType: 'Boys Hostel' },
+        { blockName: 'D', hostelType: 'Boys Hostel' },
+        { blockName: 'E', hostelType: 'Boys Hostel' },
+        { blockName: 'F', hostelType: 'Boys Hostel' },
+        { blockName: 'A', hostelType: 'Girls Hostel' },
+        { blockName: 'B', hostelType: 'Girls Hostel' },
+        { blockName: 'C', hostelType: 'Girls Hostel' },
+        { blockName: 'D', hostelType: 'Girls Hostel' }
+      ];
+      await HostelBlock.insertMany(defaultBlocks);
+      console.log('Seeded default HostelBlocks configuration.');
+    }
   } catch (err) {
     console.error('Error seeding default data:', err);
   }
@@ -1312,6 +1340,67 @@ app.post('/api/complaints', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Database write error' });
+  }
+});
+
+// HOSTEL BLOCKS API
+app.get('/api/blocks', async (req, res) => {
+  try {
+    const hostelType = await getRequestHostelType(req);
+    const blocks = await HostelBlock.find({ hostelType }).sort({ blockName: 1 });
+    res.json(blocks);
+  } catch (err) {
+    console.error('Error fetching blocks:', err);
+    res.status(500).json({ error: 'Failed to fetch blocks' });
+  }
+});
+
+app.post('/api/blocks', async (req, res) => {
+  const { blockName, userRole } = req.body;
+  if (!blockName) {
+    return res.status(400).json({ error: 'blockName is required' });
+  }
+  try {
+    const role = (userRole || '').toLowerCase().trim();
+    if (role !== 'headwarden' && role !== 'admin') {
+      return res.status(403).json({ error: 'Only Head Wardens can add new blocks' });
+    }
+
+    const hostelType = await getRequestHostelType(req);
+    const cleanBlockName = blockName.trim().toUpperCase().replace(/\s*block/i, '');
+
+    if (!cleanBlockName) {
+      return res.status(400).json({ error: 'Invalid block name' });
+    }
+
+    // 1. Create/upsert the block
+    const newBlock = await HostelBlock.findOneAndUpdate(
+      { blockName: cleanBlockName, hostelType },
+      { blockName: cleanBlockName, hostelType },
+      { upsert: true, new: true }
+    );
+
+    // 2. Create the corresponding Incident Group
+    const prefix = hostelType === 'Girls Hostel' ? 'girls_' : 'boys_';
+    const prefixName = hostelType === 'Girls Hostel' ? 'Girls ' : 'Boys ';
+    const groupId = `${prefix}${cleanBlockName}`;
+
+    await IncidentGroup.findOneAndUpdate(
+      { groupId },
+      {
+        groupId,
+        name: `${prefixName}${cleanBlockName} Incident Group`,
+        description: `Discussion group for ${prefixName}${cleanBlockName} Block residents`,
+        chatEnabled: true,
+        hostelType
+      },
+      { upsert: true, new: true }
+    );
+
+    res.status(201).json({ success: true, block: newBlock });
+  } catch (err) {
+    console.error('Error adding block:', err);
+    res.status(500).json({ error: 'Failed to add block' });
   }
 });
 
@@ -2394,8 +2483,15 @@ app.post('/api/admin/wardens', isAdmin, async (req, res) => {
   }
 
   const cleanEmail = email.toLowerCase().trim();
+  const adminEmail = (req.headers['x-user-email'] || req.query.userEmail || '').toLowerCase().trim();
+  let computedHostelType = 'Boys Hostel';
 
   try {
+    const adminDoc = await Warden.findOne({ email: adminEmail, deleted: { $ne: true } });
+    if (adminDoc) {
+      computedHostelType = adminDoc.hostelType || 'Boys Hostel';
+    }
+
     const existingEmail = await Warden.findOne({ email: cleanEmail, deleted: { $ne: true } });
     if (existingEmail) {
       return res.status(400).json({ error: 'This official email ID is already registered.' });
@@ -2408,7 +2504,7 @@ app.post('/api/admin/wardens', isAdmin, async (req, res) => {
 
     const selectStatus = status || 'Active';
     if (selectStatus === 'Active') {
-      const activeWardenForBlock = await Warden.findOne({ block, status: 'Active', deleted: { $ne: true } });
+      const activeWardenForBlock = await Warden.findOne({ block, status: 'Active', deleted: { $ne: true }, hostelType: computedHostelType });
       if (activeWardenForBlock) {
         return res.status(400).json({ error: 'This hostel block already has an active warden.' });
       }
@@ -2426,18 +2522,55 @@ app.post('/api/admin/wardens', isAdmin, async (req, res) => {
       block,
       password,
       status: selectStatus,
-      role: 'warden'
+      role: 'warden',
+      hostelType: computedHostelType
     });
 
+    // Dynamically ensure the block is registered in HostelBlock and has an IncidentGroup
+    const cleanBlockLetter = block.replace(/\s*block/i, '').trim().toUpperCase();
+    if (cleanBlockLetter && cleanBlockLetter !== 'ABC') {
+      await HostelBlock.findOneAndUpdate(
+        { blockName: cleanBlockLetter, hostelType: computedHostelType },
+        { blockName: cleanBlockLetter, hostelType: computedHostelType },
+        { upsert: true }
+      );
+
+      const prefix = computedHostelType === 'Girls Hostel' ? 'girls_' : 'boys_';
+      const prefixName = computedHostelType === 'Girls Hostel' ? 'Girls ' : 'Boys ';
+      const groupId = `${prefix}${cleanBlockLetter}`;
+
+      await IncidentGroup.findOneAndUpdate(
+        { groupId },
+        {
+          groupId,
+          name: `${prefixName}${cleanBlockLetter} Incident Group`,
+          description: `Discussion group for ${prefixName}${cleanBlockLetter} Block residents`,
+          chatEnabled: true,
+          hostelType: computedHostelType
+        },
+        { upsert: true }
+      );
+    }
+
     let blocksArr = [];
-    if (block === 'ABC Block') blocksArr = ['A', 'B', 'C'];
-    else if (block === 'D Block') blocksArr = ['D'];
-    else if (block === 'E Block') blocksArr = ['E'];
-    else if (block === 'F Block') blocksArr = ['F'];
+    if (block === 'ABC Block') {
+      blocksArr = ['A', 'B', 'C'];
+      for (const letter of blocksArr) {
+        await HostelBlock.findOneAndUpdate(
+          { blockName: letter, hostelType: computedHostelType },
+          { blockName: letter, hostelType: computedHostelType },
+          { upsert: true }
+        );
+      }
+    } else {
+      if (cleanBlockLetter) {
+        blocksArr = [cleanBlockLetter];
+      }
+    }
 
     await BlockAssignment.findOneAndUpdate(
       { wardenEmail: cleanEmail },
-      { wardenEmail: cleanEmail, wardenName: name, blocks: blocksArr, role: 'warden' },
+      { wardenEmail: cleanEmail, wardenName: name, blocks: blocksArr, role: 'warden', hostelType: computedHostelType },
       { upsert: true, returnDocument: 'after' }
     );
 
@@ -2537,12 +2670,20 @@ app.put('/api/admin/wardens/:id', isAdmin, async (req, res) => {
       }
     }
 
+    const adminEmail = (req.headers['x-user-email'] || req.query.userEmail || '').toLowerCase().trim();
+    let computedHostelType = warden.hostelType || 'Boys Hostel';
+    const adminDoc = await Warden.findOne({ email: adminEmail, deleted: { $ne: true } });
+    if (adminDoc) {
+      computedHostelType = adminDoc.hostelType || 'Boys Hostel';
+    }
+
     const selectStatus = status || 'Active';
     if (selectStatus === 'Active') {
       const activeWardenForBlock = await Warden.findOne({ 
         _id: { $ne: wardenId },
         block, 
-        status: 'Active'
+        status: 'Active',
+        hostelType: computedHostelType
       });
       if (activeWardenForBlock) {
         return res.status(400).json({ error: 'This hostel block already has an active warden.' });
@@ -2556,16 +2697,53 @@ app.put('/api/admin/wardens/:id', isAdmin, async (req, res) => {
     warden.phoneNo = phoneNo;
     warden.block = block;
     warden.status = selectStatus;
+    warden.hostelType = computedHostelType;
     if (password) {
       warden.password = password;
     }
     await warden.save();
 
+    // Dynamically ensure the block is registered in HostelBlock and has an IncidentGroup
+    const cleanBlockLetter = block.replace(/\s*block/i, '').trim().toUpperCase();
+    if (cleanBlockLetter && cleanBlockLetter !== 'ABC') {
+      await HostelBlock.findOneAndUpdate(
+        { blockName: cleanBlockLetter, hostelType: computedHostelType },
+        { blockName: cleanBlockLetter, hostelType: computedHostelType },
+        { upsert: true }
+      );
+
+      const prefix = computedHostelType === 'Girls Hostel' ? 'girls_' : 'boys_';
+      const prefixName = computedHostelType === 'Girls Hostel' ? 'Girls ' : 'Boys ';
+      const groupId = `${prefix}${cleanBlockLetter}`;
+
+      await IncidentGroup.findOneAndUpdate(
+        { groupId },
+        {
+          groupId,
+          name: `${prefixName}${cleanBlockLetter} Incident Group`,
+          description: `Discussion group for ${prefixName}${cleanBlockLetter} Block residents`,
+          chatEnabled: true,
+          hostelType: computedHostelType
+        },
+        { upsert: true }
+      );
+    }
+
     let blocksArr = [];
-    if (block === 'ABC Block') blocksArr = ['A', 'B', 'C'];
-    else if (block === 'D Block') blocksArr = ['D'];
-    else if (block === 'E Block') blocksArr = ['E'];
-    else if (block === 'F Block') blocksArr = ['F'];
+    if (block === 'ABC Block') {
+      blocksArr = ['A', 'B', 'C'];
+      for (const letter of blocksArr) {
+        await HostelBlock.findOneAndUpdate(
+          { blockName: letter, hostelType: computedHostelType },
+          { blockName: letter, hostelType: computedHostelType },
+          { upsert: true }
+        );
+      }
+    } else {
+      if (cleanBlockLetter) {
+        blocksArr = [cleanBlockLetter];
+      }
+    }
 
     if (oldEmail !== cleanEmail) {
       await BlockAssignment.deleteOne({ wardenEmail: oldEmail });
@@ -2573,7 +2751,7 @@ app.put('/api/admin/wardens/:id', isAdmin, async (req, res) => {
 
     await BlockAssignment.findOneAndUpdate(
       { wardenEmail: cleanEmail },
-      { wardenEmail: cleanEmail, wardenName: name, blocks: blocksArr, role: 'warden' },
+      { wardenEmail: cleanEmail, wardenName: name, blocks: blocksArr, role: 'warden', hostelType: computedHostelType },
       { upsert: true, returnDocument: 'after' }
     );
 

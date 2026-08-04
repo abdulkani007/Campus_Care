@@ -103,6 +103,7 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [selectedComplaint, setSelectedComplaint] = useState(null);
 
   const [selectedHostelType, setSelectedHostelType] = useState('Boys Hostel');
+  const [availableBlocks, setAvailableBlocks] = useState(['A', 'B', 'C', 'D', 'E', 'F']);
 
   // Fetch all data from API
   const fetchData = useCallback(async () => {
@@ -116,7 +117,12 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
       const wardensRes = await fetch('/api/wardens', { headers });
       const feedbackReqRes = await fetch('/api/feedback-requests', { headers });
       const feedbackRespRes = await fetch('/api/feedback-responses', { headers });
+      const blocksRes = await fetch(`/api/blocks?hostelType=${encodeURIComponent(selectedHostelType)}`, { headers });
       
+      if (blocksRes.ok) {
+        const blocksData = await blocksRes.json();
+        setAvailableBlocks(blocksData.map(b => b.blockName));
+      }
       if (complaintsRes.ok) {
         const complaintsData = await complaintsRes.json();
         setComplaints(complaintsData);
@@ -529,7 +535,7 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
   // 2. Export Block-wise Summary CSV
   const handleExportBlockSummaryCSV = () => {
     const headers = ['Block Name', 'In-Charge Warden', 'Warden Contact', 'Total Registered Students', 'Total Complaints', 'Resolved Complaints', 'Open Complaints', 'In Progress Complaints'];
-    const blocks = ['A', 'B', 'C', 'D', 'E', 'F'];
+    const blocks = availableBlocks;
     const rows = blocks.map(blockName => {
       const matchingStudents = residentsList.filter(s => (s.block || '').toUpperCase().includes(blockName));
       const matchingComplaints = complaints.filter(c => (c.studentBlock || c.location || '').toUpperCase().includes(blockName));
@@ -1059,7 +1065,7 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                 </div>
 
                 <div className="block-cards-grid">
-                  {['A', 'B', 'C', 'D', 'E', 'F'].map(b => {
+                  {availableBlocks.map(b => {
                     const cnt = residentsList.filter(r => (r.block || '').toUpperCase().includes(b)).length;
                     return (
                       <div key={b} className="block-progress-card">
@@ -1284,7 +1290,7 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
-              {['A', 'B', 'C', 'D', 'E', 'F'].map(blockName => {
+              {availableBlocks.map(blockName => {
                 const matchingStudents = residentsList.filter(s => {
                   const b = (s.block || '').trim().toUpperCase();
                   return b === blockName || b === `${blockName} BLOCK` || b.startsWith(blockName);
@@ -1843,7 +1849,7 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
               <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
                 <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Registered Students</span>
                 <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', marginTop: '0.25rem' }}>{residentsList.length}</div>
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Across 6 Blocks</span>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Across {availableBlocks.length} Blocks</span>
               </div>
               <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
                 <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Assigned Wardens</span>
@@ -1893,7 +1899,7 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                     </div>
                     <div>
                       <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#0f172a', fontWeight: 800 }}>Block-wise Summary Report</h3>
-                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Blocks A, B, C, D, E, F performance</span>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Blocks {availableBlocks.join(', ')} performance</span>
                     </div>
                   </div>
                   <p style={{ fontSize: '0.85rem', color: '#475569', lineHeight: 1.5, margin: '0 0 1rem' }}>
@@ -1904,7 +1910,7 @@ const ManagementDashboard = ({ user, onLogout, onUpdateProfile }) => {
                   onClick={handleExportBlockSummaryCSV}
                   style={{ width: '100%', padding: '0.75rem', backgroundColor: '#ea580c', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', boxShadow: '0 4px 12px rgba(234,88,12,0.2)' }}
                 >
-                  📥 Download Block Summary CSV (6 Blocks)
+                  📥 Download Block Summary CSV ({availableBlocks.length} Blocks)
                 </button>
               </div>
 

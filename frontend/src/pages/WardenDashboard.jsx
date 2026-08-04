@@ -219,6 +219,9 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [wardenFormEmail, setWardenFormEmail] = useState('');
   const [wardenFormBlock, setWardenFormBlock] = useState(user?.hostelType === 'Girls Hostel' ? 'A Block' : 'ABC Block');
   const [customBlock, setCustomBlock] = useState('');
+  const [availableBlocks, setAvailableBlocks] = useState(
+    (user?.hostelType || profile.hostelType) === 'Girls Hostel' ? ['A', 'B', 'C', 'D'] : ['A', 'B', 'C', 'D', 'E', 'F']
+  );
   const [wardenFormPassword, setWardenFormPassword] = useState('');
   const [wardenFormConfirmPassword, setWardenFormConfirmPassword] = useState('');
   const [wardenFormStatus, setWardenFormStatus] = useState('Active');
@@ -328,7 +331,8 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
           mgtMessagesRes,
           wardensRes,
           feedbackReqRes,
-          feedbackRespRes
+          feedbackRespRes,
+          blocksRes
         ] = await Promise.all([
           fetch(`/api/complaints?userEmail=${email}&userRole=${role}`),
           fetch('/api/announcements'),
@@ -339,9 +343,14 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
           fetch(`/api/messages?studentEmail=${email}`),
           fetch('/api/wardens'),
           fetch(`/api/feedback-requests?targetBlock=${encodeURIComponent(profile.block || '')}`),
-          fetch(`/api/feedback-responses?targetBlock=${encodeURIComponent(profile.block || '')}`)
+          fetch(`/api/feedback-responses?targetBlock=${encodeURIComponent(profile.block || '')}`),
+          fetch(`/api/blocks?hostelType=${encodeURIComponent(user?.hostelType || profile.hostelType || '')}`)
         ]);
 
+        if (blocksRes.ok) {
+          const blocksData = await blocksRes.json();
+          setAvailableBlocks(blocksData.map(b => b.blockName));
+        }
         if (complaintsRes.ok) setComplaints(await complaintsRes.json());
         if (wardensRes.ok) setWardensList(await wardensRes.json());
         if (announcementsRes.ok) setAnnouncements(await announcementsRes.json());
@@ -2287,12 +2296,9 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                       {isHeadWarden ? (
                         <>
                           <option value="All">All Blocks</option>
-                          <option value="A">A Block</option>
-                          <option value="B">B Block</option>
-                          <option value="C">C Block</option>
-                          <option value="D">D Block</option>
-                          <option value="E">E Block</option>
-                          <option value="F">F Block</option>
+                          {availableBlocks.map(b => (
+                            <option key={b} value={b}>{b} Block</option>
+                          ))}
                         </>
                       ) : (
                         parsedWardenBlocks.map(blk => (
@@ -2848,7 +2854,7 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
 
                   {/* Block Selection Filter Bar */}
                   <div style={{ padding: '0.5rem 1rem', borderBottom: '1px solid #e2e8f0', backgroundColor: '#fff', display: 'flex', gap: '0.4rem', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                    {['All', ...(profile.block && profile.block !== 'All' && user?.role !== 'headwarden' && profile.block.length < 5 ? [profile.block] : ['A', 'B', 'C', 'D', 'E', 'F'])].map(blk => (
+                    {['All', ...(profile.block && profile.block !== 'All' && user?.role !== 'headwarden' && profile.block.length < 5 ? [profile.block] : availableBlocks)].map(blk => (
                       <button
                         key={blk}
                         onClick={() => setChatBlockFilter(blk)}
@@ -3348,16 +3354,16 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                     style={{ padding: '0.65rem 1.5rem 0.65rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, cursor: 'pointer' }}
                   >
                     <option value="All">All Blocks</option>
-                    {(user?.hostelType === 'Girls Hostel' 
-                      ? ['A Block', 'B Block', 'C Block', 'D Block'] 
-                      : ['ABC Block', 'D Block', 'E Block', 'F Block']
+                    {(user?.hostelType === 'Girls Hostel'
+                      ? availableBlocks.map(b => `${b} Block`)
+                      : ['ABC Block'].concat(availableBlocks.filter(b => !['A', 'B', 'C'].includes(b)).map(b => `${b} Block`))
                     ).concat(
                       Array.from(new Set(
                         wardensList
                           .map(w => w.block)
-                          .filter(b => b && !(user?.hostelType === 'Girls Hostel' 
-                            ? ['A Block', 'B Block', 'C Block', 'D Block'] 
-                            : ['ABC Block', 'D Block', 'E Block', 'F Block']
+                          .filter(b => b && !(user?.hostelType === 'Girls Hostel'
+                            ? availableBlocks.map(b => `${b} Block`)
+                            : ['ABC Block'].concat(availableBlocks.filter(b => !['A', 'B', 'C'].includes(b)).map(b => `${b} Block`))
                           ).includes(b))
                       ))
                     ).map(blockOpt => (
@@ -3664,13 +3670,12 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                         {profile.block && profile.block !== 'All' && (
                           <option value={profile.block}>{profile.block.includes('Block') ? profile.block : `${profile.block} Block`}</option>
                         )}
-                        <option value="A">A Block</option>
-                        <option value="B">B Block</option>
-                        <option value="C">C Block</option>
-                        <option value="D">D Block</option>
-                        <option value="E">E Block</option>
-                        <option value="F">F Block</option>
-                        <option value="A, B, C">ABC Block</option>
+                        {availableBlocks.map(b => (
+                          <option key={b} value={b}>{b} Block</option>
+                        ))}
+                        {user?.hostelType === 'Boys Hostel' && availableBlocks.includes('A') && availableBlocks.includes('B') && availableBlocks.includes('C') && (
+                          <option value="A, B, C">ABC Block</option>
+                        )}
                         <option value="All">All Blocks</option>
                       </select>
                     </div>
@@ -4250,12 +4255,9 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                     className="modal-select-field"
                   >
                     <option value="">None (Global / All)</option>
-                    <option value="A">A Block</option>
-                    <option value="B">B Block</option>
-                    <option value="C">C Block</option>
-                    <option value="D">D Block</option>
-                    <option value="E">E Block</option>
-                    <option value="F">F Block</option>
+                    {availableBlocks.map(b => (
+                      <option key={b} value={b}>{b} Block</option>
+                    ))}
                   </select>
                 </div>
 
@@ -5312,18 +5314,15 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                     style={{ height: '42px', padding: '0 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
                   >
                     {user?.hostelType === 'Girls Hostel' ? (
-                      <>
-                        <option value="A Block">A Block</option>
-                        <option value="B Block">B Block</option>
-                        <option value="C Block">C Block</option>
-                        <option value="D Block">D Block</option>
-                      </>
+                      availableBlocks.map(b => (
+                        <option key={b} value={`${b} Block`}>{b} Block</option>
+                      ))
                     ) : (
                       <>
                         <option value="ABC Block">ABC Block</option>
-                        <option value="D Block">D Block</option>
-                        <option value="E Block">E Block</option>
-                        <option value="F Block">F Block</option>
+                        {availableBlocks.filter(b => !['A', 'B', 'C'].includes(b)).map(b => (
+                          <option key={b} value={`${b} Block`}>{b} Block</option>
+                        ))}
                       </>
                     )}
                     <option value="+ Add New Block" style={{ fontWeight: 'bold', color: '#1e5bbf' }}>+ Add New Block</option>
@@ -5456,18 +5455,15 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                     style={{ height: '42px', padding: '0 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
                   >
                     {user?.hostelType === 'Girls Hostel' ? (
-                      <>
-                        <option value="A Block">A Block</option>
-                        <option value="B Block">B Block</option>
-                        <option value="C Block">C Block</option>
-                        <option value="D Block">D Block</option>
-                      </>
+                      availableBlocks.map(b => (
+                        <option key={b} value={`${b} Block`}>{b} Block</option>
+                      ))
                     ) : (
                       <>
                         <option value="ABC Block">ABC Block</option>
-                        <option value="D Block">D Block</option>
-                        <option value="E Block">E Block</option>
-                        <option value="F Block">F Block</option>
+                        {availableBlocks.filter(b => !['A', 'B', 'C'].includes(b)).map(b => (
+                          <option key={b} value={`${b} Block`}>{b} Block</option>
+                        ))}
                       </>
                     )}
                     <option value="+ Add New Block" style={{ fontWeight: 'bold', color: '#1e5bbf' }}>+ Add New Block</option>
