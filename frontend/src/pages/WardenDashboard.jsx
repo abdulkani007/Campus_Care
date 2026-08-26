@@ -81,7 +81,37 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [residentBlockFilter, setResidentBlockFilter] = useState('All');
   const [residentSortBy, setResidentSortBy] = useState('name');
 
+  // Student Movement Tracking states
+  const [residentSearchRollNo, setResidentSearchRollNo] = useState('');
+  const [scannedStudent, setScannedStudent] = useState(null);
+  const [scannedHistory, setScannedHistory] = useState([]);
+  const [scannerErrorMessage, setScannerErrorMessage] = useState('');
+  const [isSubmittingMovement, setIsSubmittingMovement] = useState(false);
+  const [isSearchingStudent, setIsSearchingStudent] = useState(false);
+
+  // Recent Movements history states
+  const [movementsList, setMovementsList] = useState([]);
+  const [historySearchQuery, setHistorySearchQuery] = useState('');
+  const [historyStatusFilter, setHistoryStatusFilter] = useState('All');
+  const [historyQuickDate, setHistoryQuickDate] = useState('All');
+  const [historyFromDate, setHistoryFromDate] = useState('');
+  const [historyToDate, setHistoryToDate] = useState('');
+  const [isFetchingHistory, setIsFetchingHistory] = useState(false);
+
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const isHeadWarden = user?.role === 'headwarden' || profile.block === 'All';
+
+  // Computed real-time counts from residents data
+  const totalCount = residents.length;
+  const inCount = residents.filter(r => r.movementStatus === 'IN' || !r.movementStatus).length;
+  const outCount = residents.filter(r => r.movementStatus === 'OUTING').length;
+  const homeCount = residents.filter(r => r.movementStatus === 'HOME').length;
 
   // Extract all assigned blocks for the current warden
   const parsedWardenBlocks = useMemo(() => {
@@ -238,6 +268,150 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
     }
   };
 
+  const handleSearchStudentMovement = async (e) => {
+    if (e) e.preventDefault();
+    const roll = residentSearchRollNo.trim();
+    if (!roll) return;
+
+    setIsSearchingStudent(true);
+    setScannedStudent(null);
+    setScannedHistory([]);
+    setScannerErrorMessage('');
+
+    const email = encodeURIComponent(user?.email || profile.email);
+    const role = encodeURIComponent(user?.role || 'warden');
+
+    try {
+      const res = await fetch(`/api/students/search/${encodeURIComponent(roll)}?userEmail=${email}&userRole=${role}`);
+      const data = await res.json();
+      if (res.ok) {
+        setScannedStudent(data.student);
+        setScannedHistory(data.history);
+      } else {
+        setScannerErrorMessage(data.error || 'Student not found.');
+      }
+    } catch (err) {
+      console.error('Error searching student:', err);
+      setScannerErrorMessage('Connection error. Failed to retrieve details.');
+    } finally {
+      setIsSearchingStudent(false);
+    }
+  };
+
+  const handleUpdateMovementStatus = async (studentId, status) => {
+    setIsSubmittingMovement(true);
+    const email = user?.email || profile.email;
+    const role = user?.role || 'warden';
+
+    try {
+      const res = await fetch(`/api/students/${studentId}/movement`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userEmail: email,
+          userRole: role,
+          status
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResidents(prev => prev.map(s => {
+          const sid = s._id || s.id;
+          if (sid === studentId) {
+            return { ...s, movementStatus: status };
+          }
+          return s;
+        }));
+        setScannedStudent(data.student);
+        setScannedHistory(prev => [data.movement, ...prev]);
+      } else {
+        alert(data.error || 'Failed to update movement status.');
+      }
+    } catch (err) {
+      console.error('Error updating status:', err);
+      alert('Network error. Failed to update status.');
+    } finally {
+      setIsSubmittingMovement(false);
+    }
+  };
+
+  const fetchMovementHistory = useCallback(async () => {
+    setIsFetchingHistory(true);
+    try {
+      const email = encodeURIComponent(user?.email || profile.email);
+      const role = encodeURIComponent(user?.role || 'warden');
+      let url = `/api/students/movement/history?userEmail=${email}&userRole=${role}`;
+      
+      if (historyStatusFilter !== 'All') {
+        url += `&status=${encodeURIComponent(historyStatusFilter)}`;
+      }
+      
+      let finalFromDate = '';
+      let finalToDate = '';
+      const today = new Date();
+      
+      if (historyQuickDate === 'Today') {
+        const startOfToday = new Date(today);
+        startOfToday.setHours(0, 0, 0, 0);
+        finalFromDate = startOfToday.toISOString();
+      } else if (historyQuickDate === 'Yesterday') {
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        const startOfYesterday = new Date(yesterday);
+        startOfYesterday.setHours(0, 0, 0, 0);
+        const endOfYesterday = new Date(yesterday);
+        endOfYesterday.setHours(23, 59, 59, 999);
+        
+        finalFromDate = startOfYesterday.toISOString();
+        finalToDate = endOfYesterday.toISOString();
+      } else if (historyQuickDate === '7Days') {
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(today.getDate() - 7);
+        sevenDaysAgo.setHours(0, 0, 0, 0);
+        finalFromDate = sevenDaysAgo.toISOString();
+      } else if (historyQuickDate === '30Days') {
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+        thirtyDaysAgo.setHours(0, 0, 0, 0);
+        finalFromDate = thirtyDaysAgo.toISOString();
+      } else if (historyQuickDate === 'Custom') {
+        if (historyFromDate) {
+          finalFromDate = new Date(historyFromDate).toISOString();
+        }
+        if (historyToDate) {
+          finalToDate = new Date(historyToDate).toISOString();
+        }
+      }
+      
+      if (finalFromDate) {
+        url += `&fromDate=${encodeURIComponent(finalFromDate)}`;
+      }
+      if (finalToDate) {
+        url += `&toDate=${encodeURIComponent(finalToDate)}`;
+      }
+      if (historySearchQuery.trim()) {
+        url += `&search=${encodeURIComponent(historySearchQuery.trim())}`;
+      }
+      
+      const res = await fetch(url);
+      if (res.ok) {
+        setMovementsList(await res.json());
+      }
+    } catch (err) {
+      console.error('Error fetching movement history:', err);
+    } finally {
+      setIsFetchingHistory(false);
+    }
+  }, [user?.email, profile.email, user?.role, historyStatusFilter, historyQuickDate, historyFromDate, historyToDate, historySearchQuery]);
+
+  useEffect(() => {
+    if (activeTab === 'Residents') {
+      fetchMovementHistory();
+    }
+  }, [activeTab, fetchMovementHistory]);
+
   const socketCtx = useSocket();
   const socket = socketCtx?.socket;
   const sendRealtimeMessage = socketCtx?.sendRealtimeMessage;
@@ -313,6 +487,43 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
       socket.off('complaint_updated', handleRealtimeComplaintChange);
     };
   }, [socket, user?.email, profile.email, user?.role]);
+
+  // Real-time socket student movement status listener
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleRealtimeMovementUpdate = (data) => {
+      const { studentId, newStatus, movement } = data;
+      setResidents(prev => prev.map(s => {
+        const sid = s._id || s.id;
+        if (sid === studentId) {
+          return { ...s, movementStatus: newStatus };
+        }
+        return s;
+      }));
+      setScannedStudent(prev => {
+        if (prev && (prev._id === studentId || prev.id === studentId)) {
+          return { ...prev, movementStatus: newStatus };
+        }
+        return prev;
+      });
+      if (movement) {
+        setScannedHistory(prev => {
+          if (prev.some(item => item._id === movement._id || item.timestamp === movement.timestamp)) {
+            return prev;
+          }
+          return [movement, ...prev];
+        });
+      }
+      fetchMovementHistory();
+    };
+
+    socket.on('student_movement_updated', handleRealtimeMovementUpdate);
+
+    return () => {
+      socket.off('student_movement_updated', handleRealtimeMovementUpdate);
+    };
+  }, [socket, fetchMovementHistory]);
 
   // Fetch all data from API in parallel on mount
   useEffect(() => {
@@ -2215,6 +2426,830 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
           {/* TAB 3: RESIDENTS */}
           {activeTab === 'Residents' && (
             <div className="tab-focused-view">
+              
+              {/* MOVEMENT SUMMARY CARDS */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '1.25rem',
+                marginBottom: '1.75rem'
+              }}>
+                {[
+                  { label: 'IN HOSTEL', count: inCount, color: '#10b981', bg: '#ecfdf5', border: '#a7f3d0', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+                  { label: 'OUT', count: outCount, color: '#f59e0b', bg: '#fffbeb', border: '#fde68a', icon: 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1' },
+                  { label: 'HOME', count: homeCount, color: '#ef4444', bg: '#fff5f5', border: '#fca5a5', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+                  { label: 'TOTAL STUDENTS', count: totalCount, color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' }
+                ].map((card, idx) => (
+                  <div key={idx} style={{
+                    backgroundColor: '#ffffff',
+                    border: `1.5px solid ${card.border}`,
+                    borderRadius: '16px',
+                    padding: '1.25rem 1.5rem',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.01)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.2s ease',
+                  }}>
+                    <div>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '0.25rem' }}>
+                        {card.label}
+                      </span>
+                      <span style={{ fontSize: '1.85rem', fontWeight: 900, color: card.color, lineHeight: 1 }}>
+                        {card.count}
+                      </span>
+                    </div>
+                    <div style={{
+                      width: '46px',
+                      height: '46px',
+                      borderRadius: '12px',
+                      backgroundColor: card.bg,
+                      color: card.color,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d={card.icon} />
+                      </svg>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* STUDENT MOVEMENT / ID VERIFICATION SECTION */}
+              <div id="student-movement-section" className="grid-card" style={{ 
+                padding: '1.75rem', 
+                marginBottom: '1.75rem', 
+                border: '1px solid #e2e8f0', 
+                borderRadius: '20px', 
+                background: '#ffffff', 
+                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03)' 
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+                  <div style={{ 
+                    width: '42px', 
+                    height: '42px', 
+                    borderRadius: '10px', 
+                    backgroundColor: '#eff6ff', 
+                    color: '#1e3a8a', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    border: '1px solid #bfdbfe'
+                  }}>
+                    <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Student Movement</h3>
+                    <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.82rem', color: '#64748b', fontWeight: 550 }}>
+                      Verify student identity and track log-out / check-in actions
+                    </p>
+                  </div>
+                </div>
+
+                {/* Search Input Bar Group */}
+                <div style={{ backgroundColor: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '0.5rem' }}>Enter Student Roll Number</span>
+                  <form onSubmit={handleSearchStudentMovement} style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <div style={{ flex: '1 1 280px', position: 'relative' }}>
+                      <svg style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '18px', height: '18px', color: '#94a3b8' }} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.378 0 2.472.507 3 1.25" />
+                      </svg>
+                      <input
+                        type="text"
+                        placeholder="Search Roll Number (e.g. 24IT002)..."
+                        value={residentSearchRollNo}
+                        onChange={(e) => setResidentSearchRollNo(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '0.75rem 1rem 0.75rem 2.6rem',
+                          borderRadius: '10px',
+                          border: '1.5px solid #cbd5e1',
+                          backgroundColor: '#ffffff',
+                          fontSize: '0.9rem',
+                          fontWeight: 600,
+                          color: '#0f172a',
+                          outline: 'none',
+                          boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.02)'
+                        }}
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isSearchingStudent}
+                      style={{
+                        padding: '0.75rem 1.75rem',
+                        borderRadius: '10px',
+                        backgroundColor: '#1e3a8a',
+                        color: '#ffffff',
+                        border: 'none',
+                        fontSize: '0.9rem',
+                        fontWeight: 750,
+                        cursor: isSearchingStudent ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.4rem',
+                        transition: 'all 0.2s ease',
+                        boxShadow: '0 4px 10px -2px rgba(30, 58, 138, 0.3)'
+                      }}
+                    >
+                      {isSearchingStudent ? (
+                        <>
+                          <div style={{ width: '14px', height: '14px', border: '2px solid #ffffff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s infinite linear' }}></div>
+                          <span>Searching...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                          <span>Search Student</span>
+                        </>
+                      )}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Display Errors */}
+                {scannerErrorMessage && (
+                  <div style={{
+                    padding: '1rem 1.25rem',
+                    borderRadius: '12px',
+                    backgroundColor: '#fee2e2',
+                    border: '1px solid #fca5a5',
+                    color: '#991b1b',
+                    fontSize: '0.88rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.6rem',
+                    marginBottom: '1.5rem',
+                    animation: 'shake 0.3s ease-in-out'
+                  }}>
+                    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span>{scannerErrorMessage}</span>
+                  </div>
+                )}
+
+                {/* Display Scanned/Queried Student Details & Controls */}
+                {scannedStudent && (
+                  <div style={{
+                    borderRadius: '16px',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    overflow: 'hidden',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.01)',
+                    animation: 'fadeIn 0.25s ease'
+                  }}>
+                    
+                    {/* Verified Header Block */}
+                    <div style={{
+                      padding: '1.25rem 1.5rem',
+                      background: scannedStudent.movementStatus === 'OUTING' 
+                        ? 'linear-gradient(135deg, #f59e0b, #d97706)' 
+                        : scannedStudent.movementStatus === 'HOME'
+                        ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+                        : 'linear-gradient(135deg, #10b981, #059669)',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '0.75rem'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span style={{ fontSize: '1.05rem', fontWeight: 800, letterSpacing: '0.02em' }}>Student Verified</span>
+                      </div>
+                      <span style={{
+                        fontSize: '0.8rem',
+                        fontWeight: 900,
+                        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                        padding: '0.3rem 0.85rem',
+                        borderRadius: '20px',
+                        textTransform: 'uppercase',
+                        border: '1px solid rgba(255, 255, 255, 0.4)',
+                        letterSpacing: '0.05em'
+                      }}>
+                        {scannedStudent.movementStatus === 'IN' || !scannedStudent.movementStatus ? 'IN HOSTEL' : scannedStudent.movementStatus}
+                      </span>
+                    </div>
+
+                    <div style={{ padding: '1.5rem' }}>
+                      {/* Profile Grid */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.85rem', marginBottom: '1.5rem' }}>
+                        {[
+                          { label: 'Student Name', value: scannedStudent.name },
+                          { label: 'Roll Number', value: scannedStudent.rollNo },
+                          { label: 'Block / Room', value: `${scannedStudent.block} Block – Room ${scannedStudent.roomNo}` },
+                          { label: 'Hostel', value: scannedStudent.hostelType }
+                        ].map((field, idx) => (
+                          <div key={idx} style={{ backgroundColor: '#f8fafc', padding: '0.85rem 1.25rem', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
+                            <span style={{ fontSize: '0.72rem', color: '#64748b', display: 'block', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.2rem' }}>
+                              {field.label}
+                            </span>
+                            <span style={{ fontSize: '0.95rem', color: '#0f172a', fontWeight: 800 }}>
+                              {field.value}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Movement Control Buttons */}
+                      <div style={{ marginBottom: '1.5rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 750, color: '#475569', display: 'block', marginBottom: '0.6rem' }}>Trigger Movement Action</span>
+                        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                          {scannedStudent.movementStatus === 'IN' || !scannedStudent.movementStatus ? (
+                            <>
+                              <button
+                                type="button"
+                                disabled={isSubmittingMovement}
+                                onClick={() => handleUpdateMovementStatus(scannedStudent._id, 'OUTING')}
+                                style={{
+                                  flex: '1 1 140px',
+                                  padding: '0.85rem 1.25rem',
+                                  borderRadius: '10px',
+                                  border: 'none',
+                                  background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                                  color: '#ffffff',
+                                  fontSize: '0.9rem',
+                                  fontWeight: 800,
+                                  cursor: isSubmittingMovement ? 'not-allowed' : 'pointer',
+                                  boxShadow: '0 4px 12px rgba(245, 158, 11, 0.25)',
+                                  transition: 'all 0.2s ease',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '0.4rem'
+                                }}
+                              >
+                                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                </svg>
+                                OUTING
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isSubmittingMovement}
+                                onClick={() => handleUpdateMovementStatus(scannedStudent._id, 'HOME')}
+                                style={{
+                                  flex: '1 1 140px',
+                                  padding: '0.85rem 1.25rem',
+                                  borderRadius: '10px',
+                                  border: 'none',
+                                  background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                                  color: '#ffffff',
+                                  fontSize: '0.9rem',
+                                  fontWeight: 800,
+                                  cursor: isSubmittingMovement ? 'not-allowed' : 'pointer',
+                                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)',
+                                  transition: 'all 0.2s ease',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '0.4rem'
+                                }}
+                              >
+                                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                                </svg>
+                                HOME
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={isSubmittingMovement}
+                              onClick={() => handleUpdateMovementStatus(scannedStudent._id, 'IN')}
+                              style={{
+                                width: '100%',
+                                padding: '0.85rem 1.25rem',
+                                borderRadius: '10px',
+                                border: 'none',
+                                background: 'linear-gradient(135deg, #10b981, #059669)',
+                                color: '#ffffff',
+                                fontSize: '0.9rem',
+                                fontWeight: 800,
+                                cursor: isSubmittingMovement ? 'not-allowed' : 'pointer',
+                                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
+                                transition: 'all 0.2s ease',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '0.4rem'
+                              }}
+                            >
+                              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l-4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                              </svg>
+                              RETURN / IN
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Recent Movements History Log Timeline */}
+                      <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem' }}>
+                          <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <h5 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 800, color: '#334155' }}>Recent Movements History</h5>
+                        </div>
+                        
+                        <div style={{
+                          maxHeight: '180px',
+                          overflowY: 'auto',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '12px',
+                          padding: '1rem',
+                          backgroundColor: '#f8fafc'
+                        }}>
+                          {scannedHistory.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '1.5rem', color: '#94a3b8' }}>
+                              <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 550 }}>No movement records found for this resident.</p>
+                            </div>
+                          ) : (
+                            <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '1rem', paddingLeft: '1rem' }}>
+                              {/* Timeline track vertical line */}
+                              <div style={{
+                                position: 'absolute',
+                                left: '3px',
+                                top: '5px',
+                                bottom: '5px',
+                                width: '2px',
+                                backgroundColor: '#cbd5e1'
+                              }}></div>
+
+                              {scannedHistory.map((item, idx) => {
+                                const isOuting = item.newStatus === 'OUTING';
+                                const isHome = item.newStatus === 'HOME';
+                                const statusColor = isOuting ? '#d97706' : isHome ? '#ef4444' : '#10b981';
+                                const statusBg = isOuting ? '#fef3c7' : isHome ? '#fee2e2' : '#d1fae5';
+                                const statusBorder = isOuting ? '#fde68a' : isHome ? '#fca5a5' : '#a7f3d0';
+
+                                return (
+                                  <div key={item._id || idx} style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'flex-start',
+                                    position: 'relative',
+                                    fontSize: '0.82rem'
+                                  }}>
+                                    {/* Timeline dot */}
+                                    <div style={{
+                                      position: 'absolute',
+                                      left: '-16.5px',
+                                      top: '4.5px',
+                                      width: '9px',
+                                      height: '9px',
+                                      borderRadius: '50%',
+                                      backgroundColor: statusColor,
+                                      border: '2px solid #ffffff',
+                                      boxShadow: '0 0 0 1px #cbd5e1'
+                                    }}></div>
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                        <span style={{
+                                          fontWeight: 850,
+                                          color: statusColor,
+                                          backgroundColor: statusBg,
+                                          border: `1px solid ${statusBorder}`,
+                                          padding: '0.15rem 0.5rem',
+                                          borderRadius: '6px',
+                                          fontSize: '0.72rem',
+                                          textTransform: 'uppercase'
+                                        }}>
+                                          {item.newStatus === 'IN' ? 'IN HOSTEL' : item.newStatus}
+                                        </span>
+                                        <span style={{ color: '#334155', fontWeight: 650 }}>
+                                          {item.previousStatus === 'IN' ? 'IN HOSTEL' : item.previousStatus} &rarr; {item.newStatus === 'IN' ? 'IN HOSTEL' : item.newStatus}
+                                        </span>
+                                      </div>
+                                      <span style={{ color: '#64748b', fontSize: '0.74rem' }}>
+                                        Logged by {item.updatedBy} ({item.updatedByRole})
+                                      </span>
+                                    </div>
+                                    
+                                    <span style={{ color: '#94a3b8', fontSize: '0.74rem', fontWeight: 650, whiteSpace: 'nowrap', marginLeft: '0.75rem' }}>
+                                      {new Date(item.timestamp).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* RECENT MOVEMENTS SECTION */}
+              <div className="grid-card" style={{
+                padding: windowWidth < 768 ? '1rem' : '1.75rem',
+                marginBottom: '1.75rem',
+                border: '1px solid #e2e8f0',
+                borderRadius: '20px',
+                background: '#ffffff',
+                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05)'
+              }}>
+                {/* Header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '1rem', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ 
+                      width: '42px', 
+                      height: '42px', 
+                      borderRadius: '10px', 
+                      backgroundColor: '#eff6ff', 
+                      color: '#1e3a8a', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      border: '1px solid #bfdbfe'
+                    }}>
+                      <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Recent Movements</h3>
+                      <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.82rem', color: '#64748b', fontWeight: 550 }}>
+                        Audit trail of student check-ins, outings, and home leaves
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Filter and Search Controls Grid */}
+                <div style={{ 
+                  backgroundColor: '#f8fafc', 
+                  padding: '1.25rem', 
+                  borderRadius: '16px', 
+                  border: '1px solid #e2e8f0', 
+                  marginBottom: '1.5rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1rem'
+                }}>
+                  {/* Row 1: Search & Status Filter */}
+                  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    
+                    {/* Search Field */}
+                    <div style={{ flex: '2 1 300px', position: 'relative' }}>
+                      <svg style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '18px', height: '18px', color: '#94a3b8' }} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      <input
+                        type="text"
+                        placeholder="Search recent movements by Name, Roll, Block, Room..."
+                        value={historySearchQuery}
+                        onChange={(e) => setHistorySearchQuery(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '0.75rem 1rem 0.75rem 2.6rem',
+                          borderRadius: '10px',
+                          border: '1.5px solid #cbd5e1',
+                          backgroundColor: '#ffffff',
+                          fontSize: '0.9rem',
+                          fontWeight: 600,
+                          color: '#0f172a',
+                          outline: 'none'
+                        }}
+                      />
+                    </div>
+
+                    {/* Status Filter */}
+                    <div style={{ flex: '1 1 180px' }}>
+                      <select
+                        value={historyStatusFilter}
+                        onChange={(e) => setHistoryStatusFilter(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '0.75rem 1rem',
+                          borderRadius: '10px',
+                          border: '1.5px solid #cbd5e1',
+                          backgroundColor: '#ffffff',
+                          fontSize: '0.9rem',
+                          fontWeight: 700,
+                          color: '#334155',
+                          outline: 'none',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <option value="All">All Statuses</option>
+                        <option value="IN">IN HOSTEL</option>
+                        <option value="OUT">OUT</option>
+                        <option value="HOME">HOME</option>
+                      </select>
+                    </div>
+
+                  </div>
+
+                  {/* Row 2: Quick Date Filters */}
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#475569', marginRight: '0.5rem' }}>Date range:</span>
+                    {[
+                      { label: 'All Time', value: 'All' },
+                      { label: 'Today', value: 'Today' },
+                      { label: 'Yesterday', value: 'Yesterday' },
+                      { label: 'Last 7 Days', value: '7Days' },
+                      { label: 'Last 30 Days', value: '30Days' },
+                      { label: 'Custom Date', value: 'Custom' }
+                    ].map((btn) => (
+                      <button
+                        key={btn.value}
+                        type="button"
+                        onClick={() => setHistoryQuickDate(btn.value)}
+                        style={{
+                          padding: '0.45rem 1rem',
+                          borderRadius: '20px',
+                          border: '1.5px solid',
+                          borderColor: historyQuickDate === btn.value ? '#1e3a8a' : '#cbd5e1',
+                          backgroundColor: historyQuickDate === btn.value ? '#1e3a8a' : '#ffffff',
+                          color: historyQuickDate === btn.value ? '#ffffff' : '#475569',
+                          fontSize: '0.8rem',
+                          fontWeight: 750,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {btn.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Row 3: Custom Date Range */}
+                  {historyQuickDate === 'Custom' && (
+                    <div style={{ 
+                      display: 'flex', 
+                      gap: '1rem', 
+                      flexWrap: 'wrap', 
+                      alignItems: 'flex-end', 
+                      backgroundColor: '#ffffff', 
+                      padding: '1rem', 
+                      borderRadius: '10px',
+                      border: '1px solid #e2e8f0',
+                      animation: 'fadeIn 0.2s ease-in-out'
+                    }}>
+                      <div style={{ flex: '1 1 150px' }}>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '0.25rem', textTransform: 'uppercase' }}>From Date</span>
+                        <input
+                          type="date"
+                          value={historyFromDate}
+                          onChange={(e) => setHistoryFromDate(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '0.6rem 0.85rem',
+                            borderRadius: '8px',
+                            border: '1.5px solid #cbd5e1',
+                            fontSize: '0.85rem',
+                            fontWeight: 650,
+                            color: '#334155'
+                          }}
+                        />
+                      </div>
+                      <div style={{ flex: '1 1 150px' }}>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#64748b', display: 'block', marginBottom: '0.25rem', textTransform: 'uppercase' }}>To Date</span>
+                        <input
+                          type="date"
+                          value={historyToDate}
+                          onChange={(e) => setHistoryToDate(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '0.6rem 0.85rem',
+                            borderRadius: '8px',
+                            border: '1.5px solid #cbd5e1',
+                            fontSize: '0.85rem',
+                            fontWeight: 650,
+                            color: '#334155'
+                          }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={fetchMovementHistory}
+                        style={{
+                          padding: '0.6rem 1.5rem',
+                          borderRadius: '8px',
+                          backgroundColor: '#1e3a8a',
+                          color: '#ffffff',
+                          border: 'none',
+                          fontSize: '0.88rem',
+                          fontWeight: 750,
+                          cursor: 'pointer',
+                          boxShadow: '0 4px 6px -1px rgba(30, 58, 138, 0.2)'
+                        }}
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  )}
+
+                </div>
+
+                {/* Display List */}
+                {isFetchingHistory ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1rem', gap: '0.75rem' }}>
+                    <div style={{ width: '28px', height: '28px', border: '3px solid #1e3a8a', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s infinite linear' }}></div>
+                    <span style={{ fontSize: '0.88rem', color: '#64748b', fontWeight: 650 }}>Loading history...</span>
+                  </div>
+                ) : movementsList.length === 0 ? (
+                  <div style={{
+                    padding: '3rem 1.5rem',
+                    textAlign: 'center',
+                    border: '1.5px dashed #cbd5e1',
+                    borderRadius: '16px',
+                    backgroundColor: '#f8fafc'
+                  }}>
+                    <svg width="32" height="32" fill="none" stroke="#94a3b8" strokeWidth="2" viewBox="0 0 24 24" style={{ marginBottom: '0.5rem' }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span style={{ fontSize: '0.92rem', fontWeight: 700, color: '#475569', display: 'block' }}>
+                      {historyQuickDate === 'Custom' && (historyFromDate || historyToDate) 
+                        ? 'No movements found for the selected dates.'
+                        : 'No movement records found.'}
+                    </span>
+                    <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.25rem 0 0 0' }}>Try adjusting your search criteria or filters.</p>
+                  </div>
+                ) : (
+                  <>
+                    <style>{`
+                      .movement-scroll-container::-webkit-scrollbar {
+                        width: 6px;
+                      }
+                      .movement-scroll-container::-webkit-scrollbar-track {
+                        background: #f8fafc;
+                        border-radius: 4px;
+                      }
+                      .movement-scroll-container::-webkit-scrollbar-thumb {
+                        background: #cbd5e1;
+                        border-radius: 4px;
+                      }
+                      .movement-scroll-container::-webkit-scrollbar-thumb:hover {
+                        background: #1e3a8a;
+                      }
+                    `}</style>
+
+                    <div 
+                      className="movement-scroll-container" 
+                      style={{
+                        maxHeight: windowWidth < 768 ? '420px' : windowWidth < 1024 ? '400px' : '450px',
+                        overflowY: 'auto',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '12px',
+                        backgroundColor: '#ffffff'
+                      }}
+                    >
+                      {/* Desktop View (Table Layout) */}
+                      {windowWidth >= 768 ? (
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                              <th style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#f8fafc', padding: '0.85rem 1.25rem', fontWeight: 800, color: '#475569', borderBottom: '1px solid #e2e8f0' }}>Student Details</th>
+                              <th style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#f8fafc', padding: '0.85rem 1.25rem', fontWeight: 800, color: '#475569', borderBottom: '1px solid #e2e8f0' }}>Block / Room</th>
+                              <th style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#f8fafc', padding: '0.85rem 1.25rem', fontWeight: 800, color: '#475569', borderBottom: '1px solid #e2e8f0', textAlign: 'center' }}>Transition</th>
+                              <th style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#f8fafc', padding: '0.85rem 1.25rem', fontWeight: 800, color: '#475569', borderBottom: '1px solid #e2e8f0' }}>Date &amp; Time</th>
+                              <th style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#f8fafc', padding: '0.85rem 1.25rem', fontWeight: 800, color: '#475569', borderBottom: '1px solid #e2e8f0' }}>Updated By</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {movementsList.map((m, idx) => {
+                              const isOuting = m.newStatus === 'OUTING';
+                              const isHome = m.newStatus === 'HOME';
+                              const statusColor = isOuting ? '#d97706' : isHome ? '#ef4444' : '#10b981';
+                              const statusBg = isOuting ? '#fef3c7' : isHome ? '#fee2e2' : '#d1fae5';
+                              const statusBorder = isOuting ? '#fde68a' : isHome ? '#fca5a5' : '#a7f3d0';
+
+                              return (
+                                <tr key={m._id || idx} style={{ borderBottom: idx < movementsList.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                                  <td style={{ padding: '0.85rem 1.25rem' }}>
+                                    <span style={{ fontWeight: 800, color: '#0f172a', display: 'block' }}>{m.studentId?.name || 'N/A'}</span>
+                                    <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>Roll: {m.rollNumber}</span>
+                                  </td>
+                                  <td style={{ padding: '0.85rem 1.25rem', fontWeight: 650, color: '#334155' }}>
+                                    {m.block} Block - Rm {m.studentId?.roomNo || 'N/A'}
+                                  </td>
+                                  <td style={{ padding: '0.85rem 1.25rem', textAlign: 'center' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                                      <span style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: 700 }}>
+                                        {m.previousStatus === 'IN' ? 'IN HOSTEL' : m.previousStatus === 'OUTING' ? 'OUT' : m.previousStatus}
+                                      </span>
+                                      <svg width="14" height="14" fill="none" stroke="#64748b" strokeWidth="2.5" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                      </svg>
+                                      <span style={{
+                                        fontWeight: 850,
+                                        color: statusColor,
+                                        backgroundColor: statusBg,
+                                        border: `1px solid ${statusBorder}`,
+                                        padding: '0.15rem 0.5rem',
+                                        borderRadius: '6px',
+                                        fontSize: '0.72rem',
+                                        textTransform: 'uppercase'
+                                      }}>
+                                        {m.newStatus === 'IN' ? 'IN HOSTEL' : m.newStatus === 'OUTING' ? 'OUT' : m.newStatus}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td style={{ padding: '0.85rem 1.25rem', color: '#475569', fontWeight: 600 }}>
+                                    <span style={{ display: 'block' }}>
+                                      {new Date(m.timestamp).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
+                                    </span>
+                                    <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                                      {new Date(m.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '0.85rem 1.25rem', color: '#475569', fontWeight: 600 }}>
+                                    <span style={{ display: 'block' }}>{m.updatedBy}</span>
+                                    <span style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'capitalize' }}>{m.updatedByRole}</span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      ) : (
+                        /* Mobile View (Card Layout) */
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '0.75rem' }}>
+                          {movementsList.map((m, idx) => {
+                            const isOuting = m.newStatus === 'OUTING';
+                            const isHome = m.newStatus === 'HOME';
+                            const statusColor = isOuting ? '#d97706' : isHome ? '#ef4444' : '#10b981';
+                            const statusBg = isOuting ? '#fef3c7' : isHome ? '#fee2e2' : '#d1fae5';
+                            const statusBorder = isOuting ? '#fde68a' : isHome ? '#fca5a5' : '#a7f3d0';
+
+                            return (
+                              <div key={m._id || idx} style={{
+                                backgroundColor: '#ffffff',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '12px',
+                                padding: '1rem',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.01)'
+                              }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                                  <div>
+                                    <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.92rem', display: 'block' }}>{m.studentId?.name || 'N/A'}</span>
+                                    <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>Roll: {m.rollNumber}</span>
+                                  </div>
+                                  <span style={{
+                                    fontWeight: 850,
+                                    color: statusColor,
+                                    backgroundColor: statusBg,
+                                    border: `1px solid ${statusBorder}`,
+                                    padding: '0.15rem 0.5rem',
+                                    borderRadius: '6px',
+                                    fontSize: '0.7rem',
+                                    textTransform: 'uppercase'
+                                  }}>
+                                    {m.newStatus === 'IN' ? 'IN HOSTEL' : m.newStatus === 'OUTING' ? 'OUT' : m.newStatus}
+                                  </span>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
+                                  <div>
+                                    <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.7rem' }}>LOCATION</span>
+                                    <span style={{ fontWeight: 700, color: '#475569' }}>{m.block} Block - {m.studentId?.roomNo || 'N/A'}</span>
+                                  </div>
+                                  <div>
+                                    <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.7rem' }}>TRANSITION</span>
+                                    <span style={{ fontWeight: 700, color: '#475569' }}>
+                                      {m.previousStatus === 'IN' ? 'IN HOSTEL' : m.previousStatus === 'OUTING' ? 'OUT' : m.previousStatus} &rarr; {m.newStatus === 'IN' ? 'IN HOSTEL' : m.newStatus === 'OUTING' ? 'OUT' : m.newStatus}
+                                    </span>
+                                  </div>
+                                  <div style={{ marginTop: '0.25rem' }}>
+                                    <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.7rem' }}>TIMESTAMP</span>
+                                    <span style={{ fontWeight: 700, color: '#475569' }}>
+                                      {new Date(m.timestamp).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })} @ {new Date(m.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                  <div style={{ marginTop: '0.25rem' }}>
+                                    <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.7rem' }}>LOGGED BY</span>
+                                    <span style={{ fontWeight: 700, color: '#475569' }}>{m.updatedBy} ({m.updatedByRole})</span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+              </div>
+
               <div className="section-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
                   <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Hostel Residents Roster</h2>
@@ -2400,12 +3435,33 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                           {res.name ? res.name.split(' ').map(n=>n[0]).join('').slice(0, 2).toUpperCase() : 'ST'}
                         </div>
                         <h4 style={{ margin: '0 0 0.35rem 0', fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>{res.name}</h4>
-                        <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                        <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
                           <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.6rem', borderRadius: '12px', backgroundColor: '#f1f5f9', color: '#475569' }}>
                             {res.block ? `${res.block} Block` : `Block ${profile.block}`}
                           </span>
                           <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.6rem', borderRadius: '12px', backgroundColor: '#eff6ff', color: '#2563eb' }}>
                             Room {res.roomNo || '101'}
+                          </span>
+                          <span style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 850,
+                            padding: '0.2rem 0.6rem',
+                            borderRadius: '12px',
+                            backgroundColor: res.movementStatus === 'OUTING' ? '#fef3c7' : res.movementStatus === 'HOME' ? '#fee2e2' : '#d1fae5',
+                            color: res.movementStatus === 'OUTING' ? '#d97706' : res.movementStatus === 'HOME' ? '#ef4444' : '#10b981',
+                            border: `1px solid ${res.movementStatus === 'OUTING' ? '#fde68a' : res.movementStatus === 'HOME' ? '#fca5a5' : '#a7f3d0'}`,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem'
+                          }}>
+                            <span style={{
+                              width: '6px',
+                              height: '6px',
+                              borderRadius: '50%',
+                              backgroundColor: res.movementStatus === 'OUTING' ? '#d97706' : res.movementStatus === 'HOME' ? '#ef4444' : '#10b981',
+                              display: 'inline-block'
+                            }}></span>
+                            {res.movementStatus === 'IN' || !res.movementStatus ? 'IN HOSTEL' : res.movementStatus === 'OUTING' ? 'OUT' : res.movementStatus}
                           </span>
                         </div>
                         <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0 0 0.5rem 0' }}>Roll: {res.rollNo || 'N/A'}</p>
@@ -2422,34 +3478,81 @@ const WardenDashboard = ({ user, onLogout, onUpdateProfile }) => {
                           {res.email}
                         </span>
 
-                        <button
-                          onClick={() => {
-                            setSelectedResidentEmail(res.email);
-                            setActiveTab('Messages');
-                          }}
-                          style={{
-                            width: '100%',
-                            padding: '0.55rem',
-                            borderRadius: '10px',
-                            border: '1px solid #bfdbfe',
-                            backgroundColor: '#eff6ff',
-                            color: '#2563eb',
-                            fontSize: '0.82rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '0.4rem',
-                            marginTop: 'auto',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <svg style={{ width: '14px', height: '14px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                          </svg>
-                          Message Student
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.5rem', width: '100%', marginTop: 'auto', marginBottom: '0.5rem' }}>
+                          <button
+                            onClick={() => {
+                              setResidentSearchRollNo(res.rollNo || '');
+                              setIsSearchingStudent(true);
+                              setScannedStudent(null);
+                              setScannedHistory([]);
+                              setScannerErrorMessage('');
+                              const email = encodeURIComponent(user?.email || profile.email);
+                              const role = encodeURIComponent(user?.role || 'warden');
+                              fetch(`/api/students/search/${encodeURIComponent(res.rollNo)}?userEmail=${email}&userRole=${role}`)
+                                .then(r => r.json())
+                                .then(data => {
+                                  if (data.student) {
+                                    setScannedStudent(data.student);
+                                    setScannedHistory(data.history);
+                                    const el = document.getElementById('student-movement-section');
+                                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                                  } else {
+                                    setScannerErrorMessage(data.error || 'Student not found.');
+                                  }
+                                })
+                                .catch(err => {
+                                  console.error(err);
+                                  setScannerErrorMessage('Connection error.');
+                                })
+                                .finally(() => {
+                                  setIsSearchingStudent(false);
+                                });
+                            }}
+                            style={{
+                              flex: 1,
+                              padding: '0.55rem',
+                              borderRadius: '10px',
+                              border: '1.5px solid #cbd5e1',
+                              backgroundColor: '#ffffff',
+                              color: '#475569',
+                              fontSize: '0.8rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.3rem',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            Track Movement
+                          </button>
+                          
+                          <button
+                            onClick={() => {
+                              setSelectedResidentEmail(res.email);
+                              setActiveTab('Messages');
+                            }}
+                            style={{
+                              flex: 1,
+                              padding: '0.55rem',
+                              borderRadius: '10px',
+                              border: '1.5px solid #cbd5e1',
+                              backgroundColor: '#ffffff',
+                              color: '#475569',
+                              fontSize: '0.8rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.3rem',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            Message
+                          </button>
+                        </div>
                       </div>
                     ))
                   )}

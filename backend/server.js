@@ -68,9 +68,24 @@ const StudentSchema = new mongoose.Schema({
   block: { type: String, required: true },
   password: { type: String, required: true },
   profilePhoto: { type: String, default: null },
-  hostelType: { type: String, enum: ['Boys Hostel', 'Girls Hostel'], default: 'Boys Hostel' }
+  hostelType: { type: String, enum: ['Boys Hostel', 'Girls Hostel'], default: 'Boys Hostel' },
+  movementStatus: { type: String, enum: ['IN', 'OUTING', 'HOME'], default: 'IN' },
+  lastMovementUpdate: { type: Date, default: Date.now }
 });
 const Student = mongoose.model('Student', StudentSchema);
+
+const StudentMovementSchema = new mongoose.Schema({
+  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
+  rollNumber: { type: String, required: true },
+  hostelType: { type: String, required: true },
+  block: { type: String, required: true },
+  previousStatus: { type: String, enum: ['IN', 'OUTING', 'HOME'], required: true },
+  newStatus: { type: String, enum: ['IN', 'OUTING', 'HOME'], required: true },
+  timestamp: { type: Date, default: Date.now },
+  updatedBy: { type: String, required: true },
+  updatedByRole: { type: String, required: true }
+});
+const StudentMovement = mongoose.model('StudentMovement', StudentMovementSchema);
 
 const WardenSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -1599,6 +1614,24 @@ app.delete('/api/complaints/history/clear', async (req, res) => {
   }
 });
 
+// GET student current movement status
+app.get('/api/student/movement-status', async (req, res) => {
+  const { email } = req.query;
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+  try {
+    const student = await Student.findOne({ email: email.toLowerCase().trim() });
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+    return res.json({ movementStatus: student.movementStatus || 'IN' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.put('/api/profile', async (req, res) => {
   const { email, role, name, phoneNo, roomNo, block, profilePhoto, rollNo, hostelType } = req.body;
 
@@ -2426,6 +2459,294 @@ app.get('/api/students', async (req, res) => {
     res.json(students);
   } catch (err) {
     res.status(500).json({ message: 'Error fetching students', error: err.message });
+  }
+});
+
+// Student Movement Access Isolation Validation Helper
+async function isWardenAuthorizedForStudent(wardenEmail, wardenRole, student) {
+  if (!wardenEmail) return false;
+  const cleanEmail = wardenEmail.toLowerCase().trim();
+  
+  const assignment = await BlockAssignment.findOne({ wardenEmail: cleanEmail });
+  
+  let allowedHostelType = null;
+  let allowedBlocks = [];
+  let isHeadWarden = false;
+  
+  if (assignment) {
+    allowedHostelType = assignment.hostelType;
+    allowedBlocks = assignment.blocks || [];
+    isHeadWarden = assignment.role === 'headwarden' || allowedBlocks.includes('All') || allowedBlocks.includes('ALL');
+  } else {
+    const warden = await Warden.findOne({ email: cleanEmail, deleted: { $ne: true } });
+    if (warden) {
+      allowedHostelType = warden.hostelType;
+      if (warden.block === 'All' || warden.block === 'ALL' || warden.role === 'headwarden') {
+        isHeadWarden = true;
+      } else if (warden.block) {
+        allowedBlocks = [warden.block.replace(/\s*Block/gi, '').trim()];
+      }
+    }
+  }
+
+  if (wardenRole === 'headwarden') {
+    isHeadWarden = true;
+  }
+
+  if (allowedHostelType && allowedHostelType !== student.hostelType) {
+    return false;
+  }
+
+  if (isHeadWarden) {
+    return true;
+  }
+
+  const cleanStudentBlock = student.block.replace(/\s*Block/gi, '').trim().toUpperCase();
+  
+  const hasBlockPermission = allowedBlocks.some(blockToken => {
+    const cleanToken = blockToken.replace(/\s*Block/gi, '').trim().toUpperCase();
+    if (cleanToken.length > 1 && !cleanToken.includes(' ') && !['ALL'].includes(cleanToken)) {
+      const chars = cleanToken.split('');
+      if (chars.includes(cleanStudentBlock)) {
+        return true;
+      }
+    }
+    return cleanToken === cleanStudentBlock || cleanStudentBlock.startsWith(cleanToken);
+  });
+
+  return hasBlockPermission;
+}
+
+// Student Search by Roll Number API
+app.get('/api/students/search/:rollNumber', async (req, res) => {
+  const { rollNumber } = req.params;
+  const userEmail = req.query.userEmail;
+  const userRole = req.query.userRole;
+
+  if (!userEmail || !userRole) {
+    return res.status(400).json({ error: 'User email and role are required.' });
+  }
+
+  if (userRole !== 'warden' && userRole !== 'headwarden') {
+    return res.status(403).json({ error: 'Access Denied. Only wardens can check student status.' });
+  }
+
+  try {
+    const student = await Student.findOne({
+      rollNo: { $regex: new RegExp("^" + rollNumber.trim() + "$", "i") }
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found.' });
+    }
+
+    const isAuth = await isWardenAuthorizedForStudent(userEmail, userRole, student);
+    if (!isAuth) {
+      return res.status(403).json({ error: 'Unauthorized student.' });
+    }
+
+    const history = await StudentMovement.find({ studentId: student._id })
+      .sort({ timestamp: -1 })
+      .limit(50);
+
+    res.json({
+      student: {
+        _id: student._id,
+        name: student.name,
+        email: student.email,
+        rollNo: student.rollNo,
+        phoneNo: student.phoneNo,
+        roomNo: student.roomNo,
+        block: student.block,
+        hostelType: student.hostelType,
+        movementStatus: student.movementStatus || 'IN'
+      },
+      history
+    });
+  } catch (err) {
+    console.error('Error during student search:', err);
+    res.status(500).json({ error: 'Server error searching student.' });
+  }
+});
+
+// Student Movement Status Update API
+app.post('/api/students/:id/movement', async (req, res) => {
+  const { id } = req.params;
+  const { userEmail, userRole, status } = req.body;
+
+  if (!userEmail || !userRole || !status) {
+    return res.status(400).json({ error: 'userEmail, userRole, and status are required.' });
+  }
+
+  if (userRole !== 'warden' && userRole !== 'headwarden') {
+    return res.status(403).json({ error: 'Access Denied. Only wardens can modify status.' });
+  }
+
+  if (!['IN', 'OUTING', 'HOME'].includes(status)) {
+    return res.status(400).json({ error: 'Invalid movement status.' });
+  }
+
+  try {
+    const student = await Student.findById(id);
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found.' });
+    }
+
+    const isAuth = await isWardenAuthorizedForStudent(userEmail, userRole, student);
+    if (!isAuth) {
+      return res.status(403).json({ error: 'Unauthorized student.' });
+    }
+
+    const previousStatus = student.movementStatus || 'IN';
+    
+    student.movementStatus = status;
+    student.lastMovementUpdate = new Date();
+    await Student.updateOne(
+      { _id: student._id },
+      { $set: { movementStatus: status, lastMovementUpdate: student.lastMovementUpdate } }
+    );
+
+    const warden = await Warden.findOne({ email: userEmail.toLowerCase().trim(), deleted: { $ne: true } });
+    const updaterName = warden ? warden.name : userEmail;
+
+    const movement = await StudentMovement.create({
+      studentId: student._id,
+      rollNumber: student.rollNo,
+      hostelType: student.hostelType,
+      block: student.block,
+      previousStatus,
+      newStatus: status,
+      timestamp: new Date(),
+      updatedBy: updaterName,
+      updatedByRole: warden ? 'warden' : 'headwarden'
+    });
+
+    io.emit('student_movement_updated', {
+      studentId: student._id.toString(),
+      newStatus: status,
+      student: {
+        _id: student._id,
+        name: student.name,
+        email: student.email,
+        rollNo: student.rollNo,
+        phoneNo: student.phoneNo,
+        roomNo: student.roomNo,
+        block: student.block,
+        hostelType: student.hostelType,
+        movementStatus: status
+      },
+      movement
+    });
+
+    res.json({
+      success: true,
+      student: {
+        _id: student._id,
+        name: student.name,
+        email: student.email,
+        rollNo: student.rollNo,
+        phoneNo: student.phoneNo,
+        roomNo: student.roomNo,
+        block: student.block,
+        hostelType: student.hostelType,
+        movementStatus: status
+      },
+      movement
+    });
+
+  } catch (err) {
+    console.error('Error recording movement status:', err);
+    res.status(500).json({ error: 'Failed to record student movement.' });
+  }
+});
+
+// 7.5 GET MOVEMENT HISTORY API (Filtered by Warden's assigned blocks & optional status/date/search)
+app.get('/api/students/movement/history', async (req, res) => {
+  const { userEmail, userRole, status, fromDate, toDate, search } = req.query;
+
+  try {
+    let filter = {};
+    const effectiveEmail = (userEmail || '').toLowerCase().trim();
+    const effectiveRole = (userRole || '').toLowerCase().trim();
+
+    if (effectiveRole === 'headwarden' || effectiveRole === 'management') {
+      filter = {};
+    } else if (effectiveEmail) {
+      const assignment = await BlockAssignment.findOne({ wardenEmail: effectiveEmail });
+      if (assignment) {
+        if (assignment.role === 'headwarden' || (assignment.blocks && assignment.blocks.length >= 6)) {
+          filter = {};
+        } else if (assignment.blocks && assignment.blocks.length > 0) {
+          const conditions = [];
+          assignment.blocks.forEach(b => {
+            const cleanB = b.trim();
+            conditions.push({ block: new RegExp(`^(${cleanB}|${cleanB}\\s*Block|Block\\s*${cleanB}|${cleanB}.*)$`, 'i') });
+            conditions.push({ block: cleanB });
+          });
+          if (assignment.blocks.some(b => ['A', 'B', 'C', 'ABC'].includes(b.toUpperCase()))) {
+            conditions.push(
+              { block: { $regex: '^(ABC|A|B|C)', $options: 'i' } },
+              { block: 'A' }, { block: 'B' }, { block: 'C' }, { block: 'ABC' }
+            );
+          }
+          filter = { $or: conditions };
+        }
+      } else {
+        const userDoc = await User.findOne({ email: effectiveEmail });
+        if (userDoc && userDoc.block && userDoc.block !== 'All') {
+          const b = userDoc.block.trim();
+          filter = {
+            $or: [
+              { block: b },
+              { block: new RegExp(`^(${b}|${b}\\s*Block|Block\\s*${b}|${b}.*)$`, 'i') }
+            ]
+          };
+        }
+      }
+    }
+
+    const hostelType = await getRequestHostelType(req);
+    if (hostelType && hostelType !== 'All Hostels') {
+      filter.hostelType = hostelType;
+    }
+
+    if (status && status !== 'All') {
+      const dbStatus = status === 'OUT' ? 'OUTING' : status;
+      filter.newStatus = dbStatus;
+    }
+
+    if (fromDate || toDate) {
+      const dateFilter = {};
+      if (fromDate) {
+        dateFilter.$gte = new Date(fromDate);
+      }
+      if (toDate) {
+        const endOfDay = new Date(toDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        dateFilter.$lte = endOfDay;
+      }
+      filter.timestamp = dateFilter;
+    }
+
+    let movements = await StudentMovement.find(filter)
+      .sort({ timestamp: -1 })
+      .populate('studentId');
+
+    if (search && search.trim()) {
+      const q = search.trim().toLowerCase();
+      movements = movements.filter(m => {
+        const nameMatch = m.studentId && m.studentId.name && m.studentId.name.toLowerCase().includes(q);
+        const rollMatch = (m.rollNumber || (m.studentId && m.studentId.rollNo) || '').toLowerCase().includes(q);
+        const blockMatch = (m.block || (m.studentId && m.studentId.block) || '').toLowerCase().includes(q);
+        const roomMatch = (m.studentId && m.studentId.roomNo && m.studentId.roomNo.toLowerCase().includes(q));
+        return nameMatch || rollMatch || blockMatch || roomMatch;
+      });
+    }
+
+    res.json(movements);
+  } catch (err) {
+    console.error('Error fetching movement history:', err);
+    res.status(500).json({ error: 'Failed to fetch movement history' });
   }
 });
 

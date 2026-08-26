@@ -23,6 +23,8 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
     profilePhoto: user?.profilePhoto || null
   });
 
+  const [movementStatus, setMovementStatus] = useState(user?.movementStatus || 'IN');
+
   const socketCtx = useSocket();
   const socket = socketCtx?.socket;
 
@@ -41,12 +43,20 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
       }
     };
 
+    const handleMovementUpdate = (data) => {
+      if (data && data.student && data.student.email.toLowerCase() === profile.email.toLowerCase()) {
+        setMovementStatus(data.newStatus || 'IN');
+      }
+    };
+
     socket.on('receive_direct_message', handleDirectMsg);
     socket.on('global_activity_notification', handleDirectMsg);
+    socket.on('student_movement_updated', handleMovementUpdate);
 
     return () => {
       socket.off('receive_direct_message', handleDirectMsg);
       socket.off('global_activity_notification', handleDirectMsg);
+      socket.off('student_movement_updated', handleMovementUpdate);
     };
   }, [socket, profile.email]);
 
@@ -60,6 +70,7 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
         roomNo: user.roomNo,
         block: user.block
       });
+      setMovementStatus(user.movementStatus || 'IN');
     }
   }, [user]);
 
@@ -274,11 +285,12 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
     const fetchData = async () => {
       try {
         const email = encodeURIComponent(profile.email);
-        const [complaintsRes, announcementsRes, messagesRes, bannerRes] = await Promise.all([
+        const [complaintsRes, announcementsRes, messagesRes, bannerRes, movementRes] = await Promise.all([
           fetch(`/api/complaints?userEmail=${email}&userRole=student`),
           fetch('/api/announcements'),
           fetch(`/api/messages?studentEmail=${email}`),
-          fetch('/api/event-banner')
+          fetch('/api/event-banner'),
+          fetch(`/api/student/movement-status?email=${email}`)
         ]);
 
         if (complaintsRes.ok) setComplaints(await complaintsRes.json());
@@ -287,6 +299,10 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
         if (bannerRes.ok) {
           const bannerData = await bannerRes.json();
           if (bannerData) setEventBanner(bannerData);
+        }
+        if (movementRes.ok) {
+          const mData = await movementRes.json();
+          setMovementStatus(mData.movementStatus || 'IN');
         }
 
         fetchFeedbackCampaign();
@@ -624,6 +640,7 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
           <span className="brand-text">CampusCare</span>
         </div>
 
+
         <nav className="sidebar-nav">
           {[
             { id: 'Dashboard', label: 'Dashboard', icon: (
@@ -841,9 +858,40 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
                   profile.name.split(' ').map(n=>n[0]).join('')
                 )}
               </div>
-              <div className="avatar-meta">
+              <div className="avatar-meta" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                 <span className="name">{profile.name}</span>
                 <span className="location">Room {profile.roomNo}, Block {profile.block}</span>
+                
+                {/* CURRENT MOVEMENT STATUS BADGE */}
+                <div style={{
+                  marginTop: '0.2rem',
+                  height: '24px',
+                  padding: '3px 9px',
+                  borderRadius: '999px',
+                  backgroundColor: movementStatus === 'OUTING' ? '#fffbeb' : movementStatus === 'HOME' ? '#eff6ff' : '#ecfdf5',
+                  border: '1px solid',
+                  borderColor: movementStatus === 'OUTING' ? '#fde68a' : movementStatus === 'HOME' ? '#bfdbfe' : '#a7f3d0',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.25rem'
+                }}>
+                  <span style={{
+                    width: '5px',
+                    height: '5px',
+                    borderRadius: '50%',
+                    backgroundColor: movementStatus === 'OUTING' ? '#d97706' : movementStatus === 'HOME' ? '#2563eb' : '#10b981',
+                    display: 'inline-block'
+                  }}></span>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 850,
+                    color: movementStatus === 'OUTING' ? '#d97706' : movementStatus === 'HOME' ? '#2563eb' : '#10b981',
+                    textTransform: 'uppercase',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {movementStatus === 'IN' || movementStatus === 'IN HOSTEL' ? 'IN HOSTEL' : movementStatus === 'OUTING' ? 'OUTING' : 'HOME'}
+                  </span>
+                </div>
               </div>
 
               {showProfileMenu && (
@@ -1660,6 +1708,7 @@ const StudentDashboard = ({ user, onLogout, onUpdateProfile }) => {
                   </div>
                   <h3 style={{ margin: 0 }}>{profile.name}</h3>
                   <span className="profile-role-badge">Student Resident</span>
+
                 </div>
 
                 <div className="profile-data-list">
