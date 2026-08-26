@@ -2493,18 +2493,35 @@ async function isWardenAuthorizedForStudent(wardenEmail, wardenRole, student) {
     isHeadWarden = true;
   }
 
-  if (allowedHostelType && allowedHostelType !== student.hostelType) {
-    return false;
+  // Robust case-insensitive and fuzzy matching for hostel type
+  const cleanAllowedHostel = (allowedHostelType || '').trim().toLowerCase();
+  const cleanStudentHostel = (student.hostelType || 'Boys Hostel').trim().toLowerCase();
+  if (cleanAllowedHostel) {
+    const isHostelMatch = cleanAllowedHostel === cleanStudentHostel || 
+                          cleanAllowedHostel.includes(cleanStudentHostel) || 
+                          cleanStudentHostel.includes(cleanAllowedHostel);
+    if (!isHostelMatch) {
+      return false;
+    }
   }
 
   if (isHeadWarden) {
     return true;
   }
 
-  const cleanStudentBlock = student.block.replace(/\s*Block/gi, '').trim().toUpperCase();
+  // Robust block matching supporting prefixes (boys_, girls_) and case insensitivity
+  const cleanStudentBlock = student.block
+    .replace(/^(boys|girls)_/i, '')
+    .replace(/\s*Block/gi, '')
+    .trim()
+    .toUpperCase();
   
   const hasBlockPermission = allowedBlocks.some(blockToken => {
-    const cleanToken = blockToken.replace(/\s*Block/gi, '').trim().toUpperCase();
+    const cleanToken = blockToken
+      .replace(/^(boys|girls)_/i, '')
+      .replace(/\s*Block/gi, '')
+      .trim()
+      .toUpperCase();
     if (cleanToken.length > 1 && !cleanToken.includes(' ') && !['ALL'].includes(cleanToken)) {
       const chars = cleanToken.split('');
       if (chars.includes(cleanStudentBlock)) {
