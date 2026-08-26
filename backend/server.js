@@ -954,6 +954,17 @@ const getRequestHostelType = async (req) => {
 
 // ================= API ENDPOINTS =================
 
+app.get('/api/temp-debug', async (req, res) => {
+  try {
+    const students = await Student.find({}, 'name rollNo block hostelType');
+    const wardens = await Warden.find({}, 'name email block hostelType role');
+    const assignments = await BlockAssignment.find({});
+    res.json({ students, wardens, assignments });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 1. SIGNUP ENDPOINT
 app.post('/api/signup', async (req, res) => {
   const { name, email, rollNo, phoneNo, roomNo, block, password, role, hostelType } = req.body;
