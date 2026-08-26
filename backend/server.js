@@ -954,17 +954,6 @@ const getRequestHostelType = async (req) => {
 
 // ================= API ENDPOINTS =================
 
-app.get('/api/temp-debug', async (req, res) => {
-  try {
-    const students = await Student.find({}, 'name rollNo block hostelType');
-    const wardens = await Warden.find({}, 'name email block hostelType role');
-    const assignments = await BlockAssignment.find({});
-    res.json({ students, wardens, assignments });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // 1. SIGNUP ENDPOINT
 app.post('/api/signup', async (req, res) => {
   const { name, email, rollNo, phoneNo, roomNo, block, password, role, hostelType } = req.body;
@@ -2560,16 +2549,24 @@ app.get('/api/students/search/:rollNumber', async (req, res) => {
   }
 
   try {
-    const student = await Student.findOne({
+    const students = await Student.find({
       rollNo: { $regex: new RegExp("^" + rollNumber.trim() + "$", "i") }
     });
 
-    if (!student) {
+    if (students.length === 0) {
       return res.status(404).json({ error: 'Student not found.' });
     }
 
-    const isAuth = await isWardenAuthorizedForStudent(userEmail, userRole, student);
-    if (!isAuth) {
+    let student = null;
+    for (const s of students) {
+      const isAuth = await isWardenAuthorizedForStudent(userEmail, userRole, s);
+      if (isAuth) {
+        student = s;
+        break;
+      }
+    }
+
+    if (!student) {
       return res.status(403).json({ error: 'Unauthorized student.' });
     }
 
